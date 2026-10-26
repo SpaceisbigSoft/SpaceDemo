@@ -188,3 +188,76 @@ describe('launching (3.2)', () => {
   });
 });
 
+
+import { cleanupCopies, manifestFile, waitForGameClose } from '../src/launch/cleanup.js';
+
+describe('cleanup after playback (3.5)', () => {
+  function setup() {
+    const pc = fakePc();
+    const found = findGame({ steamDir: pc.steam, platform: 'linux' });
+    const cs = join(pc.game, 'cstrike');
+    const play = (file: string, bytes: Uint8Array, keepCopy = false) => {
+      writeFileSync(file, bytes);
+      const plan = planLaunch(file, found.steam!, found.game!, { inspect: fakeInspect });
+      launch(plan, { gameRunning: () => false, start: () => {}, keepCopy });
+      return plan;
+    };
+    return { pc, cs, play };
+  }
+  it('removes only the copies the launcher made, and only while unchanged', () => {
+    const { pc, cs, play } = setup();
+    mkdirSync(join(cs, 'cdf_test'), { recursive: true });
+    const handPlaced = join(cs, 'cdf_test', 'MoD_train_48.dem');
+    writeFileSync(handPlaced, buildTinyDemo(48, 1));
+    const a = play(join(pc.root, 'a.dem'), new Uint8Array([48, 1, 9, 9]));
+    expect(existsSync(a.target)).toBe(true);
+    expect(existsSync(manifestFile(cs))).toBe(true);
+    const r = cleanupCopies(cs);
+    expect(r.removed).toEqual([a.target]);
+    expect(existsSync(a.target)).toBe(false);
+    expect(existsSync(handPlaced)).toBe(true);
+    expect(existsSync(manifestFile(cs))).toBe(false);
+    // A listed copy that changed afterwards is left alone.
+    const b = play(join(pc.root, 'b.dem'), new Uint8Array([48, 1, 7]));
+    writeFileSync(b.target, new Uint8Array([48, 1, 7, 7]));
+    expect(cleanupCopies(cs)).toEqual({ removed: [], changed: [b.target] });
+    expect(existsSync(b.target)).toBe(true);
+  });
+  it('never replaces a different file with the same name, reuses an identical one', () => {
+    const { pc, cs, play } = setup();
+    mkdirSync(join(cs, 'cdf_test'), { recursive: true });
+    writeFileSync(join(cs, 'cdf_test', 'same.dem'), new Uint8Array([48, 1, 1]));
+    const p = play(join(pc.root, 'same.dem'), new Uint8Array([48, 1, 2]));
+    expect(p.target).toBe(join(cs, 'cdf_test', 'same_2.dem'));
+    expect(p.gamePath).toBe('cdf_test/same_2');
+    expect(readFileSync(join(cs, 'cdf_test', 'same.dem'))).toEqual(Buffer.from([48, 1, 1]));
+    const again = planLaunch(join(pc.root, 'same.dem'), findGame({ steamDir: pc.steam, platform: 'linux' }).steam!, findGame({ steamDir: pc.steam, platform: 'linux' }).game!, { inspect: fakeInspect });
+    expect(again.copyNeeded).toBe(false);
+    expect(again.target).toBe(p.target);
+  });
+  it('a new launch first removes leftovers but keeps the copy it needs; --keep copies are not listed', () => {
+    const { pc, cs, play } = setup();
+    const a = play(join(pc.root, 'a.dem'), new Uint8Array([48, 1, 5]));
+    const b = play(join(pc.root, 'b.dem'), new Uint8Array([48, 1, 6]));
+    expect(existsSync(a.target)).toBe(false); // leftover from the first playback
+    expect(existsSync(b.target)).toBe(true);
+    const k = play(join(pc.root, 'k.dem'), new Uint8Array([48, 1, 8]), true);
+    expect(existsSync(b.target)).toBe(false);
+    expect(cleanupCopies(cs).removed).toEqual([]);
+    expect(existsSync(k.target)).toBe(true);
+  });
+  it('ignores a damaged list that points outside cdf_test', () => {
+    const { pc, cs } = setup();
+    mkdirSync(join(cs, 'cdf_test'), { recursive: true });
+    writeFileSync(join(cs, 'config.cfg'), 'x');
+    writeFileSync(manifestFile(cs), JSON.stringify([{ file: '../config.cfg', size: 1, sha256: '', source: '', createdAt: '' }, { file: '../../hl.exe', size: 1, sha256: '', source: '', createdAt: '' }]));
+    expect(cleanupCopies(cs)).toEqual({ removed: [], changed: [] });
+    expect(existsSync(join(cs, 'config.cfg'))).toBe(true);
+    expect(existsSync(join(pc.game, 'hl.exe'))).toBe(true);
+  });
+  it('waits for the game to start and close', async () => {
+    const seq = [false, false, true, true, false];
+    expect(await waitForGameClose(() => (seq.length > 1 ? seq.shift()! : seq[0]), { sleep: async () => {} })).toBe('closed');
+    expect(await waitForGameClose(() => false, { sleep: async () => {}, startTimeoutMs: 4000 })).toBe('never-started');
+  });
+});

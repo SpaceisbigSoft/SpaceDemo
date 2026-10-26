@@ -11,15 +11,15 @@
 // Playback controls (3.3, owner's choice 2026-10-26): the game's own demo panel only (open the console). Key bindings
 // were tried and don't work: during viewdemo the game counts itself as disconnected and sends every key to the console.
 import { execFileSync, spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { inspectDemo } from '../inspect.js';
 import { writeNewFile } from '../fix/safe-output.js';
 import { CS16_APP_ID, type GameInstall, type SteamInstall } from './steam.js';
+import { cleanupCopies, DEMO_FOLDER, recordCopy, sha256 } from './cleanup.js';
 
 /** Our own folder inside cstrike. Nothing else in the game folder is ever written. */
-export const DEMO_FOLDER = 'cdf_test';
+export { DEMO_FOLDER };
 
 export type PlayMode = 'viewdemo' | 'playdemo';
 
@@ -48,6 +48,7 @@ export interface LaunchPlan {
   maps: string[];
   steamExe: string;
   args: string[];
+  cstrikeDir: string;
   problems: string[];
   notes: string[];
 }
@@ -59,9 +60,6 @@ export function safeDemoName(file: string): string {
   return clean || 'demo';
 }
 
-function sha256(bytes: Uint8Array): string {
-  return createHash('sha256').update(bytes).digest('hex');
-}
 
 function inside(child: string, parent: string): boolean {
   const rel = relative(parent, child);
@@ -101,15 +99,22 @@ export function planLaunch(fixedDemo: string, steam: SteamInstall, game: GameIns
     target = real; // already in our folder with a usable name: play it where it is
     copyNeeded = false;
   } else {
-    target = join(folder, `${options.name ? safeDemoName(options.name) : safeDemoName(fixedDemo)}.dem`);
-    copyNeeded = !(existsSync(target) && statSync(target).size === bytes.length && sha256(new Uint8Array(readFileSync(target))) === sha256(bytes));
+    // Never replace a different file: an identical copy is reused, otherwise the first free name (_2, _3, ...) is used.
+    const base = options.name ? safeDemoName(options.name) : safeDemoName(fixedDemo);
+    const hash = sha256(bytes);
+    copyNeeded = true;
+    target = join(folder, `${base}.dem`);
+    for (let n = 2; existsSync(target); n++) {
+      if (statSync(target).size === bytes.length && sha256(new Uint8Array(readFileSync(target))) === hash) { copyNeeded = false; break; }
+      target = join(folder, `${base}_${n}.dem`);
+    }
     if (!copyNeeded) notes.push('An identical copy is already in the game\'s cdf_test folder; using it.');
   }
   const baseForGame = existsSync(folder) ? realpathSync(game.cstrikeDir) : game.cstrikeDir;
   const gamePath = relative(baseForGame, target).replace(/\\/g, '/').replace(/\.dem$/i, '');
   let args: string[] = [];
   try { args = launchArgs(mode, gamePath, speed); } catch (e) { problems.push((e as Error).message); }
-  return { source: src, target, copyNeeded, gamePath, mode, speed, maps, steamExe: steam.exe, args, problems, notes };
+  return { source: src, target, copyNeeded, gamePath, mode, speed, maps, steamExe: steam.exe, args, cstrikeDir: game.cstrikeDir, problems, notes };
 }
 
 /** tasklist /FO CSV output lists hl.exe. */
@@ -132,15 +137,20 @@ export function isGameRunning(): boolean {
 export interface LaunchResult { started: boolean; message: string }
 
 /** Copies the demo into cdf_test (if needed) and asks Steam to start the game with it. */
-export function launch(plan: LaunchPlan, deps: { gameRunning?: () => boolean; start?: (exe: string, args: string[]) => void } = {}): LaunchResult {
+/** `keepCopy`: the copy is not listed for cleanup, so it stays in cdf_test. */
+export function launch(plan: LaunchPlan, deps: { gameRunning?: () => boolean; start?: (exe: string, args: string[]) => void; keepCopy?: boolean } = {}): LaunchResult {
   if (plan.problems.length) return { started: false, message: plan.problems.join(' ') };
   if ((deps.gameRunning ?? isGameRunning)()) {
     return { started: false, message: 'Counter-Strike is already open. Close it first: Steam won\'t hand a new demo to a game that is already running.' };
   }
+  // Copies left from earlier playback (the game closed while nobody was watching) go first; the one needed now stays.
+  cleanupCopies(plan.cstrikeDir, { keep: [plan.target] });
   if (plan.copyNeeded) {
     mkdirSync(resolve(plan.target, '..'), { recursive: true });
-    // Only ever replaces an earlier copy in our own cdf_test folder, never the person's original.
-    writeNewFile([plan.source], plan.target, new Uint8Array(readFileSync(plan.source)), { overwrite: true });
+    const bytes = new Uint8Array(readFileSync(plan.source));
+    // A new file in our own cdf_test folder; never over an existing file, never the person's original.
+    writeNewFile([plan.source], plan.target, bytes);
+    if (!deps.keepCopy) recordCopy(plan.cstrikeDir, plan.target, bytes, plan.source);
   }
   const start = deps.start ?? ((exe, args) => { spawn(exe, args, { detached: true, stdio: 'ignore' }).unref(); });
   start(plan.steamExe, plan.args);
