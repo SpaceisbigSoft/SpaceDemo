@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseVdf, vdfString, vdfObject } from '../src/launch/vdf.js';
 import { findGame, findSteam, parseRegQuery, steamLibraries } from '../src/launch/steam.js';
-import { launch, launchArgs, planLaunch, safeDemoName } from '../src/launch/launch.js';
+import { isHlRunning, launch, launchArgs, planLaunch, safeDemoName } from '../src/launch/launch.js';
 
 // A stand-in for the demo inspector: the fake demo's first byte is its protocol, the second its number of maps.
 const buildTinyDemo = (protocol: number, maps = 1) => new Uint8Array([protocol, maps, 1, 2, 3]);
@@ -81,6 +81,12 @@ describe('registry output', () => {
     const out = '\r\nHKEY_CURRENT_USER\\Software\\Valve\\Steam\r\n    SteamPath    REG_SZ    c:/program files (x86)/steam\r\n\r\n';
     expect(parseRegQuery(out, 'SteamPath')).toBe('c:/program files (x86)/steam');
     expect(parseRegQuery(out, 'SteamExe')).toBeUndefined();
+  });
+  it('reads the owner\'s real reg.exe and tasklist output (2026-10-26)', () => {
+    const real = '\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Valve\\Steam\r\n    InstallPath    REG_SZ    C:\\Program Files (x86)\\Steam\r\n\r\n';
+    expect(parseRegQuery(real, 'InstallPath')).toBe('C:\\Program Files (x86)\\Steam');
+    expect(isHlRunning('"hl.exe","15904","Console","1","259,268 K"\r\n')).toBe(true);
+    expect(isHlRunning('INFO: No tasks are running which match the specified criteria.\r\n')).toBe(false);
   });
 });
 

@@ -110,12 +110,18 @@ export function planLaunch(fixedDemo: string, steam: SteamInstall, game: GameIns
   return { source: src, target, copyNeeded, gamePath, mode, speed, maps, steamExe: steam.exe, args, problems, notes };
 }
 
-/** Is Counter-Strike (hl.exe) already running? Steam doesn't pass a new demo to a game that is already open. */
+/** tasklist /FO CSV output lists hl.exe. */
+export function isHlRunning(tasklistOutput: string): boolean {
+  return /"hl\.exe"/i.test(tasklistOutput);
+}
+
+/** Is Counter-Strike (hl.exe) already running? Steam doesn't pass a new demo to a game that is already open
+ *  (owner's test 2026-10-26: a second launch while the game was open did nothing). */
 export function isGameRunning(): boolean {
   if (process.platform !== 'win32') return false;
   try {
     const out = execFileSync('tasklist', ['/FI', 'IMAGENAME eq hl.exe', '/NH', '/FO', 'CSV'], { encoding: 'utf8', windowsHide: true });
-    return /"hl\.exe"/i.test(out);
+    return isHlRunning(out);
   } catch {
     return false;
   }
