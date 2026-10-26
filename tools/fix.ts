@@ -2,7 +2,7 @@
 //   npm run fix -- <input.dem> <output.dem> [--game <Half-Life folder>] [--asi <mssvoice.asi>] [--decoder helper|emulator] [--plain] [--overwrite]
 // Voice cleanup is ON by default (owner's choice 2026-10-26 after listening); --plain keeps the voice exactly as decoded.
 // The original is only read; the output must be a different, new file (see engine/src/fix/safe-output.ts).
-// --asi defaults to <game>\mssvoice.asi. The helper (helpers/voice-helper/cdf-voice-helper.exe) is the normal decoder
+// --game defaults to the Steam CS 1.6 found automatically; --asi defaults to <game>\mssvoice.asi. The helper (helpers/voice-helper/cdf-voice-helper.exe) is the normal decoder
 // on Windows; on Linux it runs under Wine. --decoder emulator = development decoder (python3 + unicorn).
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,6 +10,7 @@ import { fixDemo } from '../engine/src/fix/fix.js';
 import { checkSafeOutput, writeNewFile } from '../engine/src/fix/safe-output.js';
 import { emulatorDecoder, helperDecoder, type OldVoiceDecoder } from '../engine/src/voice/decoders.js';
 import { voiceCleanup } from '../engine/src/voice/cleanup.js';
+import { findGame } from '../engine/src/launch/steam.js';
 
 const args = process.argv.slice(2);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
@@ -23,7 +24,10 @@ if (!input || !output) {
 }
 // Check before the (slow) work, and again when writing. --overwrite only ever replaces an earlier output, never the input.
 checkSafeOutput([input], output, { overwrite });
-const asi = asiArg ?? (game ? join(game, 'mssvoice.asi') : undefined);
+// No --game: find the Steam copy of CS 1.6 the same way the launcher does (plan 3.1).
+const gameDir = game ?? findGame().game?.dir;
+if (!game && gameDir) console.log(`Using the game in ${gameDir}`);
+const asi = asiArg ?? (gameDir ? join(gameDir, 'mssvoice.asi') : undefined);
 let decoder: OldVoiceDecoder | undefined;
 if (asi && existsSync(asi)) {
   decoder = decoderArg === 'emulator'
@@ -31,7 +35,7 @@ if (asi && existsSync(asi)) {
     : helperDecoder(join('helpers', 'voice-helper', 'cdf-voice-helper.exe'), asi, process.platform === 'win32' ? {} : { wine: 'wine' });
 }
 const t0 = Date.now();
-const { bytes, report } = fixDemo(new Uint8Array(readFileSync(input)), { halfLifeDir: game, voiceDecoder: decoder, voiceFilter: cleanup ? voiceCleanup : undefined });
+const { bytes, report } = fixDemo(new Uint8Array(readFileSync(input)), { halfLifeDir: gameDir, voiceDecoder: decoder, voiceFilter: cleanup ? voiceCleanup : undefined });
 writeNewFile([input], output, bytes, { overwrite });
 console.log(`Fixed: ${output} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 if (report.recovered) console.log(`  repaired a cut-off recording: ${report.problems.join('; ')}`);
