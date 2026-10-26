@@ -11,7 +11,7 @@ type SortKey = 'name' | 'map' | 'date' | 'length' | 'voice';
 const FILTERS: { id: Filter; label: string; test: (d: LibraryDemo) => boolean; hideWhenEmpty?: boolean }[] = [
   { id: 'all', label: 'All', test: () => true },
   { id: 'needs-fix', label: 'Needs fixing', test: (d) => d.status === 'needs-fix' || d.status === 'damaged' },
-  { id: 'plays', label: 'Plays as is', test: (d) => d.status === 'plays', hideWhenEmpty: true },
+  { id: 'plays', label: 'Ready to watch', test: (d) => d.status === 'plays' || d.status === 'fixed', hideWhenEmpty: true },
   { id: 'voice', label: 'With voice', test: (d) => !!d.info && d.info.talkBursts > 0 },
   { id: 'map', label: 'Map problems', test: (d) => d.map?.kind === 'bad' || d.map?.kind === 'warn', hideWhenEmpty: true },
   { id: 'problem', label: "Can't use", test: (d) => d.status === 'unreadable' || d.status === 'not-cs', hideWhenEmpty: true },
@@ -25,7 +25,7 @@ const SORTS: Record<SortKey, (a: LibraryDemo, b: LibraryDemo) => number> = {
   voice: (a, b) => (a.info?.voiceSeconds ?? a.info?.talkBursts ?? 0) - (b.info?.voiceSeconds ?? b.info?.talkBursts ?? 0),
 };
 
-export function LibraryPage({ library, onOpen }: { library?: LibraryState; onOpen: (key: string) => void }) {
+export function LibraryPage({ library, onOpen, onWatch }: { library?: LibraryState; onOpen: (key: string) => void; onWatch: (key: string) => void }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [map, setMap] = useState('');
@@ -154,20 +154,21 @@ export function LibraryPage({ library, onOpen }: { library?: LibraryState; onOpe
                 </tr>
               </thead>
               <tbody>
-                {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} />)}
+                {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} onWatch={onWatch} />)}
               </tbody>
             </table>
             {shown.length === 0 && demos.length > 0 && <p className="note table-empty">No demos match. Clear the search or pick "All".</p>}
             {demos.length === 0 && !library?.scan && <p className="note table-empty">No demos found in these folders (looking for .dem files, also inside .zip files).</p>}
           </div>
-          <p className="note">Your demos are only read, never changed. Click a demo's name for its details. Watching and fixing from here arrive in the next steps (4.5, 4.6).</p>
+          <p className="note">Your demos are only read, never changed. Click a demo's name for its details. Fix & watch fixes a copy first (your original is never changed), then starts it in CS 1.6.</p>
         </>
       )}
     </div>
   );
 }
 
-function Row({ d, onOpen }: { d: LibraryDemo; onOpen: (key: string) => void }) {
+function Row({ d, onOpen, onWatch }: { d: LibraryDemo; onOpen: (key: string) => void; onWatch: (key: string) => void }) {
+  const watchable = d.status === 'plays' || d.status === 'fixed' || d.status === 'needs-fix' || d.status === 'damaged';
   const i = d.info;
   const where = d.zipEntry ? `${d.file} → ${d.zipEntry}` : d.file;
   const title = [where, ...d.alsoAt.map((a) => `Same demo also at ${a}`)].join('\n');
@@ -200,7 +201,16 @@ function Row({ d, onOpen }: { d: LibraryDemo; onOpen: (key: string) => void }) {
       <td className={`nowrap voice${i && i.talkBursts === 0 ? ' none' : ''}`}>{formatVoice(d)}</td>
       <td><span className={`status status-${d.status}`} title={d.error ?? i?.problems.join('\n') ?? ''}>{STATUS_TEXT[d.status]}</span></td>
       <td className="actions">
-        <button type="button" className="link-btn" onClick={() => void window.spacedemo.showInFolder(d.file)} aria-label={`Show ${d.name} in Explorer`}>Show file</button>
+        <div className="row-actions">
+        {watchable && (
+          <button type="button" className={`btn small${d.status === 'plays' || d.status === 'fixed' ? ' primary' : ''}`} onClick={() => onWatch(d.key)} aria-label={`Watch ${d.name}`}>
+            {d.status === 'plays' || d.status === 'fixed' ? 'Watch' : 'Fix & watch'}
+          </button>
+        )}
+        <button type="button" className="icon-btn" title="Show the file in Explorer" onClick={() => void window.spacedemo.showInFolder(d.fixedCopy ?? d.file)} aria-label={`Show ${d.name} in Explorer`}>
+          <FolderIcon size={18} />
+        </button>
+        </div>
       </td>
     </tr>
   );

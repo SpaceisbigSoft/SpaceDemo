@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type LibraryState, type SpaceDemoApi, type ThemeChoice, type ThemeState } from '../shared/api.js';
+import { IPC, type LibraryState, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -24,6 +24,14 @@ const api: SpaceDemoApi = {
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
   getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
+  getWatchInfo: (key: string) => ipcRenderer.invoke(IPC.watchInfo, key),
+  watch: (key: string, options: { speed?: number; keepCopy?: boolean }) => ipcRenderer.invoke(IPC.watchStart, key, options),
+  onWatchProgress: (listener: (p: WatchProgress) => void) => {
+    const handler = (_event: unknown, p: WatchProgress) => listener(p);
+    ipcRenderer.on(IPC.watchProgress, handler);
+    return () => { ipcRenderer.removeListener(IPC.watchProgress, handler); };
+  },
+  chooseOutputFolder: () => ipcRenderer.invoke(IPC.outputFolderChoose),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

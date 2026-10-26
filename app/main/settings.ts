@@ -11,6 +11,8 @@ export interface Settings {
   libraryFolders: string[];
   /** Folders with old map versions (map pool). */
   mapFolders: string[];
+  /** Where fixed copies go; undefined = Documents\SpaceDemo\Fixed demos. */
+  outputFolder?: string;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
@@ -35,6 +37,7 @@ export function cleanSettings(raw: unknown): Settings {
     if (typeof r.theme === 'string' && (THEME_CHOICES as readonly string[]).includes(r.theme)) out.theme = r.theme as ThemeChoice;
     out.libraryFolders = cleanPaths(r.libraryFolders);
     out.mapFolders = cleanPaths(r.mapFolders);
+    if (typeof r.outputFolder === 'string' && r.outputFolder.trim()) out.outputFolder = r.outputFolder;
   }
   return out;
 }

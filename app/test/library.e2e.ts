@@ -11,6 +11,7 @@ const shots = join(root, 'out', 'screenshots');
 const zips = process.env.CDF_ZIPS;
 const pool = process.env.CDF_POOL;
 const dataDir = mkdtempSync(join(tmpdir(), 'spacedemo-lib-e2e-'));
+const outDir = mkdtempSync(join(tmpdir(), 'spacedemo-fixed-'));
 
 let app: ElectronApplication;
 let page: Page;
@@ -19,7 +20,8 @@ async function launch(): Promise<void> {
   app = await electron.launch({
     args: [root, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
     executablePath: (await import('electron')).default as unknown as string,
-    env: { ...process.env, SPACEDEMO_USER_DATA: dataDir },
+    // DRY_LAUNCH: Steam is never started; what would run goes to launch-log.txt.
+    env: { ...process.env, SPACEDEMO_USER_DATA: dataDir, SPACEDEMO_DRY_LAUNCH: '1', SPACEDEMO_OUTPUT_DIR: outDir },
   });
   page = await app.firstWindow();
   await page.setViewportSize({ width: 1280, height: 820 });
@@ -149,6 +151,36 @@ describe.skipIf(!zips)('library screen', () => {
     await shot('11 details mfaTside (old map)');
     await page.click('nav button:has-text("Library")');
     await page.waitForSelector('[data-testid="demo-table"]');
+  });
+
+  it('watches a demo: fix first, then start the game (4.5)', async () => {
+    if (!process.env.SPACEDEMO_GAME_DIR) return;
+    await page.click('button[aria-label="Watch modTside"]');
+    await page.waitForSelector('[data-testid="watch-guide"]');
+    expect(await page.textContent('[data-testid="watch-fix-note"]')).toContain('modTside_fixed.dem');
+    expect(await page.textContent('[data-testid="watch-guide"]')).toContain('viewdemo');
+    expect(await page.locator('[data-testid="watch-dialog"] input[name="speed"]:disabled').count()).toBe(4);
+    await shot('12 watch dialog');
+    await page.click('[data-testid="watch-start"]');
+    await page.waitForSelector('[data-testid="watch-progress"][data-stage="playing"]', { timeout: 240_000 });
+    const text = await page.textContent('[data-testid="watch-progress"]');
+    expect(text).toContain('Converted protocol 46 → 48');
+    expect(text).toContain('Open the console (~)');
+    await shot('13 watch playing');
+    const log = readFileSync(join(dataDir, 'launch-log.txt'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(log[0].args).toEqual(['-applaunch', '10', '-insecure', '+viewdemo', 'cdf_test/modTside_fixed']);
+    await page.click('[data-testid="watch-progress"] button:has-text("Done")');
+    expect(await page.locator('[data-testid="watch-dialog"]').count()).toBe(0);
+    // The library now knows the fixed copy.
+    const row = page.locator('[data-testid="demo-row"]').filter({ hasText: 'modTside' }).filter({ hasNotText: 'CTside' });
+    expect(await row.getAttribute('data-status')).toBe('fixed');
+    expect(await row.textContent()).toContain('Fixed · ready');
+    // Watching again: no fixing.
+    await page.click('button[aria-label="Watch modTside"]');
+    await page.waitForSelector('[data-testid="watch-guide"]');
+    expect(await page.locator('[data-testid="watch-fix-note"]').count()).toBe(0);
+    await page.keyboard.press('Escape');
+    expect(await page.locator('[data-testid="watch-dialog"]').count()).toBe(0);
   });
 
   it('opens instantly from the cache after a restart', async () => {

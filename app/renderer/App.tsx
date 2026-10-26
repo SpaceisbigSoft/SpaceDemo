@@ -6,6 +6,7 @@ import { LibraryPage } from './pages/LibraryPage.js';
 import { FixPage } from './pages/FixPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { DetailsPage } from './pages/DetailsPage.js';
+import { WatchDialog } from './WatchDialog.js';
 
 export type PageId = 'library' | 'fix' | 'settings' | 'details';
 
@@ -22,6 +23,8 @@ export function App() {
   const [library, setLibrary] = useState<LibraryState | undefined>();
   const [detailsKey, setDetailsKey] = useState<string | undefined>();
   const openDetails = (key: string) => { setDetailsKey(key); setPage('details'); };
+  const [watchKey, setWatchKey] = useState<string | undefined>();
+  const watchDemo = library?.demos.find((d) => d.key === watchKey);
   const navPage: PageId = page === 'details' ? 'library' : page;
 
   useEffect(() => {
@@ -83,12 +86,13 @@ export function App() {
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
         <main className="page" data-testid={`page-${page}`}>
-          {page === 'library' && <LibraryPage library={library} onOpen={openDetails} />}
-          {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} />}
+          {page === 'library' && <LibraryPage library={library} onOpen={openDetails} onWatch={setWatchKey} />}
+          {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} onWatch={setWatchKey} />}
           {page === 'fix' && <FixPage />}
           {page === 'settings' && <SettingsPage game={game} looking={looking} onLookAgain={lookForGame} />}
         </main>
       </div>
+      {watchDemo && <WatchDialog demo={watchDemo} onClose={() => setWatchKey(undefined)} />}
     </div>
   );
 }

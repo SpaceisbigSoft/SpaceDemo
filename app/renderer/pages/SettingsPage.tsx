@@ -1,4 +1,4 @@
-// Settings (plan 4.7 fills in the rest). Working now: the light/dark choice (4.2) and what was found of the game (3.1).
+// Settings (plan 4.7 fills in the rest). Working now: theme (4.2), game found (3.1), old map folders (4.3), fixed-demos folder (4.5).
 import { useEffect, useState } from 'react';
 import type { AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
@@ -81,6 +81,13 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           <p className="note">No map pool folder yet. Today's maps in your game folder are always checked.</p>
         )}
         <div><button type="button" className="btn" onClick={() => void window.spacedemo.addMapFolder().then(setView)}>Add map folder…</button></div>
+      </section>
+
+      <section className="card" aria-labelledby="out-h" data-testid="settings-output">
+        <h2 id="out-h">Fixed demos</h2>
+        <p className="note" style={{ color: 'var(--text-2)' }}>When a demo is fixed, the fixed copy is saved here. Your originals are never changed.</p>
+        <span className="mono" style={{ overflowWrap: 'anywhere' }}>{view?.outputFolder ?? '…'}</span>
+        <div><button type="button" className="btn" onClick={() => void window.spacedemo.chooseOutputFolder().then(setView)}>Change folder…</button></div>
       </section>
 
       <section className="card" aria-labelledby="about-h">

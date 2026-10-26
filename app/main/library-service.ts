@@ -19,6 +19,8 @@ export interface LibraryServiceOptions {
   /** The Half-Life folder of today's game, if found. */
   gameDir: () => string | undefined;
   onChange: (state: LibraryState) => void;
+  /** The app's valid fixed copy of a demo, if any (plan 4.5). */
+  fixedCopy?: (key: string, source: { size: number; mtime: number }) => string | undefined;
   /** Shortest time between two updates sent to the window. */
   throttleMs?: number;
 }
@@ -96,8 +98,29 @@ export class LibraryService {
   private fill(demo: LibraryDemo, e: CacheEntry, pool: string[]): void {
     demo.info = e.info;
     demo.error = e.error;
-    demo.status = demoStatus(e.info, e.error);
     demo.map = e.info ? mapStatus(e.info, this.maps, pool) : undefined;
+    this.applyFixed(demo, this.rows.find((r) => r.demo === demo)?.candidate);
+  }
+
+  private applyFixed(demo: LibraryDemo, c: Candidate | undefined): void {
+    demo.status = demoStatus(demo.info, demo.error);
+    demo.fixedCopy = undefined;
+    if (!c || (demo.status !== 'needs-fix' && demo.status !== 'damaged')) return;
+    const copy = this.o.fixedCopy?.(demo.key, { size: c.size, mtime: c.mtime });
+    if (copy) { demo.status = 'fixed'; demo.fixedCopy = copy; }
+  }
+
+  /** The row and where its demo is (for Watch and Fix). */
+  row(key: string): { demo: LibraryDemo; candidate: Candidate } | undefined {
+    return this.rows.find((r) => r.demo.key === key);
+  }
+
+  /** Call after a demo was fixed: its status becomes "Fixed · ready". */
+  fixedChanged(key: string): void {
+    const r = this.row(key);
+    if (!r) return;
+    this.applyFixed(r.demo, r.candidate);
+    this.emit(true);
   }
 
   private emit(now: boolean): void {

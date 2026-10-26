@@ -52,9 +52,38 @@ export interface LibraryDemo {
   error?: string;
   map?: MapStatus;
   status: DemoStatus;
+  /** The app's fixed copy of this demo, when there is a valid one (status 'fixed'). */
+  fixedCopy?: string;
 }
 
-export type DemoStatus = 'waiting' | 'plays' | 'needs-fix' | 'damaged' | 'not-cs' | 'unreadable';
+/** What the Watch dialog shows before starting (plan 4.5). */
+export interface WatchInfo {
+  key: string;
+  name: string;
+  /** viewdemo (one map: the game's demo panel works) or playdemo (map changes: speed set at the start). */
+  mode: 'viewdemo' | 'playdemo';
+  maps: string[];
+  /** The demo will be fixed first (it isn't playable as is and has no fixed copy yet). */
+  needsFix: boolean;
+  /** Where the fixed copy is (or will be). */
+  fixedCopy?: string;
+  /** Things that stop watching (game not found…). */
+  problems: string[];
+  /** Things to know (old map version not in place…). */
+  warnings: string[];
+}
+
+export interface WatchProgress {
+  key: string;
+  stage: 'fixing' | 'starting' | 'playing' | 'done' | 'error';
+  message: string;
+  /** What fixing did, in plain words. */
+  done?: string[];
+  /** Things to know from fixing (not successes). */
+  notes?: string[];
+}
+
+export type DemoStatus = 'waiting' | 'plays' | 'fixed' | 'needs-fix' | 'damaged' | 'not-cs' | 'unreadable';
 
 export interface DemoSummary {
   networkProtocol: number;
@@ -135,6 +164,8 @@ export interface DetailsMap {
 
 export interface AppSettingsView {
   theme: ThemeChoice;
+  /** Where fixed copies are saved. */
+  outputFolder: string;
   /** Folders with old map versions (the map pool). */
   mapFolders: string[];
 }
@@ -168,7 +199,14 @@ export interface SpaceDemoApi {
   /** Details of a library demo (plan 4.4), by its library key. Reads the demo; changes nothing. */
   getDemoDetails(key: string): Promise<DemoDetails | { error: string }>;
 
+  /** Watch (plan 4.5): what will happen, then fix if needed and start the game. Progress comes through onWatchProgress. */
+  getWatchInfo(key: string): Promise<WatchInfo | { error: string }>;
+  watch(key: string, options: { speed?: number; keepCopy?: boolean }): Promise<WatchProgress>;
+  onWatchProgress(listener: (p: WatchProgress) => void): () => void;
+
   getSettings(): Promise<AppSettingsView>;
+  /** Choose where fixed copies go (folder picker). */
+  chooseOutputFolder(): Promise<AppSettingsView>;
   /** Adds a map-pool folder (no path = ask with the folder picker). */
   addMapFolder(path?: string): Promise<AppSettingsView>;
   removeMapFolder(path: string): Promise<AppSettingsView>;
@@ -188,6 +226,10 @@ export const IPC = {
   libraryChanged: 'library:changed',
   showInFolder: 'shell:show-in-folder',
   demoDetails: 'library:details',
+  watchInfo: 'watch:info',
+  watchStart: 'watch:start',
+  watchProgress: 'watch:progress',
+  outputFolderChoose: 'settings:output-folder',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',

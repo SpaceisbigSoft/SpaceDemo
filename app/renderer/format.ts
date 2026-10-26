@@ -28,6 +28,7 @@ export function formatVersion(protocol: number): string {
 export const STATUS_TEXT: Record<DemoStatus, string> = {
   waiting: 'Reading…',
   plays: 'Plays as is',
+  fixed: 'Fixed · ready',
   'needs-fix': 'Needs fixing',
   damaged: 'Damaged · repairable',
   'not-cs': 'Not Counter-Strike',

@@ -2,10 +2,13 @@
 // Safety: the window runs sandboxed with no access to Node.js or files; it can only call the named functions in
 // app/shared/api.ts. Links to websites open in the normal browser, never inside the app. Nothing here touches the game.
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
-import { existsSync } from 'node:fs';
+import { appendFileSync, existsSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { IPC, THEME_CHOICES, type AppInfo, type AppSettingsView, type GameStatus, type ThemeChoice, type ThemeState } from '../shared/api.js';
-import { gameStatus } from './game.js';
+import { gameStatus, toGameStatus } from './game.js';
+import { findGame } from '../../engine/src/launch/steam.js';
+import { FixedStore } from './fixed-store.js';
+import { WatchService } from './watch-service.js';
 import { LibraryService } from './library-service.js';
 import { loadSettings, saveSettings, settingsFile, type Settings } from './settings.js';
 import { workerReader } from './worker-reader.js';
@@ -25,10 +28,27 @@ let file: string;
 let win: BrowserWindow | undefined;
 let game: GameStatus | undefined;
 let library: LibraryService;
+let watcher: WatchService;
+let fixedStore: FixedStore;
+
+/** Test-only switches: a stand-in game folder, and "pretend to start Steam" (writes what it would run to a log). */
+const TEST_GAME_DIR = process.env.SPACEDEMO_GAME_DIR;
+const DRY_LAUNCH = process.env.SPACEDEMO_DRY_LAUNCH === '1';
+
+function findRaw() {
+  const found = findGame(TEST_GAME_DIR ? { gameDir: TEST_GAME_DIR } : {});
+  // Tests have no Steam: a stand-in so the plan can be made (nothing is started in DRY_LAUNCH).
+  if (DRY_LAUNCH && !found.steam) found.steam = { dir: '/steam', exe: '/steam/steam.exe', source: 'manual' };
+  return found;
+}
+
+function outputFolder(): string {
+  return settings.outputFolder ?? process.env.SPACEDEMO_OUTPUT_DIR ?? join(app.getPath('documents'), 'SpaceDemo', 'Fixed demos');
+}
 
 function findGameNow(): GameStatus {
   // SPACEDEMO_GAME_DIR: tests point the app at a stand-in game folder.
-  game = gameStatus(process.env.SPACEDEMO_GAME_DIR ? { gameDir: process.env.SPACEDEMO_GAME_DIR } : {});
+  try { game = toGameStatus(findRaw()); } catch { game = gameStatus(); }
   return game;
 }
 
@@ -38,7 +58,7 @@ function saveAndApply(next: Settings): void {
 }
 
 function settingsView(): AppSettingsView {
-  return { theme: settings.theme, mapFolders: [...settings.mapFolders] };
+  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder() };
 }
 
 /** Paths from the window: kept only if they are absolute and exist. */
@@ -154,6 +174,17 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.libraryRescan, () => { void library.refresh(); return library.state(); });
   ipcMain.handle(IPC.demoDetails, (_e, key: unknown) => (typeof key === 'string' ? library.details(key) : { error: 'No demo given.' }));
+  ipcMain.handle(IPC.watchInfo, (_e, key: unknown) => (typeof key === 'string' ? watcher.info(key) : { error: 'No demo given.' }));
+  ipcMain.handle(IPC.watchStart, (_e, key: unknown, options: unknown) => {
+    const o = (options ?? {}) as { speed?: unknown; keepCopy?: unknown };
+    const speed = typeof o.speed === 'number' && o.speed > 0 && o.speed <= 4 ? o.speed : 1;
+    return typeof key === 'string' ? watcher.watch(key, { speed, keepCopy: o.keepCopy === true }) : { key: '', stage: 'error', message: 'No demo given.' };
+  });
+  ipcMain.handle(IPC.outputFolderChoose, async () => {
+    const [p] = await pickFolders('Choose where fixed demos are saved', false);
+    if (p) saveAndApply({ ...settings, outputFolder: p });
+    return settingsView();
+  });
   ipcMain.handle(IPC.showInFolder, (_e, path: unknown) => {
     if (typeof path === 'string' && isAbsolute(path) && existsSync(path)) shell.showItemInFolder(path);
   });
@@ -194,13 +225,23 @@ if (!app.requestSingleInstanceLock()) {
     settings = loadSettings(file);
     applyTheme(settings.theme);
     nativeTheme.on('updated', themeChanged);
+    fixedStore = new FixedStore(join(app.getPath('userData'), 'fixed.json'));
+    const reader = workerReader(join(__dirname, 'scan-worker.cjs'));
     library = new LibraryService({
       cacheFile: join(app.getPath('userData'), 'library-cache.json'),
-      reader: workerReader(join(__dirname, 'scan-worker.cjs')),
+      reader,
+      fixedCopy: (key, source) => fixedStore.get(key, source)?.output,
       roots: () => settings.libraryFolders,
       mapFolders: () => settings.mapFolders,
       gameDir: () => game?.gameDir,
       onChange: (state) => win?.webContents.send(IPC.libraryChanged, state),
+    });
+    const launchLog = join(app.getPath('userData'), 'launch-log.txt');
+    watcher = new WatchService({
+      library, reader, fixed: fixedStore, findGame: findRaw, outputFolder,
+      helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
+      onProgress: (p) => win?.webContents.send(IPC.watchProgress, p),
+      ...(DRY_LAUNCH ? { start: (exe: string, args: string[]) => appendFileSync(launchLog, JSON.stringify({ exe, args }) + '\n'), gameRunning: () => false, noWait: true } : {}),
     });
     findGameNow();
     registerIpc();

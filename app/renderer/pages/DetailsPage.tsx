@@ -7,7 +7,7 @@ import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } fro
 const TEAM_NAME = { T: 'Terrorists', CT: 'Counter-Terrorists' } as const;
 const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb exploded', D: 'bomb defused', T: 'time ran out', '=': 'draw', O: 'other' };
 
-export function DetailsPage({ demo, onBack }: { demo?: LibraryDemo; onBack: () => void }) {
+export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
 
@@ -51,7 +51,9 @@ export function DetailsPage({ demo, onBack }: { demo?: LibraryDemo; onBack: () =
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
           <button type="button" className="btn" onClick={() => void window.spacedemo.showInFolder(demo.file)}>Show file</button>
-          <button type="button" className="btn primary" disabled title="Arrives in step 4.5">Watch in CS 1.6</button>
+          <button type="button" className="btn primary" onClick={() => onWatch(demo.key)} data-testid="details-watch">
+            {demo.status === 'needs-fix' || demo.status === 'damaged' ? 'Fix & watch' : 'Watch in CS 1.6'}
+          </button>
         </div>
       </header>
 

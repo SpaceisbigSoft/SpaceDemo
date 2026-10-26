@@ -78,6 +78,10 @@ Each layer depends only on the layer below it.
   - Details (plan 4.4): `main/details.ts` (match data 2.12 + inspector voice numbers + bomb sites 2.14 → what the page
     shows; clan tag = a name part most of a team shares; the game's overview picture only when the demo's map is the
     installed version, never for old versions), read in the background thread when the page opens.
+  - Watch (plan 4.5): `main/watch-service.ts` (fix first when needed → `main/fixer.ts` in the background thread, the same
+    one-step fix as `npm run fix`, written with writeNewFile into the fixed-demos folder; then the 3.2 launcher and the
+    3.5 cleanup when the game closes), `main/fixed-store.ts` (which demos have a valid fixed copy: `%APPDATA%\SpaceDemo\fixed.json`;
+    a copy counts only while the original is unchanged). Bundles get `import.meta.url` from a banner (`app/build.mjs`).
   - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)

@@ -17,12 +17,19 @@ mkdirSync(join(out, 'renderer'), { recursive: true });
 copyFileSync(join(root, 'app/renderer/index.html'), join(out, 'renderer/index.html'));
 
 const common = { bundle: true, sourcemap: true, logLevel: 'info', target: 'es2022', legalComments: 'none' };
+// The engine is ES modules; a few files use import.meta.url (e.g. to load opusscript from node_modules). In the
+// CommonJS bundles below it is given the bundle file's own address.
+const cjsImportMeta = {
+  banner: { js: "const __importMetaUrl = require('node:url').pathToFileURL(__filename).href;" },
+  define: { 'import.meta.url': '__importMetaUrl' },
+};
 
 const builds = [
   {
     ...common,
     entryPoints: [join(root, 'app/main/main.ts')],
     outfile: join(out, 'main/main.cjs'),
+    ...cjsImportMeta,
     platform: 'node',
     format: 'cjs',
     external: ['electron'],
@@ -32,6 +39,7 @@ const builds = [
     ...common,
     entryPoints: [join(root, 'app/main/scan-worker.ts')],
     outfile: join(out, 'main/scan-worker.cjs'),
+    ...cjsImportMeta,
     platform: 'node',
     format: 'cjs',
     target: 'node22',
