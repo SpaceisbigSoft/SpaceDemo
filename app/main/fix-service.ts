@@ -16,6 +16,8 @@ export interface FixServiceDeps {
   gameDir: () => string | undefined;
   outputFolder: () => string;
   helperExe: string;
+  /** Voice cleanup setting (default on). */
+  cleanup?: () => boolean;
   onChange: (s: FixBatchState) => void;
 }
 
@@ -41,7 +43,7 @@ export class FixService {
     const out = fixedOutputPath(this.d.outputFolder(), name, this.d.fixed.ownOutput(key));
     const r = await this.d.reader.fix({
       file: c.file, zipEntry: c.zipEntry, output: out.path, overwrite: out.overwrite,
-      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: true,
+      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true,
     });
     if (r.ok && r.output) {
       this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes });

@@ -46,9 +46,9 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseOutputFolder', 'findGame', 'fixDemos', 'fixFiles', 'getDemoDetails', 'getFixBatch', 'getLibrary',
+      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'clearGameFolder', 'findGame', 'fixDemos', 'fixFiles', 'getDemoDetails', 'getFixBatch', 'getLibrary',
       'getSettings', 'getTheme', 'getWatchInfo', 'info', 'onFixBatch', 'onLibraryChanged', 'onThemeChanged', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder',
+      'openOutputFolder', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder',
       'stopFixing', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
@@ -102,6 +102,30 @@ describe('app shell', () => {
     await launch();
     expect(await bg()).toBe('rgb(244, 245, 247)');
     expect(await page.evaluate(() => window.spacedemo.getTheme())).toEqual({ choice: 'light', dark: false });
+  });
+
+  it('Settings: voice cleanup switch and the game folder by hand (4.7)', async () => {
+    await page.click('nav button:has-text("Settings")');
+    await page.waitForSelector('[data-testid="voice-cleanup"]');
+    expect(await page.isChecked('[data-testid="voice-cleanup"]')).toBe(true);
+    await page.click('[data-testid="voice-cleanup"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).voiceCleanup).toBe(false);
+    await page.click('[data-testid="voice-cleanup"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).voiceCleanup).toBe(true);
+
+    // A folder that isn't the game is refused with the reason.
+    const bad = await page.evaluate((p) => window.spacedemo.chooseGameFolder(p), dataDir);
+    expect(bad.problem).toMatch(/no hl\.exe/);
+    expect(bad.gameDir).toBeUndefined();
+    const game = process.env.SPACEDEMO_GAME_DIR;
+    if (game) {
+      const ok = await page.evaluate((p) => window.spacedemo.chooseGameFolder(p), game);
+      expect(ok.problem).toBeUndefined();
+      expect(ok.gameDir).toBe(game);
+      const back = await page.evaluate(() => window.spacedemo.clearGameFolder());
+      expect(back.gameDir).toBeUndefined();
+    }
+    await shot('16 settings');
   });
 
   it('refuses unknown theme values and never opens new windows', async () => {

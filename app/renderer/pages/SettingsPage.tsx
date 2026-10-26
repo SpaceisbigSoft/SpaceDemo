@@ -1,4 +1,5 @@
-// Settings (plan 4.7 fills in the rest). Working now: theme (4.2), game found (3.1), old map folders (4.3), fixed-demos folder (4.5).
+// Settings (plan 4.7): theme (4.2), the game (found automatically or chosen by hand), old map folders (4.3), voice cleanup,
+// fixed-demos folder (4.5), about.
 import { useEffect, useState } from 'react';
 import type { AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
@@ -18,6 +19,14 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
     void window.spacedemo.info().then(setInfo);
     void window.spacedemo.getSettings().then(setView);
   }, []);
+
+  const [gameProblem, setGameProblem] = useState<string | undefined>();
+  const chooseGame = async () => {
+    const r = await window.spacedemo.chooseGameFolder();
+    setGameProblem(r.problem);
+    setView(r);
+    if (!r.problem) onLookAgain();
+  };
 
   const choose = async (t: ThemeChoice) => {
     setTheme(t);
@@ -51,17 +60,22 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           <p className="note">Looking for Steam and the game…</p>
         ) : game?.found ? (
           <dl className="facts">
-            <dt>Status</dt><dd>Found automatically</dd>
+            <dt>Status</dt><dd>{view?.gameDir ? 'Chosen by you' : 'Found automatically'}</dd>
             <dt>Game folder</dt><dd className="mono">{game.gameDir}</dd>
             {game.version && <><dt>Version</dt><dd>{game.version}{game.buildId ? ` · Steam build ${game.buildId}` : ''}</dd></>}
             {game.steamExe && <><dt>Steam</dt><dd className="mono">{game.steamExe}</dd></>}
           </dl>
         ) : (
-          <p className="problem">Counter-Strike 1.6 wasn't found. Choosing the folder by hand arrives in step 4.7.</p>
+          <p className="problem">Counter-Strike 1.6 wasn't found. Choose its folder (the Half-Life folder with hl.exe and cstrike).</p>
         )}
         {game?.problems.map((p) => <p key={p} className="problem">{p}</p>)}
         {game?.notes.map((n) => <p key={n} className="note">{n}</p>)}
-        <div><button type="button" className="btn" onClick={onLookAgain} disabled={looking}>{looking ? 'Looking…' : 'Look again'}</button></div>
+        {gameProblem && <p className="problem" role="alert">{gameProblem}</p>}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="btn" onClick={onLookAgain} disabled={looking}>{looking ? 'Looking…' : 'Look again'}</button>
+          <button type="button" className="btn" onClick={() => void chooseGame()} data-testid="choose-game">Choose game folder…</button>
+          {view?.gameDir && <button type="button" className="btn" onClick={() => void window.spacedemo.clearGameFolder().then((v) => { setView(v); onLookAgain(); })}>Find automatically</button>}
+        </div>
         <p className="note">SpaceDemo only reads the game folder. It starts the game through Steam with -insecure and never changes game files.</p>
       </section>
 
@@ -81,6 +95,17 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           <p className="note">No map pool folder yet. Today's maps in your game folder are always checked.</p>
         )}
         <div><button type="button" className="btn" onClick={() => void window.spacedemo.addMapFolder().then(setView)}>Add map folder…</button></div>
+      </section>
+
+      <section className="card" aria-labelledby="voice-h" data-testid="settings-voice">
+        <h2 id="voice-h">Voice</h2>
+        <label className="check-row">
+          <input type="checkbox" checked={view?.voiceCleanup ?? true} onChange={(e) => void window.spacedemo.setVoiceCleanup(e.target.checked).then(setView)} data-testid="voice-cleanup" />
+          <span>
+            <span>Voice cleanup</span>
+            <span className="note">Makes the 2002 voice clearer: removes rumble and hiss and evens out the loudness of each talk burst. Turn it off to keep the voice exactly as decoded. Applies to demos fixed from now on.</span>
+          </span>
+        </label>
       </section>
 
       <section className="card" aria-labelledby="out-h" data-testid="settings-output">

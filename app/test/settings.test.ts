@@ -16,7 +16,7 @@ describe('app settings', () => {
   it('saves and loads the theme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-set-'));
     const f = settingsFile(join(dir, 'new folder'));
-    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [] };
+    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [], voiceCleanup: false, gameDir: 'E:\\Games\\Half-Life' };
     saveSettings(f, next);
     expect(loadSettings(f)).toEqual(next);
     expect(JSON.parse(readFileSync(f, 'utf8'))).toEqual(next);
@@ -31,6 +31,8 @@ describe('app settings', () => {
     expect(cleanSettings({ theme: 'light' })).toEqual({ ...DEFAULT_SETTINGS, theme: 'light' });
     expect(cleanSettings({ libraryFolders: ['a', 'a', 3, ''], mapFolders: 'x' })).toEqual({ ...DEFAULT_SETTINGS, libraryFolders: ['a'] });
     expect(cleanSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(DEFAULT_SETTINGS.voiceCleanup).toBe(true);
+    expect(cleanSettings({ voiceCleanup: 'no', gameDir: '' })).toEqual(DEFAULT_SETTINGS);
   });
 });
 

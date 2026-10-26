@@ -6,7 +6,7 @@ import { appendFileSync, existsSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { IPC, THEME_CHOICES, type AppInfo, type AppSettingsView, type GameStatus, type ThemeChoice, type ThemeState } from '../shared/api.js';
 import { gameStatus, toGameStatus } from './game.js';
-import { findGame } from '../../engine/src/launch/steam.js';
+import { checkGameDir, findGame } from '../../engine/src/launch/steam.js';
 import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
@@ -39,7 +39,8 @@ const TEST_GAME_DIR = process.env.SPACEDEMO_GAME_DIR;
 const DRY_LAUNCH = process.env.SPACEDEMO_DRY_LAUNCH === '1';
 
 function findRaw() {
-  const found = findGame(TEST_GAME_DIR ? { gameDir: TEST_GAME_DIR } : {});
+  const gameDir = settings?.gameDir ?? TEST_GAME_DIR;
+  const found = findGame(gameDir ? { gameDir } : {});
   // Tests have no Steam: a stand-in so the plan can be made (nothing is started in DRY_LAUNCH).
   if (DRY_LAUNCH && !found.steam) found.steam = { dir: '/steam', exe: '/steam/steam.exe', source: 'manual' };
   return found;
@@ -61,7 +62,7 @@ function saveAndApply(next: Settings): void {
 }
 
 function settingsView(): AppSettingsView {
-  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder() };
+  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup };
 }
 
 /** Paths from the window: kept only if they are absolute and exist. */
@@ -200,6 +201,26 @@ function registerIpc(): void {
     mkdirSync(outputFolder(), { recursive: true });
     await shell.openPath(outputFolder());
   });
+  ipcMain.handle(IPC.gameFolderChoose, async (_e, path: unknown) => {
+    const [dir] = path === undefined ? await pickFolders('Choose the Half-Life folder (the one with hl.exe and cstrike)', false) : cleanPaths([path]);
+    if (!dir) return settingsView();
+    const problem = checkGameDir(dir);
+    if (problem) return { ...settingsView(), problem };
+    saveAndApply({ ...settings, gameDir: dir });
+    findGameNow();
+    void library.refresh();
+    return settingsView();
+  });
+  ipcMain.handle(IPC.gameFolderClear, () => {
+    saveAndApply({ ...settings, gameDir: undefined });
+    findGameNow();
+    void library.refresh();
+    return settingsView();
+  });
+  ipcMain.handle(IPC.voiceCleanupSet, (_e, on: unknown) => {
+    if (typeof on === 'boolean') saveAndApply({ ...settings, voiceCleanup: on });
+    return settingsView();
+  });
   ipcMain.handle(IPC.outputFolderChoose, async () => {
     const [p] = await pickFolders('Choose where fixed demos are saved', false);
     if (p) saveAndApply({ ...settings, outputFolder: p });
@@ -258,7 +279,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
     fixer = new FixService({
-      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder,
+      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup,
       helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
       onChange: (s) => win?.webContents.send(IPC.fixChanged, s),
     });

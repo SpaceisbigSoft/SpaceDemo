@@ -190,6 +190,10 @@ export interface AppSettingsView {
   theme: ThemeChoice;
   /** Where fixed copies are saved. */
   outputFolder: string;
+  /** Game folder chosen by hand, if any (otherwise found automatically). */
+  gameDir?: string;
+  /** Voice cleanup when fixing (on by default). */
+  voiceCleanup: boolean;
   /** Folders with old map versions (the map pool). */
   mapFolders: string[];
 }
@@ -240,6 +244,11 @@ export interface SpaceDemoApi {
   getSettings(): Promise<AppSettingsView>;
   /** Choose where fixed copies go (folder picker). */
   chooseOutputFolder(): Promise<AppSettingsView>;
+  /** Plan 4.7: the game folder by hand (no path = folder picker); the result says why a folder can't be used. */
+  chooseGameFolder(path?: string): Promise<AppSettingsView & { problem?: string }>;
+  /** Back to finding the game automatically. */
+  clearGameFolder(): Promise<AppSettingsView>;
+  setVoiceCleanup(on: boolean): Promise<AppSettingsView>;
   /** Adds a map-pool folder (no path = ask with the folder picker). */
   addMapFolder(path?: string): Promise<AppSettingsView>;
   removeMapFolder(path: string): Promise<AppSettingsView>;
@@ -269,6 +278,9 @@ export const IPC = {
   fixGet: 'fix:get',
   fixChanged: 'fix:changed',
   openOutput: 'shell:open-output',
+  gameFolderChoose: 'settings:game-folder',
+  gameFolderClear: 'settings:game-folder-clear',
+  voiceCleanupSet: 'settings:voice-cleanup',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',

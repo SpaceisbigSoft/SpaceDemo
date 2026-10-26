@@ -42,6 +42,9 @@ const api: SpaceDemoApi = {
     return () => { ipcRenderer.removeListener(IPC.fixChanged, handler); };
   },
   openOutputFolder: () => ipcRenderer.invoke(IPC.openOutput),
+  chooseGameFolder: (path?: string) => ipcRenderer.invoke(IPC.gameFolderChoose, path),
+  clearGameFolder: () => ipcRenderer.invoke(IPC.gameFolderClear),
+  setVoiceCleanup: (on: boolean) => ipcRenderer.invoke(IPC.voiceCleanupSet, on),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

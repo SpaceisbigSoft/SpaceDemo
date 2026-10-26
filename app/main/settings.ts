@@ -13,10 +13,14 @@ export interface Settings {
   mapFolders: string[];
   /** Where fixed copies go; undefined = Documents\SpaceDemo\Fixed demos. */
   outputFolder?: string;
+  /** Half-Life folder chosen by hand (plan 4.7); undefined = found automatically. */
+  gameDir?: string;
+  /** Voice cleanup when fixing (owner's default: on). */
+  voiceCleanup: boolean;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [] };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
@@ -38,6 +42,8 @@ export function cleanSettings(raw: unknown): Settings {
     out.libraryFolders = cleanPaths(r.libraryFolders);
     out.mapFolders = cleanPaths(r.mapFolders);
     if (typeof r.outputFolder === 'string' && r.outputFolder.trim()) out.outputFolder = r.outputFolder;
+    if (typeof r.gameDir === 'string' && r.gameDir.trim()) out.gameDir = r.gameDir;
+    if (typeof r.voiceCleanup === 'boolean') out.voiceCleanup = r.voiceCleanup;
   }
   return out;
 }
