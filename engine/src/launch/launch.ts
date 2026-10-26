@@ -15,6 +15,9 @@ import { join, relative, resolve, sep } from 'node:path';
 import { inspectDemo } from '../inspect.js';
 import { writeNewFile } from '../fix/safe-output.js';
 import { CS16_APP_ID, type GameInstall, type SteamInstall } from './steam.js';
+import { prepareControls, restoreControls, type ControlOptions } from './controls.js';
+
+const CONTROLS_EXEC = 'cdf_test/cdf_controls.cfg';
 
 /** Our own folder inside cstrike. Nothing else in the game folder is ever written. */
 export const DEMO_FOLDER = 'cdf_test';
@@ -30,6 +33,9 @@ export interface PlanOptions {
   name?: string;
   /** Replaceable in tests. Default: the demo inspector. */
   inspect?: (bytes: Uint8Array) => { networkProtocol: number; gameDir: string; maps: string[] };
+  /** Playback keys (3.3; viewdemo only). Default on. */
+  controls?: boolean;
+  controlOptions?: ControlOptions;
 }
 
 export interface LaunchPlan {
@@ -46,6 +52,10 @@ export interface LaunchPlan {
   maps: string[];
   steamExe: string;
   args: string[];
+  /** Playback keys are set up at launch (viewdemo only). */
+  controls: boolean;
+  controlOptions: ControlOptions;
+  cstrikeDir: string;
   problems: string[];
   notes: string[];
 }
@@ -67,9 +77,14 @@ function inside(child: string, parent: string): boolean {
 }
 
 /** The command-line arguments for steam.exe. -insecure is always there (anti-cheat safety rule). */
-export function launchArgs(mode: PlayMode, gamePath: string, speed = 1): string[] {
+export function launchArgs(mode: PlayMode, gamePath: string, speed = 1, execPath?: string): string[] {
   if (!/^[A-Za-z0-9_\-/]+$/.test(gamePath)) throw new Error(`Demo name "${gamePath}" has characters the game console can't take.`);
-  const args = ['-applaunch', String(CS16_APP_ID), '-insecure', `+${mode}`, gamePath];
+  const args = ['-applaunch', String(CS16_APP_ID), '-insecure'];
+  if (execPath) {
+    if (!/^[A-Za-z0-9_\-/.]+$/.test(execPath)) throw new Error(`Config name "${execPath}" has characters the game console can't take.`);
+    args.push('+exec', execPath);
+  }
+  args.push(`+${mode}`, gamePath);
   if (mode === 'playdemo' && speed !== 1) args.push(String(speed));
   return args;
 }
@@ -105,9 +120,11 @@ export function planLaunch(fixedDemo: string, steam: SteamInstall, game: GameIns
   }
   const baseForGame = existsSync(folder) ? realpathSync(game.cstrikeDir) : game.cstrikeDir;
   const gamePath = relative(baseForGame, target).replace(/\\/g, '/').replace(/\.dem$/i, '');
+  const controls = (options.controls ?? true) && mode === 'viewdemo';
+  if ((options.controls ?? true) && mode === 'playdemo') notes.push('Playback keys only work with viewdemo; this demo plays at the speed chosen at the start.');
   let args: string[] = [];
-  try { args = launchArgs(mode, gamePath, speed); } catch (e) { problems.push((e as Error).message); }
-  return { source: src, target, copyNeeded, gamePath, mode, speed, maps, steamExe: steam.exe, args, problems, notes };
+  try { args = launchArgs(mode, gamePath, speed, controls ? CONTROLS_EXEC : undefined); } catch (e) { problems.push((e as Error).message); }
+  return { source: src, target, copyNeeded, gamePath, mode, speed, maps, steamExe: steam.exe, args, controls, controlOptions: options.controlOptions ?? {}, cstrikeDir: game.cstrikeDir, problems, notes };
 }
 
 /** tasklist /FO CSV output lists hl.exe. */
@@ -135,6 +152,9 @@ export function launch(plan: LaunchPlan, deps: { gameRunning?: () => boolean; st
   if ((deps.gameRunning ?? isGameRunning)()) {
     return { started: false, message: 'Counter-Strike is already open. Close it first: Steam won\'t hand a new demo to a game that is already running.' };
   }
+  // Leftovers from a session whose game closed while the app wasn't watching: put the person's keys back first.
+  restoreControls(plan.cstrikeDir);
+  if (plan.controls) prepareControls(plan.cstrikeDir, plan.controlOptions);
   if (plan.copyNeeded) {
     mkdirSync(resolve(plan.target, '..'), { recursive: true });
     // Only ever replaces an earlier copy in our own cdf_test folder, never the person's original.
@@ -142,5 +162,20 @@ export function launch(plan: LaunchPlan, deps: { gameRunning?: () => boolean; st
   }
   const start = deps.start ?? ((exe, args) => { spawn(exe, args, { detached: true, stdio: 'ignore' }).unref(); });
   start(plan.steamExe, plan.args);
-  return { started: true, message: `Starting Counter-Strike with ${plan.mode} ${plan.gamePath}${plan.args.length > 5 ? ` at x${plan.speed}` : ''}.` };
+  return { started: true, message: `Starting Counter-Strike with ${plan.mode} ${plan.gamePath}${plan.mode === 'playdemo' && plan.speed !== 1 ? ` at x${plan.speed}` : ''}.` };
+}
+
+/** Waits for the game to start (up to `startTimeoutMs`) and then to close; then puts the person's keys back (3.3/3.5). */
+export async function waitAndRestore(cstrikeDir: string, deps: { gameRunning?: () => boolean; sleep?: (ms: number) => Promise<void>; startTimeoutMs?: number; log?: (s: string) => void } = {}): Promise<string> {
+  const running = deps.gameRunning ?? isGameRunning;
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const log = deps.log ?? (() => {});
+  const limit = deps.startTimeoutMs ?? 120_000;
+  let waited = 0;
+  while (!running() && waited < limit) { await sleep(2000); waited += 2000; }
+  if (waited >= limit) return 'The game didn\'t start within 2 minutes. Your keys are put back the next time you play a demo (or with npm run play -- --restore).';
+  log('Counter-Strike is running. Your own keys are put back when you close it.');
+  while (running()) await sleep(2000);
+  await sleep(1500); // let the game finish writing config.cfg
+  return restoreControls(cstrikeDir).message;
 }

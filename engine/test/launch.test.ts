@@ -152,7 +152,7 @@ describe('launching (3.2)', () => {
     let started: string[] = [];
     const r = launch(plan, { gameRunning: () => false, start: (_e, a) => { started = a; } });
     expect(r.started).toBe(true);
-    expect(started).toEqual(['-applaunch', '10', '-insecure', '+viewdemo', 'cdf_test/i69_vs_MoD']);
+    expect(started).toEqual(['-applaunch', '10', '-insecure', '+exec', 'cdf_test/cdf_controls.cfg', '+viewdemo', 'cdf_test/i69_vs_MoD']);
     expect(readFileSync(join(pc.game, 'cstrike', 'cdf_test', 'i69_vs_MoD.dem'))).toEqual(Buffer.from(demoBytes));
     expect(readFileSync(original)).toEqual(Buffer.from(demoBytes));
     // Second time: identical copy is reused; a demo already inside cdf_test plays in place.
@@ -187,3 +187,76 @@ describe('launching (3.2)', () => {
   });
 });
 
+
+import { controlsConfig, prepareControls, readSettings, restoreControls, restoreSettings, DEFAULT_KEYS } from '../src/launch/controls.js';
+import { waitAndRestore } from '../src/launch/launch.js';
+
+// The start of the owner's config.cfg (2026-10-26), shortened; CRLF like the game writes it.
+const ownerConfig = ['// This file is overwritten whenever you change your user settings in the game.', 'unbindall', 'bind "TAB" "+showscores"',
+  'bind "k" "+voicerecord"', 'bind "PAUSE" "pause"', '_cl_autowepswitch "1"', 'voice_scale "0.750000"', 'volume "0.8"', ''].join('\r\n');
+
+describe('playback keys (3.3)', () => {
+  it('builds the controls file with speed steps, pause toggle and skips', () => {
+    const cfg = controlsConfig();
+    expect(cfg).toContain('alias cdf_s0 "dem_speed 0.25; alias cdf_slower cdf_s0; alias cdf_faster cdf_s1; echo CDF speed x1/4"');
+    expect(cfg).toContain('alias cdf_s4 "dem_speed 4; alias cdf_slower cdf_s3; alias cdf_faster cdf_s4; echo CDF speed x4"');
+    expect(cfg).toContain('alias cdf_slower cdf_s1');
+    expect(cfg).toContain('bind "p" "cdf_pp"');
+    expect(cfg).toContain('alias cdf_fwd "dem_jump 30; dem_pause 0; alias cdf_pp cdf_pause; echo CDF forward 30 s"');
+    expect(cfg).not.toMatch(/voice_scale/);
+    const muted = controlsConfig({ muteVoiceInSlowMotion: true, voiceScale: '0.750000' });
+    expect(muted).toContain('dem_speed 0.5; voice_scale 0;');
+    expect(muted).toContain('dem_speed 2; voice_scale 0.750000;');
+    // Only console-safe characters, nothing that changes anything outside the demo player.
+    for (const line of cfg.trim().split('\r\n').slice(1)) expect(line).toMatch(/^(alias cdf_|bind "|echo CDF)/);
+  });
+  it('the default keys are free in the owner\'s config', () => {
+    const { binds, voiceScale } = readSettings(ownerConfig, Object.values(DEFAULT_KEYS));
+    expect(Object.values(binds).every((b) => b === null)).toBe(true);
+    expect(voiceScale).toBe('0.750000');
+    expect(readSettings(ownerConfig, ['K']).binds).toEqual({ k: '+voicerecord' });
+  });
+  it('puts keys and voice_scale back, keeping everything else the game wrote', () => {
+    const saved = { binds: { p: null, k: '+voicerecord' }, voiceScale: '0.750000' };
+    const after = ownerConfig.replace('bind "PAUSE" "pause"', 'bind "PAUSE" "pause"\r\nbind "p" "cdf_pp"').replace('bind "k" "+voicerecord"', 'bind "k" "cdf_faster"')
+      .replace('voice_scale "0.750000"', 'voice_scale "0.000000"').replace('volume "0.8"', 'volume "0.5"');
+    const back = restoreSettings(after, saved);
+    expect(back).toBe(ownerConfig.replace('volume "0.8"', 'volume "0.5"'));
+    // A bound key whose line went missing comes back after the other binds.
+    expect(restoreSettings(ownerConfig.replace('bind "k" "+voicerecord"\r\n', ''), saved)).toContain('bind "PAUSE" "pause"\r\nbind "k" "+voicerecord"\r\n_cl_autowepswitch');
+    expect(restoreSettings('bind "a" "x"\nvoice_scale "0"\n', { binds: {}, dropVoiceScale: true })).toBe('bind "a" "x"\n');
+  });
+  it('full session: prepare, the game changes config.cfg, restore after it closes', async () => {
+    const pc = fakePc();
+    const cs = join(pc.game, 'cstrike');
+    writeFileSync(join(cs, 'config.cfg'), ownerConfig, 'latin1');
+    const { execPath, session } = prepareControls(cs, { muteVoiceInSlowMotion: true }, new Date('2026-10-26T19:30:00Z'));
+    expect(execPath).toBe('cdf_test/cdf_controls.cfg');
+    expect(readFileSync(join(cs, 'cdf_test', 'cdf_controls.cfg'), 'latin1')).toContain('voice_scale 0.750000');
+    expect(readFileSync(session.backupPath, 'latin1')).toBe(ownerConfig);
+    // The game closes and writes our keys and a muted voice into config.cfg.
+    const gameWrote = ownerConfig.replace('bind "PAUSE" "pause"', 'bind "F6" "cdf_back"\r\nbind "F7" "cdf_fwd"\r\nbind "HOME" "cdf_s2"\r\nbind "j" "cdf_slower"\r\nbind "l" "cdf_faster"\r\nbind "p" "cdf_pp"\r\nbind "PAUSE" "pause"').replace('voice_scale "0.750000"', 'voice_scale "0.000000"');
+    writeFileSync(join(cs, 'config.cfg'), gameWrote, 'latin1');
+    let states = [false, true, true, false];
+    const msg = await waitAndRestore(cs, { gameRunning: () => (states.length > 1 ? states.shift()! : states[0]), sleep: async () => {} });
+    expect(msg).toMatch(/back in config\.cfg/);
+    expect(readFileSync(join(cs, 'config.cfg'), 'latin1')).toBe(ownerConfig);
+    expect(restoreControls(cs).restored).toBe(false); // nothing left to do
+    states = [];
+  });
+  it('launch adds +exec for viewdemo and sets the keys up; not for playdemo', () => {
+    const pc = fakePc();
+    const cs = join(pc.game, 'cstrike');
+    writeFileSync(join(cs, 'config.cfg'), ownerConfig, 'latin1');
+    const found = findGame({ steamDir: pc.steam, platform: 'linux' });
+    const one = join(pc.root, 'one.dem');
+    writeFileSync(one, buildTinyDemo(48));
+    let started: string[] = [];
+    launch(planLaunch(one, found.steam!, found.game!, { inspect: fakeInspect }), { gameRunning: () => false, start: (_e, a) => { started = a; } });
+    expect(started).toEqual(['-applaunch', '10', '-insecure', '+exec', 'cdf_test/cdf_controls.cfg', '+viewdemo', 'cdf_test/one']);
+    expect(existsSync(join(cs, 'cdf_test', 'cdf_session.json'))).toBe(true);
+    const two = join(pc.root, 'two.dem');
+    writeFileSync(two, buildTinyDemo(48, 2));
+    expect(planLaunch(two, found.steam!, found.game!, { inspect: fakeInspect }).args).not.toContain('+exec');
+  });
+});
