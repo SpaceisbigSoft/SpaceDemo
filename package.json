@@ -19,6 +19,7 @@
     "map": "tsx tools/map.ts",
     "walk": "tsx tools/walk.ts",
     "fix": "tsx tools/fix.ts",
+    "play": "tsx tools/play.ts",
     "build:helper": "sh helpers/voice-helper/build.sh"
   },
   "devDependencies": {
