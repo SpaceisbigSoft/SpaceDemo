@@ -123,3 +123,16 @@ Game ("user") messages, CS 1.5 layouts as found in the demos (sizes: -1 = sized 
   sounds 29 %), enemies 32 % (seen 19 %, sounds 21 %); 2 s window: 74 % / 36 %. HLTV: 94 %. At POV kills both positions are
   known ±1 s for 85 % (both seen 72 %). Track position at a kill is within 50 units of the corpse for 84 % (median 3–9 units).
 - HLTV `svc_director` types seen: 1 start, 2 event (highlights: kills etc.), 5 time scale, 6 message, 8 status.
+
+## Maps for the radar (plan 2.14, checked on Set 1)
+- Overview images (`cstrike/overviews/<map>.bmp`, 1024×768, 8-bit) + `.txt` (ZOOM, ORIGIN, ROTATED): **pixel x = 512 + (x − originX)·zoom/8,
+  pixel y = 384 − (y − originY)·zoom/8.** ROTATED does not change this mapping. Positions land on drawn floor: de_train 100 %,
+  de_inferno 100 %, de_prodigy 99 %, de_nuke 98 % (HLTV de_train: free fit gave 0.1965 px/unit vs zoom/8 = 0.195).
+  **The images show today's map versions:** the 2002 de_cbble (checksum 3163797097) only fits 58 % → use the drawn fallback.
+- Bomb sites: `func_bomb_target` brush bounds (models lump), `info_bomb_target` point ±256; join touching pieces (de_prodigy has
+  4 brushes = 2 sites); compare height too (de_nuke: A at z −416..−320 above B at −768..−672). Site letters A/B are not in the map.
+- **Plant position (CS 1.5 sends none):** `BombDrop` is 6 bytes (x, y, z, no flag) and only for dropped bombs; CT POV demos never get it.
+  Use the planted C4 object (`models/w_c4.mdl` entity origin) or the C4 plant/beep sounds' origin: 144 of 150 Set 1 plants located,
+  all inside a site.
+- Fallback top-down map: upward faces (normal z ≥ 0.7) of model 0, keeping heights from the lowest to the 99.5th-percentile
+  player origin −36 ±24 (removes roofs); 99 % of positions lie over a kept polygon (2002 de_cbble, de_prodigy).

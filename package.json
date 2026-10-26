@@ -15,7 +15,8 @@
     "inspect": "tsx tools/inspect.ts",
     "convert": "tsx tools/convert.ts",
     "match": "tsx tools/match.ts",
-    "repair": "tsx tools/repair.ts"
+    "repair": "tsx tools/repair.ts",
+    "map": "tsx tools/map.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

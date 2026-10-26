@@ -40,6 +40,8 @@ Each layer depends only on the layer below it.
 - `engine/src/match/` — match data (plan 2.12): players (by server user id), rounds with winner/reason/score, kills,
   death spots (corpses matched to kills), chat, radio, bomb, shots, voice bursts, recorder data, HLTV director events;
   `checkMatch` compares the result with the server's own frags and team score.
+- `engine/src/map/` — map facts for the radar (plan 2.14): bomb sites, spawns and floor polygons from the .bsp (read-only),
+  the game's overview images (`overview.ts`: world → image mapping, checked against player positions).
 - `engine/src/map-index.ts` — finds the exact map version a demo needs among folders of .bsp files (by checksum).
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).

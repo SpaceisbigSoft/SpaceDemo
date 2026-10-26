@@ -54,6 +54,11 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
   const lastSample = new Map<number, number>();
   let models: string[] = [];
   let sounds: string[] = [];
+  /** A plant whose position is not known yet (CS 1.5 does not send it): filled from the C4 object or its sounds. */
+  const pendingPlant = () => {
+    const e = [...m.bomb].reverse().find((x) => x.kind === 'planted');
+    return e && !e.position ? e : undefined;
+  };
   const track = (id: number): PlayerTrack => tracks.get(id) ?? (tracks.set(id, { player: id, seen: [], radar: [], heard: [] }).get(id)!);
   const weaponName = (index: unknown) => {
     const n = typeof index === 'number' ? models[index] : undefined;
@@ -221,9 +226,18 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
             const states = tracker.packet(b, incomingSequence(f.info));
             packet.clear();
             for (const n of states.keys()) packet.add(n);
+            const plant = pendingPlant();
+            if (plant && t - plant.time >= 0 && t - plant.time < 30) {
+              for (const [n, es] of states) {
+                if (n <= 32 || typeof es.modelindex !== 'number' || !/w_c4\.mdl$/i.test(models[es.modelindex] ?? '')) continue;
+                if (typeof es['origin[0]'] !== 'number') continue;
+                plant.position = [es['origin[0]'] as number, es['origin[1]'] as number, es['origin[2]'] as number];
+                break;
+              }
+            }
             if (wantTracks && playback) {
               for (const [n, es] of states) {
-                if (n < 1 || n > 32 || es['origin[0]'] === undefined) continue;
+                if (n < 1 || n > 32 || typeof es['origin[0]'] !== 'number' || typeof es['origin[1]'] !== 'number' || typeof es['origin[2]'] !== 'number') continue;
                 const id = idOf(n - 1);
                 if (t - (lastSample.get(id) ?? -1) < sampleStep) continue;
                 lastSample.set(id, t);
@@ -239,7 +253,12 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
           case 'baseline':
             tracker.baseline(b);
             break;
-          case 'sound':
+          case 'sound': {
+            const plant = pendingPlant();
+            const name = sounds[b.sound] ?? '';
+            if (plant && /weapons\/c4_(plant|beep)/i.test(name) && t - plant.time >= -1 && t - plant.time < 45 && b.origin.every((v) => v !== undefined)) {
+              plant.position = [b.origin[0]!, b.origin[1]!, b.origin[2]!];
+            }
             if (wantTracks && playback && b.entity >= 1 && b.entity <= 32 && b.origin[0] !== undefined && b.origin[1] !== undefined) {
               track(idOf(b.entity - 1)).heard.push({
                 time: t, x: Math.round(b.origin[0]), y: Math.round(b.origin[1]), z: Math.round(b.origin[2] ?? 0), alive: true,
@@ -247,6 +266,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
               });
             }
             break;
+          }
           case 'user':
             handleUser(b.name, new PayloadReader(b.payload), t, f.time);
             break;
@@ -314,18 +334,28 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         }
         if (text === '#Game_will_restart_in') restartAt = rawTime + Number(p.str() || 1);
         if (text === '#Game_Commencing') restartAt = rawTime + 3;
-        if (text === '#Bomb_Planted') addBomb({ time: t, kind: 'planted' });
+        if (text === '#Bomb_Planted') {
+          // The plant position may already have arrived as a bomb drop just before this message.
+          const lastDrop = [...m.bomb].reverse().find((e) => e.kind === 'dropped');
+          if (lastDrop && Math.abs(lastDrop.time - t) <= 2) {
+            lastDrop.kind = 'planted';
+            lastDrop.time = t;
+          } else addBomb({ time: t, kind: 'planted' });
+        }
         if (text === '#Bomb_Defused') addBomb({ time: t, kind: 'defused' });
         if (text === '#Target_Bombed') addBomb({ time: t, kind: 'exploded' });
         if (text === '#Defusing_Bomb_With_Defuse_Kit' || text === '#Defusing_Bomb_Without_Defuse_Kit') addBomb({ time: t, kind: 'defusing' });
         break;
       }
       case 'BombDrop': {
+        // CS 1.5: x, y, z only (6 bytes). CS 1.6 adds a flag byte (1 = planted). A drop sent together with the
+        // "#Bomb_Planted" message (within 2 s) is the plant position.
         const position: [number, number, number] = [p.coord(), p.coord(), p.coord()];
-        const planted = p.u8() === 1;
-        if (planted) {
-          const last = [...m.bomb].reverse().find((e) => e.kind === 'planted');
-          if (last && !last.position && Math.abs(last.time - t) < 3) last.position = position;
+        const flag = p.remaining > 0 ? p.u8() : undefined;
+        const lastPlant = [...m.bomb].reverse().find((e) => e.kind === 'planted');
+        const nearPlant = lastPlant && !lastPlant.position && Math.abs(lastPlant.time - t) <= 2;
+        if (flag === 1 || nearPlant) {
+          if (nearPlant) lastPlant!.position = position;
           else addBomb({ time: t, kind: 'planted', position });
         } else addBomb({ time: t, kind: 'dropped', position });
         break;
