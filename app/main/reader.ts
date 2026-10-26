@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { inspectDemo } from '../../engine/src/inspect.js';
 import { indexMaps, type MapFile } from '../../engine/src/map-index.js';
 import { readZipEntry } from '../../engine/src/zip.js';
-import type { DemoSummary } from '../shared/api.js';
+import type { DemoDetails, DemoSummary } from '../shared/api.js';
+import { readDetails, type DetailsJob } from './details.js';
 import { summarize, type Candidate } from './library.js';
 
 export interface DemoResult { info?: DemoSummary; error?: string }
@@ -12,6 +13,7 @@ export interface DemoResult { info?: DemoSummary; error?: string }
 export interface LibraryReader {
   maps(folders: string[]): Promise<MapFile[]>;
   demo(c: Pick<Candidate, 'file' | 'zipEntry'>): Promise<DemoResult>;
+  details(job: DetailsJob): Promise<DemoDetails | { error: string }>;
   close(): void;
 }
 
@@ -36,6 +38,7 @@ export function directReader(): LibraryReader {
   return {
     maps: async (folders) => indexMaps(folders),
     demo: async (c) => readDemoNow(c),
+    details: async (job) => readDetails(job),
     close: () => {},
   };
 }

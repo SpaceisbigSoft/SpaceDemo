@@ -5,8 +5,9 @@ import { FixIcon, LibraryIcon, LogoMark, SettingsIcon } from './icons.js';
 import { LibraryPage } from './pages/LibraryPage.js';
 import { FixPage } from './pages/FixPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
+import { DetailsPage } from './pages/DetailsPage.js';
 
-export type PageId = 'library' | 'fix' | 'settings';
+export type PageId = 'library' | 'fix' | 'settings' | 'details';
 
 const PAGES: { id: PageId; label: string; Icon: () => ReactElement }[] = [
   { id: 'library', label: 'Library', Icon: LibraryIcon },
@@ -19,6 +20,9 @@ export function App() {
   const [game, setGame] = useState<GameStatus | undefined>();
   const [looking, setLooking] = useState(true);
   const [library, setLibrary] = useState<LibraryState | undefined>();
+  const [detailsKey, setDetailsKey] = useState<string | undefined>();
+  const openDetails = (key: string) => { setDetailsKey(key); setPage('details'); };
+  const navPage: PageId = page === 'details' ? 'library' : page;
 
   useEffect(() => {
     void window.spacedemo.getLibrary().then(setLibrary);
@@ -43,7 +47,8 @@ export function App() {
     return window.spacedemo.onThemeChanged((s) => apply(s.dark));
   }, []);
 
-  const current = PAGES.find((p) => p.id === page)!;
+  const current = PAGES.find((p) => p.id === navPage)!;
+  const detailsDemo = library?.demos.find((d) => d.key === detailsKey);
 
   return (
     <div className="app">
@@ -51,7 +56,7 @@ export function App() {
         <LogoMark size={16} />
         <strong>SpaceDemo</strong>
         <span aria-hidden="true">·</span>
-        <span data-testid="titlebar-page">{current.label}</span>
+        <span data-testid="titlebar-page">{current.label}{page === 'details' && detailsDemo ? ` › ${detailsDemo.name}` : ''}</span>
         {library?.scan && <span className="titlebar-progress">· reading demos {library.scan.done}/{library.scan.total}</span>}
       </header>
       <div className="frame">
@@ -68,7 +73,7 @@ export function App() {
               key={id}
               type="button"
               className="nav-item"
-              aria-current={page === id ? 'page' : undefined}
+              aria-current={navPage === id ? 'page' : undefined}
               onClick={() => setPage(id)}
             >
               <Icon />
@@ -78,7 +83,8 @@ export function App() {
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
         <main className="page" data-testid={`page-${page}`}>
-          {page === 'library' && <LibraryPage library={library} />}
+          {page === 'library' && <LibraryPage library={library} onOpen={openDetails} />}
+          {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} />}
           {page === 'fix' && <FixPage />}
           {page === 'settings' && <SettingsPage game={game} looking={looking} onLookAgain={lookForGame} />}
         </main>

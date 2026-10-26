@@ -153,6 +153,7 @@ function registerIpc(): void {
     return library.state();
   });
   ipcMain.handle(IPC.libraryRescan, () => { void library.refresh(); return library.state(); });
+  ipcMain.handle(IPC.demoDetails, (_e, key: unknown) => (typeof key === 'string' ? library.details(key) : { error: 'No demo given.' }));
   ipcMain.handle(IPC.showInFolder, (_e, path: unknown) => {
     if (typeof path === 'string' && isAbsolute(path) && existsSync(path)) shell.showItemInFolder(path);
   });

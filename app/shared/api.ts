@@ -91,6 +91,48 @@ export interface LibraryState {
   scan?: { done: number; total: number };
 }
 
+/** The details page of one demo (plan 4.4). Built when the page opens; nothing is written. */
+export interface DemoDetails {
+  key: string;
+  teams: { T: TeamDetails; CT: TeamDetails };
+  /** Final score of this recording: the server's own numbers when sent, else rounds counted. */
+  score?: { T: number; CT: number; source: 'server' | 'rounds'; matchesRounds: boolean };
+  rounds: { number: number; winner?: 'T' | 'CT' | 'draw'; reason?: string }[];
+  chat: { time: number; who?: string; team?: 'T' | 'CT'; text: string; teamOnly: boolean; dead: boolean }[];
+  /** Talk time per player, most first. */
+  talk: { name: string; seconds: number; team?: 'T' | 'CT' }[];
+  talkBursts: number;
+  map: DetailsMap;
+  /** Warm-up restarts skipped (data before the last restart isn't counted). */
+  restarts: number;
+}
+
+export interface TeamDetails {
+  /** Clan tag shared by most of the team's players (e.g. "i69"), when there is one. */
+  tag?: string;
+  players: PlayerRow[];
+  /** False when nobody on this team is heard (a POV demo holds only the recorder's team voice). */
+  heard: boolean;
+}
+
+export interface PlayerRow {
+  name: string;
+  kills: number;
+  deaths: number;
+  headshots: number;
+  talkSeconds: number;
+  recorder: boolean;
+}
+
+export interface DetailsMap {
+  /** The game's overview picture (data: URL), only when it matches this demo's map version. */
+  image?: string;
+  /** Bomb sites on the picture (pixels of the 1024x768 image). */
+  sites: { letter: string; x: number; y: number }[];
+  /** Why there is no picture, in plain words. */
+  note?: string;
+}
+
 export interface AppSettingsView {
   theme: ThemeChoice;
   /** Folders with old map versions (the map pool). */
@@ -123,6 +165,9 @@ export interface SpaceDemoApi {
   /** Opens Windows Explorer with this file selected (read-only). */
   showInFolder(path: string): Promise<void>;
 
+  /** Details of a library demo (plan 4.4), by its library key. Reads the demo; changes nothing. */
+  getDemoDetails(key: string): Promise<DemoDetails | { error: string }>;
+
   getSettings(): Promise<AppSettingsView>;
   /** Adds a map-pool folder (no path = ask with the folder picker). */
   addMapFolder(path?: string): Promise<AppSettingsView>;
@@ -142,6 +187,7 @@ export const IPC = {
   libraryRescan: 'library:rescan',
   libraryChanged: 'library:changed',
   showInFolder: 'shell:show-in-folder',
+  demoDetails: 'library:details',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',

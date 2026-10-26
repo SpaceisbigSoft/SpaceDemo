@@ -116,6 +116,41 @@ describe.skipIf(!zips)('library screen', () => {
     expect(await rows().filter({ hasText: 'modTside' }).textContent()).toContain('installed');
   });
 
+  it('opens a demo\'s details page (4.4) and goes back', async () => {
+    await page.fill('#search', '');
+    await page.click('[data-testid="demo-row"] button.name-btn:text-is("modTside")');
+    await page.waitForSelector('[data-testid="details-score"]', { timeout: 60_000 });
+    expect(await page.textContent('[data-testid="titlebar-page"]')).toBe('Library › modTside');
+    const score = await page.textContent('[data-testid="details-score"]');
+    expect(score).toContain('6 : 6');
+    expect(score).toContain("Matches the server's own score");
+    expect(await page.locator('.rounds li').count()).toBe(12);
+    const players = await page.textContent('[data-testid="details-players"]');
+    expect(players).toContain(':i69:Endbringer');
+    expect(players).toContain('own voice not recorded');
+    expect(players).toContain('not heard');
+    expect(await page.textContent('[data-testid="details-talk"]')).toContain(':i69:Virus23');
+    expect(await page.locator('.chat li').count()).toBe(8);
+    await page.click('[data-testid="details-chat"] button:has-text("Show all")');
+    expect(await page.locator('.chat li').count()).toBeGreaterThan(8);
+    await page.click('[data-testid="details-chat"] button:has-text("Show fewer")');
+    if (process.env.SPACEDEMO_GAME_DIR) {
+      expect(await page.locator('.overview img').count()).toBe(1);
+      expect(await page.locator('.overview .site-letter').allTextContents()).toEqual(['A', 'B']);
+    }
+    await shot('10 details modTside');
+    await page.click('.back-link');
+    await page.waitForSelector('[data-testid="demo-table"]');
+
+    // An old map version: no picture, a plain note instead.
+    await page.click('[data-testid="demo-row"] button.name-btn:text-is("mfaTside")');
+    await page.waitForSelector('[data-testid="details-map"]', { timeout: 60_000 });
+    if (process.env.CDF_POOL) expect(await page.textContent('[data-testid="details-map"]')).toContain("today's overview picture doesn't match");
+    await shot('11 details mfaTside (old map)');
+    await page.click('nav button:has-text("Library")');
+    await page.waitForSelector('[data-testid="demo-table"]');
+  });
+
   it('opens instantly from the cache after a restart', async () => {
     await app.close();
     await launch();

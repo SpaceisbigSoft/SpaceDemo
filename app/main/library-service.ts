@@ -3,8 +3,8 @@
 // our own cache file.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { MapFile } from '../../engine/src/map-index.js';
-import type { LibraryDemo, LibraryState } from '../shared/api.js';
+import { matchMap, type MapFile } from '../../engine/src/map-index.js';
+import type { DemoDetails, LibraryDemo, LibraryState } from '../shared/api.js';
 import {
   cached, demoStatus, findCandidates, loadCache, mapStatus, mergeDuplicates, saveCache,
   type CacheEntry, type Candidate,
@@ -108,6 +108,21 @@ export class LibraryService {
     }
     if (this.timer) return;
     this.timer = setTimeout(() => { this.timer = undefined; this.o.onChange(this.state()); }, this.o.throttleMs ?? 150);
+  }
+
+  /** Details of one library demo (plan 4.4). Only demos listed in the library can be asked for. */
+  async details(key: string): Promise<DemoDetails | { error: string }> {
+    const row = this.rows.find((r) => r.demo.key === key);
+    if (!row) return { error: "This demo isn't in the library any more." };
+    const info = row.demo.info;
+    if (!info) return { error: row.demo.error ?? 'This demo is still being read.' };
+    const gameDir = this.o.gameDir();
+    const gameMaps = gameMapFolders(gameDir).map((d) => d.toLowerCase());
+    const m = this.maps ? matchMap(this.maps, info.map, info.mapChecksum) : undefined;
+    const mapFile = m && (m.status === 'ok' || m.status === 'renamed') ? m.file.path : undefined;
+    const mapIsInstalled = !!mapFile && m!.status === 'ok' && gameMaps.some((d) => mapFile.toLowerCase().startsWith(d));
+    const overviewTxt = gameDir ? join(gameDir, 'cstrike', 'overviews', `${info.map}.txt`) : undefined;
+    return this.o.reader.details({ key, file: row.candidate.file, zipEntry: row.candidate.zipEntry, mapFile, overviewTxt, mapIsInstalled });
   }
 
   close(): void {

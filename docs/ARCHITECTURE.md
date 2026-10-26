@@ -75,6 +75,9 @@ Each layer depends only on the layer below it.
     size — into one row with the earliest date, status, map check, cache in `%APPDATA%\SpaceDemo\library-cache.json`),
     `main/library-service.ts` (lists, shows cached rows at once, reads the rest and sends progress), `main/scan-worker.ts`
     (background thread: inspector + map index, so the window never waits). Folders and zips are only read.
+  - Details (plan 4.4): `main/details.ts` (match data 2.12 + inspector voice numbers + bomb sites 2.14 → what the page
+    shows; clan tag = a name part most of a team shares; the game's overview picture only when the demo's map is the
+    installed version, never for old versions), read in the background thread when the page opens.
   - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)

@@ -45,7 +45,7 @@ describe('app shell', () => {
     expect(await page.textContent('nav button[aria-current="page"]')).toContain('Library');
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
-    expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual(['addMapFolder', 'addToLibrary', 'findGame', 'getLibrary', 'getSettings', 'getTheme', 'info', 'onLibraryChanged', 'onThemeChanged', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder']);
+    expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual(['addMapFolder', 'addToLibrary', 'findGame', 'getDemoDetails', 'getLibrary', 'getSettings', 'getTheme', 'info', 'onLibraryChanged', 'onThemeChanged', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder']);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);
   });

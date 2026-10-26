@@ -23,6 +23,7 @@ const api: SpaceDemoApi = {
   },
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
+  getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

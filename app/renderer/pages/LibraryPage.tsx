@@ -25,7 +25,7 @@ const SORTS: Record<SortKey, (a: LibraryDemo, b: LibraryDemo) => number> = {
   voice: (a, b) => (a.info?.voiceSeconds ?? a.info?.talkBursts ?? 0) - (b.info?.voiceSeconds ?? b.info?.talkBursts ?? 0),
 };
 
-export function LibraryPage({ library }: { library?: LibraryState }) {
+export function LibraryPage({ library, onOpen }: { library?: LibraryState; onOpen: (key: string) => void }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [map, setMap] = useState('');
@@ -154,20 +154,20 @@ export function LibraryPage({ library }: { library?: LibraryState }) {
                 </tr>
               </thead>
               <tbody>
-                {shown.map((d) => <Row key={d.key} d={d} />)}
+                {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} />)}
               </tbody>
             </table>
             {shown.length === 0 && demos.length > 0 && <p className="note table-empty">No demos match. Clear the search or pick "All".</p>}
             {demos.length === 0 && !library?.scan && <p className="note table-empty">No demos found in these folders (looking for .dem files, also inside .zip files).</p>}
           </div>
-          <p className="note">Your demos are only read, never changed. Watching, fixing and the details page arrive in the next steps (4.4–4.6).</p>
+          <p className="note">Your demos are only read, never changed. Click a demo's name for its details. Watching and fixing from here arrive in the next steps (4.5, 4.6).</p>
         </>
       )}
     </div>
   );
 }
 
-function Row({ d }: { d: LibraryDemo }) {
+function Row({ d, onOpen }: { d: LibraryDemo; onOpen: (key: string) => void }) {
   const i = d.info;
   const where = d.zipEntry ? `${d.file} → ${d.zipEntry}` : d.file;
   const title = [where, ...d.alsoAt.map((a) => `Same demo also at ${a}`)].join('\n');
@@ -177,7 +177,11 @@ function Row({ d }: { d: LibraryDemo }) {
     <tr data-testid="demo-row" data-status={d.status}>
       <td>
         <div className="cell-stack">
-          <span className="demo-name" title={title}>{d.name}</span>
+          {d.info ? (
+            <button type="button" className="demo-name name-btn" title={title} onClick={() => onOpen(d.key)}>{d.name}</button>
+          ) : (
+            <span className="demo-name" title={title}>{d.name}</span>
+          )}
           <span className="sub">{d.error ?? i?.hostName ?? (d.zipEntry ? 'in a zip' : '')}</span>
         </div>
       </td>

@@ -1,0 +1,146 @@
+// Demo details (plan 4.4): turns the engine's match data (2.12), the inspector's voice numbers and the map facts
+// (2.14) into what the details page shows. Only reads files.
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { readDemo } from '../../engine/src/container/read.js';
+import { inspectParsed } from '../../engine/src/inspect.js';
+import { applySiteLetters, readMapFacts } from '../../engine/src/map/bsp.js';
+import { parseOverview, projection } from '../../engine/src/map/overview.js';
+import { checkMatch, extractMatch } from '../../engine/src/match/extract.js';
+import type { MatchData, Team } from '../../engine/src/match/types.js';
+import { readZipEntry } from '../../engine/src/zip.js';
+import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
+
+export interface DetailsJob {
+  key: string;
+  file: string;
+  zipEntry?: string;
+  /** The .bsp with exactly this demo's map version, if known. */
+  mapFile?: string;
+  /** The game's overview description (cstrike\overviews\<map>.txt), used only when mapIsInstalled. */
+  overviewTxt?: string;
+  /** True when mapFile is the game's own installed map (so today's overview picture fits). */
+  mapIsInstalled: boolean;
+}
+
+const REASON_CODE: Record<string, string> = {
+  eliminated: 'K', 'bomb exploded': 'B', 'bomb defused': 'D', 'time ran out': 'T', draw: '=',
+};
+
+/** The clan tag most of a team shares: a name part (letters/digits, 2+ long) used by at least half, and by 2+ players. */
+export function teamTag(names: string[]): string | undefined {
+  const count = new Map<string, number>();
+  for (const n of names) {
+    for (const t of new Set(n.split(/[^A-Za-z0-9]+/).filter((x) => x.length >= 2))) count.set(t, (count.get(t) ?? 0) + 1);
+  }
+  const need = Math.max(2, Math.ceil(names.length / 2));
+  const best = [...count].filter(([, c]) => c >= need).sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)[0];
+  return best?.[0];
+}
+
+/** Chat text as the game prints it ("*DEAD* (Terrorist) name :   hi") → just the message ("hi"). */
+export function chatMessage(text: string, who: string | undefined): string {
+  let t = text.replace(/^\*DEAD\*\s*/, '').replace(/^\((Terrorist|Counter-Terrorist|Spectator|T|CT)\)\s*/i, '');
+  if (who && t.startsWith(who)) {
+    const rest = t.slice(who.length);
+    const m = /^\s*:\s*/.exec(rest);
+    if (m) t = rest.slice(m[0].length);
+  }
+  return t.trim();
+}
+
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): DemoDetails {
+  const playing = m.players.filter((p) => !p.isHltv && (p.team === 'T' || p.team === 'CT'));
+  const row = (id: number, name: string, recorder: boolean): PlayerRow => ({
+    name,
+    kills: m.kills.filter((k) => k.killer === id && !k.teamKill && !k.suicide).length,
+    deaths: m.kills.filter((k) => k.victim === id).length,
+    headshots: m.kills.filter((k) => k.killer === id && k.headshot && !k.teamKill).length,
+    talkSeconds: talkByName.get(name) ?? 0,
+    recorder,
+  });
+  const team = (t: Team): TeamDetails => {
+    const ps = playing.filter((p) => p.team === t);
+    const players = ps.map((p) => row(p.id, p.name, p.isRecorder)).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+    return { tag: teamTag(ps.map((p) => p.name)), players, heard: players.some((p) => p.talkSeconds > 0) };
+  };
+  const asTeam = (t: Team | undefined) => (t === 'T' || t === 'CT' ? t : undefined);
+  const teamOf = (id: number | undefined) => asTeam(m.players.find((p) => p.id === id)?.team);
+  // A name can belong to more than one connection (reconnects): use the one that played on a team.
+  const teamOfName = (name: string) => asTeam(m.players.filter((p) => p.name === name).map((p) => p.team).find((t) => t === 'T' || t === 'CT'));
+
+  const check = checkMatch(m);
+  const score = check.serverScore
+    ? { ...check.serverScore, source: 'server' as const, matchesRounds: check.roundsMatch }
+    : m.rounds.length ? { ...check.roundsWon, source: 'rounds' as const, matchesRounds: true } : undefined;
+
+  const talk = [...talkByName].filter(([, s]) => s > 0).map(([name, seconds]) => ({
+    name, seconds, team: teamOfName(name),
+  })).sort((a, b) => b.seconds - a.seconds);
+
+  return {
+    key: job.key,
+    teams: { T: team('T'), CT: team('CT') },
+    score,
+    rounds: m.rounds.map((r) => ({ number: r.number, winner: r.winner, reason: r.reason ? REASON_CODE[r.reason] ?? 'O' : undefined })),
+    chat: m.chat.map((c) => {
+      const who = m.players.find((p) => p.id === c.sender)?.name;
+      return { time: c.time, who, team: teamOf(c.sender), text: chatMessage(c.text, who), teamOnly: c.teamOnly, dead: c.dead };
+    }),
+    talk,
+    talkBursts: m.voice.length,
+    map,
+    restarts: m.restarts,
+  };
+}
+
+/** Overview picture and bomb sites, when today's picture fits this map version. */
+export function detailsMap(job: DetailsJob, mapName: string, checksum: number): DetailsMap {
+  if (!job.mapFile) return { sites: [], note: "This demo's map version wasn't found, so there's no map picture." };
+  let sites: { letter: string; x: number; y: number }[] = [];
+  let facts;
+  try { facts = readMapFacts(readFileSync(job.mapFile)); } catch { /* unreadable map: no sites */ }
+  if (!job.mapIsInstalled || !job.overviewTxt || !existsSync(job.overviewTxt)) {
+    return { sites: [], note: job.mapIsInstalled ? "The game has no overview picture for this map." : "This is an old version of the map; today's overview picture doesn't match it." };
+  }
+  try {
+    const ov = parseOverview(readFileSync(job.overviewTxt, 'latin1'));
+    // IMAGE is relative to the game's mod folder (e.g. "overviews/de_train.bmp").
+    const imagePath = join(dirname(dirname(job.overviewTxt)), ov.image || `overviews/${mapName}.bmp`);
+    const image = `data:image/bmp;base64,${readFileSync(imagePath).toString('base64')}`;
+    if (facts) {
+      const project = projection(ov);
+      sites = applySiteLetters(facts.bombSites, mapName, checksum).map((s) => {
+        const [x, y] = project((s.mins[0] + s.maxs[0]) / 2, (s.mins[1] + s.maxs[1]) / 2);
+        return { letter: s.letter, x: Math.round(x), y: Math.round(y) };
+      });
+    }
+    return { image, sites };
+  } catch {
+    return { sites: [], note: "The overview picture couldn't be read." };
+  }
+}
+
+/** Reads the demo and builds its details (runs in the background thread). */
+export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
+  try {
+    const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
+    const demo = readDemo(bytes);
+    const report = inspectParsed(demo, bytes.length);
+    const m = extractMatch(demo);
+    const talk = new Map<string, number>();
+    if (report.players.some((p) => p.voiceSeconds !== undefined)) {
+      // Miles voice: measured from the voice data (same numbers as the library).
+      for (const p of report.players) if (p.name && !p.isHltv && p.voiceSeconds) talk.set(p.name, (talk.get(p.name) ?? 0) + p.voiceSeconds);
+    } else {
+      // Other codecs: the length of each talk burst.
+      for (const b of m.voice) {
+        const name = m.players.find((p) => p.id === b.player)?.name;
+        if (name) talk.set(name, (talk.get(name) ?? 0) + (b.end - b.start));
+      }
+    }
+    return buildDetails(m, talk, job, detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum));
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
