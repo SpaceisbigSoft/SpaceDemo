@@ -99,6 +99,8 @@ export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: U
       cur = r.demo;
       report.voice = { ...r.report, decoder: options.voiceDecoder.name };
     }
+  } else if (!packets.some((p) => p.data.length > 0)) {
+    report.notes.push('This demo has no voice recorded in it.');
   } else if (old) {
     report.notes.push(`Voice codec "${report.voiceCodec}" is not supported yet (only voice_miles); voice left as is.`);
   }
