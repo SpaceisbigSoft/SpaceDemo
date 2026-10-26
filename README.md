@@ -2,7 +2,10 @@
 
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
-> Status: **planning / early research.** Nothing to download yet.
+> Status: **early research.** Nothing to download yet.
+
+## Developer tools (so far)
+- **Demo inspector** — `npm install`, then `npm run inspect -- <demo-or-folder> --maps "<...>\Half-Life\cstrike\maps"`. Reports version, players, chat, voice codec and voice packets per player, file health, and whether your installed map matches the one the demo was recorded on.
 
 ## Goals
 - Open any CS 1.0–1.6 demo (POV or HLTV) and show what it is: version, map, players, voice, problems.

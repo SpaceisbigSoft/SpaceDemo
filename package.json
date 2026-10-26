@@ -1,0 +1,17 @@
+{
+  "name": "cs-demo-fixer",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Repair and play old Counter-Strike 1.0-1.6 demos with voice in modern CS 1.6",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "inspect": "tsx tools/inspect.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2"
+  }
+}
