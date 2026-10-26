@@ -16,9 +16,10 @@ describe('app settings', () => {
   it('saves and loads the theme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-set-'));
     const f = settingsFile(join(dir, 'new folder'));
-    saveSettings(f, { theme: 'light' });
-    expect(loadSettings(f)).toEqual({ theme: 'light' });
-    expect(JSON.parse(readFileSync(f, 'utf8'))).toEqual({ theme: 'light' });
+    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [] };
+    saveSettings(f, next);
+    expect(loadSettings(f)).toEqual(next);
+    expect(JSON.parse(readFileSync(f, 'utf8'))).toEqual(next);
   });
 
   it('ignores damaged files and unknown values', () => {
@@ -27,7 +28,8 @@ describe('app settings', () => {
     writeFileSync(f, '{ not json');
     expect(loadSettings(f)).toEqual(DEFAULT_SETTINGS);
     expect(cleanSettings({ theme: 'purple', extra: 1 })).toEqual(DEFAULT_SETTINGS);
-    expect(cleanSettings({ theme: 'dark' })).toEqual({ theme: 'dark' });
+    expect(cleanSettings({ theme: 'light' })).toEqual({ ...DEFAULT_SETTINGS, theme: 'light' });
+    expect(cleanSettings({ libraryFolders: ['a', 'a', 3, ''], mapFolders: 'x' })).toEqual({ ...DEFAULT_SETTINGS, libraryFolders: ['a'] });
     expect(cleanSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 });

@@ -190,3 +190,63 @@ button, input, select { font: inherit; color: inherit; }
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
 .problem { color: var(--bad-text); margin: 0; }
+
+/* ---------- Library (4.3) ---------- */
+.library { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.library.dragging { outline: 2px dashed var(--accent); outline-offset: 6px; border-radius: 10px; }
+.drop-overlay {
+  position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg) 85%, transparent); color: var(--text); font-size: 18px; font-weight: 600;
+  border-radius: 10px; pointer-events: none;
+}
+.titlebar-progress { color: var(--muted); }
+.folder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.folder-list li { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13px; min-width: 0; }
+.folder-list .mono { overflow-wrap: anywhere; }
+.link-btn {
+  border: 0; background: none; padding: 0 6px; min-height: 32px; color: var(--muted); text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; font-size: 13px; white-space: nowrap;
+}
+.link-btn:hover { color: var(--text); }
+.progress { display: flex; align-items: center; gap: 12px; color: var(--text-2); font-size: 13px; }
+.progress progress { flex: 1 1 auto; max-width: 420px; height: 8px; accent-color: var(--accent); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.search {
+  flex: 1 1 280px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text);
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-chip {
+  min-height: 44px; padding: 0 14px; border-radius: 22px; border: 1px solid var(--border-strong); background: transparent;
+  color: var(--text-2); cursor: pointer;
+}
+.filter-chip[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.muted-label { color: var(--muted); font-size: 13px; }
+.select { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.demo-table { width: 100%; min-width: 900px; border-collapse: collapse; }
+.demo-table th {
+  text-align: left; padding: 0 12px; height: 44px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+  color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.demo-table th:first-child, .demo-table td:first-child { padding-left: 16px; }
+.th-sort { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; }
+.th-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.sort-mark { font-size: 9px; color: var(--accent-text); width: 10px; }
+.demo-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.demo-table tbody tr:last-child td { border-bottom: 0; }
+.demo-table tbody tr:hover { background: var(--surface-2); }
+.cell-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.demo-name { font-weight: 600; }
+.sub { font-size: 12px; color: var(--muted); }
+.map-warn { color: var(--warn-text); }
+.map-bad { color: var(--bad-text); }
+.nowrap { white-space: nowrap; }
+.voice.none { color: var(--muted); }
+.status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.status-plays { background: var(--info-bg); color: var(--info-text); }
+.status-needs-fix, .status-damaged { background: var(--warn-bg); color: var(--warn-text); }
+.status-unreadable { background: var(--surface-3); color: var(--bad-text); }
+.status-not-cs, .status-waiting { background: var(--surface-3); color: var(--text-2); }
+.actions { text-align: right; }
+.table-empty { padding: 16px; }

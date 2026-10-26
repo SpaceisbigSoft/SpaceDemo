@@ -1,6 +1,6 @@
 // Settings (plan 4.7 fills in the rest). Working now: the light/dark choice (4.2) and what was found of the game (3.1).
 import { useEffect, useState } from 'react';
-import type { AppInfo, GameStatus, ThemeChoice } from '../../shared/api.js';
+import type { AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
 const THEMES: { id: ThemeChoice; label: string }[] = [
   { id: 'system', label: 'Same as Windows' },
@@ -11,10 +11,12 @@ const THEMES: { id: ThemeChoice; label: string }[] = [
 export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus; looking: boolean; onLookAgain: () => void }) {
   const [theme, setTheme] = useState<ThemeChoice | undefined>();
   const [info, setInfo] = useState<AppInfo | undefined>();
+  const [view, setView] = useState<AppSettingsView | undefined>();
 
   useEffect(() => {
     void window.spacedemo.getTheme().then((s) => setTheme(s.choice));
     void window.spacedemo.info().then(setInfo);
+    void window.spacedemo.getSettings().then(setView);
   }, []);
 
   const choose = async (t: ThemeChoice) => {
@@ -61,6 +63,24 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
         {game?.notes.map((n) => <p key={n} className="note">{n}</p>)}
         <div><button type="button" className="btn" onClick={onLookAgain} disabled={looking}>{looking ? 'Looking…' : 'Look again'}</button></div>
         <p className="note">SpaceDemo only reads the game folder. It starts the game through Steam with -insecure and never changes game files.</p>
+      </section>
+
+      <section className="card" aria-labelledby="maps-h" data-testid="settings-maps">
+        <h2 id="maps-h">Old map versions</h2>
+        <p className="note" style={{ color: 'var(--text-2)' }}>Many old demos were recorded on earlier versions of a map. Add the folders where you keep old .bsp files (your map pool); SpaceDemo finds the right version by its checksum. These folders are only read.</p>
+        {view && view.mapFolders.length > 0 ? (
+          <ul className="folder-list" aria-label="Map pool folders">
+            {view.mapFolders.map((f) => (
+              <li key={f}>
+                <span className="mono">{f}</span>
+                <button type="button" className="link-btn" onClick={() => void window.spacedemo.removeMapFolder(f).then(setView)} aria-label={`Remove ${f}`}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="note">No map pool folder yet. Today's maps in your game folder are always checked.</p>
+        )}
+        <div><button type="button" className="btn" onClick={() => void window.spacedemo.addMapFolder().then(setView)}>Add map folder…</button></div>
       </section>
 
       <section className="card" aria-labelledby="about-h">

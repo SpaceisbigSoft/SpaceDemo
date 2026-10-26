@@ -58,6 +58,7 @@ Each layer depends only on the layer below it.
   (POV knowledge vs the HLTV recording of the same half: `tools/dev/estimate-check.ts`). `estimateMatch()` = whole demo.
 - POV demos: the recorder's own exact position comes from each network frame's view info (`viewInfo()` in
   `match/extract.ts`: simorg, on-ground, view height, health, view angles).
+- `engine/src/zip.ts` — reads files straight out of .zip files (stored/deflate, CRC checked, entry dates); read-only.
 - `engine/src/map-index.ts` — finds the exact map version a demo needs among folders of .bsp files (by checksum).
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).
@@ -70,6 +71,10 @@ Each layer depends only on the layer below it.
   - `renderer/` — the page (React): title bar (Windows' own min/max/close buttons drawn over it, coloured per theme),
     left navigation, pages. Colours are CSS tokens; `<html data-theme="light|dark">` is set from the app (Settings:
     same as Windows / dark / light), so the look never depends on the page guessing the system colours.
+  - Library (plan 4.3): `main/library.ts` (find demos in folders and inside zips, merge identical copies — same name and
+    size — into one row with the earliest date, status, map check, cache in `%APPDATA%\SpaceDemo\library-cache.json`),
+    `main/library-service.ts` (lists, shows cached rows at once, reads the rest and sends progress), `main/scan-worker.ts`
+    (background thread: inspector + map index, so the window never waits). Folders and zips are only read.
   - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)

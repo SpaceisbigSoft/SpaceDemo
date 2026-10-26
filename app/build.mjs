@@ -30,6 +30,14 @@ const builds = [
   },
   {
     ...common,
+    entryPoints: [join(root, 'app/main/scan-worker.ts')],
+    outfile: join(out, 'main/scan-worker.cjs'),
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+  },
+  {
+    ...common,
     entryPoints: [join(root, 'app/preload/preload.ts')],
     outfile: join(out, 'preload/preload.cjs'),
     platform: 'node',

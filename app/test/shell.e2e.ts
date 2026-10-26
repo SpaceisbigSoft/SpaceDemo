@@ -45,7 +45,7 @@ describe('app shell', () => {
     expect(await page.textContent('nav button[aria-current="page"]')).toContain('Library');
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
-    expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual(['findGame', 'getTheme', 'info', 'onThemeChanged', 'setTheme']);
+    expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual(['addMapFolder', 'addToLibrary', 'findGame', 'getLibrary', 'getSettings', 'getTheme', 'info', 'onLibraryChanged', 'onThemeChanged', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder']);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);
   });
@@ -78,7 +78,7 @@ describe('app shell', () => {
     await page.click('[data-testid="page-settings"] label:has-text("Light")');
     await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(244, 245, 247)');
     expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
-    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8'))).toEqual({ theme: 'light' });
+    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).theme).toBe('light');
     await shot('3 settings (light)');
     await page.click('nav button:has-text("Library")');
     await shot('4 library (light)');
@@ -86,7 +86,7 @@ describe('app shell', () => {
     await page.click('nav button:has-text("Settings")');
     await page.click('[data-testid="page-settings"] label:has-text("Dark")');
     await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(21, 23, 26)');
-    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8'))).toEqual({ theme: 'dark' });
+    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).theme).toBe('dark');
     await shot('5 settings (dark)');
   });
 

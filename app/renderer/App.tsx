@@ -1,6 +1,6 @@
 // The app frame (plan 4.2): title bar, left navigation, the game card and the current page.
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import type { GameStatus } from '../shared/api.js';
+import type { GameStatus, LibraryState } from '../shared/api.js';
 import { FixIcon, LibraryIcon, LogoMark, SettingsIcon } from './icons.js';
 import { LibraryPage } from './pages/LibraryPage.js';
 import { FixPage } from './pages/FixPage.js';
@@ -18,6 +18,12 @@ export function App() {
   const [page, setPage] = useState<PageId>('library');
   const [game, setGame] = useState<GameStatus | undefined>();
   const [looking, setLooking] = useState(true);
+  const [library, setLibrary] = useState<LibraryState | undefined>();
+
+  useEffect(() => {
+    void window.spacedemo.getLibrary().then(setLibrary);
+    return window.spacedemo.onLibraryChanged(setLibrary);
+  }, []);
 
   const lookForGame = useCallback(async () => {
     setLooking(true);
@@ -46,6 +52,7 @@ export function App() {
         <strong>SpaceDemo</strong>
         <span aria-hidden="true">·</span>
         <span data-testid="titlebar-page">{current.label}</span>
+        {library?.scan && <span className="titlebar-progress">· reading demos {library.scan.done}/{library.scan.total}</span>}
       </header>
       <div className="frame">
         <nav className="sidebar" aria-label="Main">
@@ -71,7 +78,7 @@ export function App() {
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
         <main className="page" data-testid={`page-${page}`}>
-          {page === 'library' && <LibraryPage />}
+          {page === 'library' && <LibraryPage library={library} />}
           {page === 'fix' && <FixPage />}
           {page === 'settings' && <SettingsPage game={game} looking={looking} onLookAgain={lookForGame} />}
         </main>

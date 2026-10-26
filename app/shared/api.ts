@@ -28,6 +28,75 @@ export interface AppInfo {
   platform: string;
 }
 
+/** What the library shows for one demo (plan 4.3). Read from the demo once and cached. */
+export interface LibraryDemo {
+  /** Unique key: the file path, plus "::" and the entry name for a demo inside a zip. */
+  key: string;
+  /** Demo name without .dem. */
+  name: string;
+  /** The .dem file, or the .zip that holds it. */
+  file: string;
+  /** Path inside the zip, when the demo is in one. */
+  zipEntry?: string;
+  /** Other places with an identical copy (same name and size). */
+  alsoAt: string[];
+  /** The library folder it was found under. */
+  folder: string;
+  size: number;
+  /** Recording date in ms: the zip entry's date, else the file's date. */
+  date: number;
+  dateSource: 'zip' | 'file';
+  /** Filled after reading the demo; missing while it waits. */
+  info?: DemoSummary;
+  /** Plain-language reason it couldn't be read. */
+  error?: string;
+  map?: MapStatus;
+  status: DemoStatus;
+}
+
+export type DemoStatus = 'waiting' | 'plays' | 'needs-fix' | 'damaged' | 'not-cs' | 'unreadable';
+
+export interface DemoSummary {
+  networkProtocol: number;
+  gameDir: string;
+  recording: 'POV' | 'HLTV';
+  map: string;
+  /** All maps played, in order (more than one = the demo changes map). */
+  maps: string[];
+  mapChecksum: number;
+  seconds: number;
+  hostName?: string;
+  voiceCodec?: string;
+  /** Total talk time of everyone heard (Miles voice: measured; other codecs: undefined). */
+  voiceSeconds?: number;
+  talkBursts: number;
+  /** Who is heard talking (names). */
+  talkers: string[];
+  players: string[];
+  recorder?: string;
+  directoryOk: boolean;
+  problems: string[];
+}
+
+export interface MapStatus {
+  kind: 'ok' | 'warn' | 'bad' | 'unknown';
+  /** Short text for the table, e.g. "installed", "old version · map pool", "map missing". */
+  note: string;
+}
+
+export interface LibraryState {
+  folders: string[];
+  demos: LibraryDemo[];
+  /** Set while demos are being read. */
+  scan?: { done: number; total: number };
+}
+
+export interface AppSettingsView {
+  theme: ThemeChoice;
+  /** Folders with old map versions (the map pool). */
+  mapFolders: string[];
+}
+
 /** The person's choice and the look actually used (for 'system': Windows' own setting). */
 export interface ThemeState {
   choice: ThemeChoice;
@@ -41,6 +110,23 @@ export interface SpaceDemoApi {
   setTheme(theme: ThemeChoice): Promise<ThemeState>;
   /** Called when the look changes (the choice, or Windows switching light/dark). Returns a function that stops it. */
   onThemeChanged(listener: (state: ThemeState) => void): () => void;
+
+  /** Library (plan 4.3). Folders are only read. */
+  getLibrary(): Promise<LibraryState>;
+  /** Adds folders (or single .dem / .zip files). No paths = ask with Windows' folder picker. */
+  addToLibrary(paths?: string[]): Promise<LibraryState>;
+  removeFromLibrary(path: string): Promise<LibraryState>;
+  rescanLibrary(): Promise<LibraryState>;
+  onLibraryChanged(listener: (state: LibraryState) => void): () => void;
+  /** The file path of a file dropped on the window. */
+  pathForFile(file: File): string;
+  /** Opens Windows Explorer with this file selected (read-only). */
+  showInFolder(path: string): Promise<void>;
+
+  getSettings(): Promise<AppSettingsView>;
+  /** Adds a map-pool folder (no path = ask with the folder picker). */
+  addMapFolder(path?: string): Promise<AppSettingsView>;
+  removeMapFolder(path: string): Promise<AppSettingsView>;
 }
 
 /** IPC channel names (one place, so main and preload can't drift apart). */
@@ -50,6 +136,15 @@ export const IPC = {
   getTheme: 'theme:get',
   setTheme: 'theme:set',
   themeChanged: 'theme:changed',
+  libraryGet: 'library:get',
+  libraryAdd: 'library:add',
+  libraryRemove: 'library:remove',
+  libraryRescan: 'library:rescan',
+  libraryChanged: 'library:changed',
+  showInFolder: 'shell:show-in-folder',
+  settingsGet: 'settings:get',
+  mapFolderAdd: 'settings:map-folder-add',
+  mapFolderRemove: 'settings:map-folder-remove',
 } as const;
 
 declare global {

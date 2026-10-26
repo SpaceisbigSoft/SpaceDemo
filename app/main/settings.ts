@@ -7,21 +7,34 @@ import { THEME_CHOICES, type ThemeChoice } from '../shared/api.js';
 
 export interface Settings {
   theme: ThemeChoice;
+  /** Library folders (or single .dem / .zip files) the person added (plan 4.3). */
+  libraryFolders: string[];
+  /** Folders with old map versions (map pool). */
+  mapFolders: string[];
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark' };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [] };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
 }
 
+function cleanPaths(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const p of v) if (typeof p === 'string' && p.trim() && !out.includes(p)) out.push(p);
+  return out;
+}
+
 /** Keeps only known keys with valid values; anything else becomes the default. */
 export function cleanSettings(raw: unknown): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS };
+  const out: Settings = { ...DEFAULT_SETTINGS, libraryFolders: [], mapFolders: [] };
   if (raw && typeof raw === 'object') {
-    const theme = (raw as Record<string, unknown>).theme;
-    if (typeof theme === 'string' && (THEME_CHOICES as readonly string[]).includes(theme)) out.theme = theme as ThemeChoice;
+    const r = raw as Record<string, unknown>;
+    if (typeof r.theme === 'string' && (THEME_CHOICES as readonly string[]).includes(r.theme)) out.theme = r.theme as ThemeChoice;
+    out.libraryFolders = cleanPaths(r.libraryFolders);
+    out.mapFolders = cleanPaths(r.mapFolders);
   }
   return out;
 }
@@ -30,7 +43,7 @@ export function loadSettings(file: string): Settings {
   try {
     return cleanSettings(JSON.parse(readFileSync(file, 'utf8')));
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return cleanSettings(undefined);
   }
 }
 

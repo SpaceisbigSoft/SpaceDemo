@@ -2,7 +2,7 @@
 
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
-> Status: **engine and launcher working** (fix + play from the command line); **app window started** (plan 4.2: the frame, navigation and light/dark theme). Nothing to download yet.
+> Status: **engine and launcher working** (fix + play from the command line); **app window started** (4.2 frame, navigation, light/dark; 4.3 demo library: folders and zips, search, filters). Nothing to download yet.
 >
 > Main repository: https://github.com/SpaceisbigSoft/SpaceDemo (renamed from `i69-demoviewer` on 2026-10-26; earlier `cs-demo-fixer`). Working name during development: CS Demo Fixer.
 
@@ -12,7 +12,7 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - Match data: `npm run match -- <demo.dem or folder> [--json <out folder>]` — rounds, kills, score, chat, radio, bomb, shots, voice, with a check against the server's own scores.
 - **Fix a demo** (repair, convert, original voice back as Steam voice): `npm run fix -- <old.dem> <fixed.dem> --game <Half-Life folder>` — uses your own `mssvoice.asi` through our voice helper (`npm run build:helper` first).
 - Walkable-area map (where players can stand and walk, shortest routes): `npm run walk -- <map.bsp> [--demos <folder>] [--json <out.json>] [--route <x,y,z> <x,y,z>]` — map files are only read; demos teach it boost spots and trick jumps.
-- **The app** (Electron + React): `npm run app` builds it into `out/app/` and opens the window (Electron downloads itself the first time). Interface test: `npm run test:app` (on Linux: `xvfb-run -a npm run test:app`; screenshots in `out/screenshots/`).
+- **The app** (Electron + React): `npm run app` builds it into `out/app/` and opens the window (Electron downloads itself the first time). Interface test: `npm run test:app` (on Linux: `xvfb-run -a npm run test:app`; screenshots in `out/screenshots/`; library tests on real demos: `CDF_ZIPS=<folder of demo zips>`, optional `CDF_POOL=<old maps>` and `SPACEDEMO_GAME_DIR=<Half-Life folder>`).
 - Inspect demos: `npm run inspect -- <demo.dem or folder> [--maps <folder with .bsp files>]... [--json]` — version, recording type, maps, length, voice per player, map-version check and problems.
 
 ## Goals
