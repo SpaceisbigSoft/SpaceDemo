@@ -58,7 +58,8 @@ const open = new Map<number, { burst: Burst; lastTime: number }>();
 info.forEach(({ slot, time }, i) => {
   if (pcm[i].length === 0) return; // the recorder's own empty packets
   const cur = open.get(slot);
-  if (cur && time - cur.lastTime <= BURST_GAP_SECONDS) {
+  // A burst ends after a gap, or when the demo clock jumps back (each demo section restarts its clock).
+  if (cur && time >= cur.lastTime && time - cur.lastTime <= BURST_GAP_SECONDS) {
     cur.burst.packets.push(i);
     cur.lastTime = time;
   } else {
