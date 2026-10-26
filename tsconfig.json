@@ -8,7 +8,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["engine/src/**/*.ts", "tools/**/*.ts"]
+  "include": [
+    "engine/**/*.ts",
+    "tools/**/*.ts"
+  ]
 }

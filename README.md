@@ -4,8 +4,9 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 
 > Status: **early research.** Nothing to download yet.
 
-## Developer tools (so far)
-- **Demo inspector** — `npm install`, then `npm run inspect -- <demo-or-folder> --maps "<...>\Half-Life\cstrike\maps"`. Reports version, players, chat, voice codec and voice packets per player, file health, and whether your installed map matches the one the demo was recorded on.
+## Developer notes
+- The engine is **original code** (see `docs/ARCHITECTURE.md`). Other projects are used only as references for facts about the demo format.
+- `npm install`, then `npm test`. To include round-trip tests on real demos, set `CDF_DEMOS` to a folder of `.dem` files (demos are never committed).
 
 ## Goals
 - Open any CS 1.0–1.6 demo (POV or HLTV) and show what it is: version, map, players, voice, problems.
@@ -15,10 +16,11 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - Never change your original demo files — fixes are always saved as a copy.
 
 ## Credits
-- **compLexity Demo Player** (COL) by jpcy and contributors — https://github.com/jpcy/coldemoplayer — GPL v3. Demo conversion and voice handling in this project are based on it.
-- **CS Demo Manager** by AkiVer — https://github.com/akiver/cs-demo-manager — MIT. Model for the interface.
+- **compLexity Demo Player** (COL) by jpcy and contributors — https://github.com/jpcy/coldemoplayer — GPL v3. The pioneering CS 1.0–1.6 demo player and converter; an important reference for how old demos differ from current ones. (This project's code is written from scratch.)
+- **CS Demo Manager** by AkiVer — https://github.com/akiver/cs-demo-manager — MIT. Inspiration for the interface.
 - **SK Player** by Andreas Thorstensson — feature ideas only; no code used.
 - **Speex** by Xiph.Org — BSD-style licence (when added).
+- Format notes from the community, incl. the talent GoldSrc demo-structure notes (cgdangelo) and ReHLDS (map checksum algorithm).
 
 Counter-Strike and Half-Life are trademarks of Valve Corporation. This project is not affiliated with Valve and does not include any Valve game files.
 
