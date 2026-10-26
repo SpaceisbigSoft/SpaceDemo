@@ -15,6 +15,15 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - Launch Steam CS 1.6 with in-game playback controls (pause, slow motion, fast forward).
 - Never change your original demo files — fixes are always saved as a copy.
 
+## Anti-cheat safety
+CS Demo Fixer is designed so it cannot trigger Valve Anti-Cheat (VAC) or any Valve punishment:
+- It never injects into, hooks, or reads/writes the memory of the game.
+- It never modifies, patches or replaces game files (executables, DLLs, stock maps, models, sprites or sounds).
+  It only creates new demo files and keeps extra content (such as old map versions) in its own folders.
+- Demo playback is started with standard launch options and console commands, with `-insecure` (VAC off for that session).
+- All processing (demo conversion, voice decoding) happens in CS Demo Fixer's own process, not inside the game.
+- Nothing is sent to Valve or Steam servers.
+
 ## Credits
 - **compLexity Demo Player** (COL) by jpcy and contributors — https://github.com/jpcy/coldemoplayer — GPL v3. The pioneering CS 1.0–1.6 demo player and converter; an important reference for how old demos differ from current ones. (This project's code is written from scratch.)
 - **CS Demo Manager** by AkiVer — https://github.com/akiver/cs-demo-manager — MIT. Inspiration for the interface.
