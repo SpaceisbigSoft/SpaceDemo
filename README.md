@@ -1,10 +1,10 @@
-# CS Demo Fixer
+# SpaceDemo
 
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
-> Status: **early research.** Nothing to download yet.
+> Status: **engine and launcher working** (fix + play from the command line); the app window comes next. Nothing to download yet.
 >
-> Main repository: https://github.com/SpaceisbigSoft/i69-demoviewer (moved from `SpaceisbigSoft/cs-demo-fixer` on 2026-10-26 with full history).
+> Main repository: https://github.com/SpaceisbigSoft/SpaceDemo (renamed from `i69-demoviewer` on 2026-10-26; earlier `cs-demo-fixer`). Working name during development: CS Demo Fixer.
 
 ## Developer notes
 - The engine is **original code** (see `docs/ARCHITECTURE.md`). Other projects are used only as references for facts about the demo format.
@@ -22,12 +22,12 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - Never change your original demo files — fixes are always saved as a copy.
 
 ## Anti-cheat safety
-CS Demo Fixer is designed so it cannot trigger Valve Anti-Cheat (VAC) or any Valve punishment:
+SpaceDemo is designed so it cannot trigger Valve Anti-Cheat (VAC) or any Valve punishment:
 - It never injects into, hooks, or reads/writes the memory of the game.
 - It never modifies, patches or replaces game files (executables, DLLs, stock maps, models, sprites or sounds).
   It only creates new demo files and keeps extra content (such as old map versions) in its own folders.
 - Demo playback is started with standard launch options and console commands, with `-insecure` (VAC off for that session).
-- All processing (demo conversion, voice decoding) happens in CS Demo Fixer's own process, not inside the game.
+- All processing (demo conversion, voice decoding) happens in SpaceDemo's own process, not inside the game.
 - Nothing is sent to Valve or Steam servers.
 
 ## Credits

@@ -1,4 +1,4 @@
-# CS Demo Fixer — Engine architecture
+# SpaceDemo — Engine architecture
 
 This engine is original code. Other projects (compLexity Demo Player, SK Player, CS Demo Manager) are used only as
 references for **facts** about the GoldSrc demo format; no code is copied or translated from them. Facts are recorded
