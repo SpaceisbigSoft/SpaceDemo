@@ -50,12 +50,13 @@ describe('app shell', () => {
     expect(fontsOk).toBe(true);
   });
 
-  it('shows the game card (found or not) and the starting theme follows the system', async () => {
+  it('shows the game card (found or not) and starts dark', async () => {
     await page.waitForFunction(() => !document.querySelector('[data-testid="game-card"]')?.textContent?.includes('Looking'));
     const text = await page.textContent('[data-testid="game-card"]');
     expect(text).toMatch(/Counter-Strike 1\.6(Found|Not found)/);
-    expect((await page.evaluate(() => window.spacedemo.getTheme())).choice).toBe('system');
-    await shot('1 library (system theme)');
+    expect(await page.evaluate(() => window.spacedemo.getTheme())).toEqual({ choice: 'dark', dark: true });
+    expect(await bg()).toBe('rgb(21, 23, 26)');
+    await shot('1 library (dark)');
   });
 
   it('moves between pages with the left navigation and the keyboard', async () => {

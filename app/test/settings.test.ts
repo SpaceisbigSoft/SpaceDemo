@@ -10,7 +10,7 @@ describe('app settings', () => {
   it('starts with the defaults when there is no file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-set-'));
     expect(loadSettings(settingsFile(dir))).toEqual(DEFAULT_SETTINGS);
-    expect(DEFAULT_SETTINGS.theme).toBe('system');
+    expect(DEFAULT_SETTINGS.theme).toBe('dark');
   });
 
   it('saves and loads the theme', () => {

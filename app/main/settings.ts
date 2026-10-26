@@ -9,7 +9,8 @@ export interface Settings {
   theme: ThemeChoice;
 }
 
-export const DEFAULT_SETTINGS: Settings = { theme: 'system' };
+// Dark by default: the approved look (owner, 2026-10-26).
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark' };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
