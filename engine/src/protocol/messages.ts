@@ -88,6 +88,11 @@ export interface DirectorBody {
   kind: 'director';
   data: Uint8Array;
 }
+/** svc_event: client-side events such as weapon fire (index = event resource, entity = who fired). */
+export interface EventsBody {
+  kind: 'events';
+  events: { index: number; entity?: number; record?: DeltaRecord; fireTime?: number }[];
+}
 export interface TextBody {
   kind: 'text';
   text: string;
@@ -146,7 +151,7 @@ export interface UserMessageBody {
 
 export type MessageBody =
   | ServerInfoBody | UserInfoBody | NewUserMsgBody | VoiceInitBody | VoiceDataBody | HltvBody | DirectorBody
-  | TextBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody;
+  | TextBody | EventsBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody;
 
 export interface Message {
   id: number;
@@ -318,18 +323,21 @@ function readResourceList(r: BitReader): ResourceListBody {
   return { kind: 'resourceList', resources, hadConsistencyList };
 }
 
-function skipEvent(r: BitReader, s: ProtocolState): void {
+function readEvents(r: BitReader, s: ProtocolState): EventsBody {
   const count = r.bits(5);
   const ev = descriptor(s, 'event_t');
+  const body: EventsBody = { kind: 'events', events: [] };
   for (let i = 0; i < count; i++) {
-    r.skipBits(10); // event index
+    const e: EventsBody['events'][number] = { index: r.bits(10) };
     if (r.bool()) {
-      r.skipBits(11); // entity index
-      if (r.bool()) ev.decode(r);
+      e.entity = r.bits(11);
+      if (r.bool()) e.record = ev.decode(r);
     }
-    if (r.bool()) r.skipBits(16); // fire time
+    if (r.bool()) e.fireTime = r.bits(16);
+    body.events.push(e);
   }
   r.alignToByte();
+  return body;
 }
 
 function skipSound(r: BitReader): void {
@@ -386,7 +394,7 @@ function decodeOne(r: BitReader, id: number, s: ProtocolState): MessageBody | un
       return { kind: 'text', text: r.string() };
     case Svc.SendCvarValue2: r.skipBytes(4); r.string(); return undefined;
     case Svc.LightStyle: r.skipBytes(1); r.string(); return undefined;
-    case Svc.Event: skipEvent(r, s); return undefined;
+    case Svc.Event: return readEvents(r, s);
     case Svc.EventReliable: {
       r.skipBits(10);
       descriptor(s, 'event_t').decode(r);

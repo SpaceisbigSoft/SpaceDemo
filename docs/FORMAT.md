@@ -87,3 +87,29 @@ On `modCTside`: 314 bursts, 8,366 packets, 20,517 frames (410 s); playback queue
 - Same result with the 2002-era decoder: Half-Life 1.1.1.0's `Mssv12.asi` (Miles 6.0m, built 2000-11-13) decodes the
   Set 1 voice bit-identically to the 2012 `mssvoice.asi` (with Windows' FPU settings). In 2002, `voice_miles.dll`
   (2001-05-08) loaded `Mss32.dll` + `Mssv12.asi`; the 2002 engine (`hw.dll`) did not load Miles itself.
+
+## Match information in CS 1.5 demos (spike 1.8, checked on Set 1)
+Game ("user") messages, CS 1.5 layouts as found in the demos (sizes: -1 = sized by first byte):
+- `DeathMsg` (-1): killer entity u8, victim entity u8, **headshot u8**, weapon string ("world" = fall/suicide). Entity = slot + 1.
+- `ScoreInfo` (9): entity u8, frags i16, deaths i16, class i16, team i16 (1 T, 2 CT).
+- `ScoreAttrib` (2): entity u8, flags u8 (1 dead, 2 bomb, 4 VIP). `TeamInfo` (-1): entity u8, team string.
+- `TeamScore` (-1): team string, score i16. `RoundTime` (2): seconds i16 (freeze time at round start, then round length).
+- `TextMsg` (-1): destination u8, message string (`#CTs_Win`, `#Terrorists_Win`, `#Target_Bombed`, `#Bomb_Defused`,
+  `#Target_Saved`, `#Round_Draw`, `#Bomb_Planted`, `#Game_will_restart_in` + seconds, `#Game_Commencing`, …), up to 4 strings.
+- `SayText` (-1): sender u8, text (CS 1.5: one preformatted string, e.g. "\x02(Counter-Terrorist) name :    text"). HLTV demos also
+  carry spectator/HLTV chat ("<name> text").
+- `SendAudio` (-1): sender u8, sound string (`%!MRAD_ROGER`, `%!MRAD_ctwin`, …). No pitch field in 1.5 (1.6 adds one).
+- `BombDrop` (6): x, y, z coords (i16/8), flag u8 (1 = planted). `BombPickup` (0).
+- `ClCorpse` (-1): model string, origin x/y/z as i32/128, angles (3 coords), delay i32, sequence u8, body u8 — **no player
+  number in 1.5**; corpses come in death order (match to `DeathMsg` victims by order and team model).
+- `Radar` (7): entity u8, x, y, z coords — teammates' positions, sent to the recorder (POV).
+- Recorder only (POV): `Money` (5) i32 + flag, `Health` (1), `Battery` (2), `Damage` (12) armor u8, health u8, bits i32, from
+  x/y/z coords, `CurWeapon` (3), `AmmoX`, `StatusIcon` (buyzone, c4, defuser), `BarTime` (plant/defuse), `ShowMenu` (buy menus),
+  `WeapPickup`/`ItemPickup`/`AmmoPickup`, `StatusValue` (crosshair target: 1 relation, 2 player, 3 health).
+- `svc_event`: per event a 10-bit event index (→ `events/*.sc` resource, e.g. `ak47` = one shot), then optionally an 11-bit
+  **position in the frame's packet-entity list** (not the entity number) and an `event_t` delta. The recorder's own shots are not
+  sent; they are the demo's type-6 (event) frames.
+- Player entities (`entity_state_player_t`): origin, angles, `weaponmodel` (→ `models/p_*.mdl`: weapon in hand), sequence/gait.
+  POV demos only contain players in the recorder's view area (median 28–56 % of frames); HLTV demos about 76–88 %.
+- Server text (`svc_print`): welcome text with `BUILD n`, cvar changes (`"mp_freezetime" changed to "…"`), `status` output.
+- HLTV `svc_director` types seen: 1 start, 2 event (highlights: kills etc.), 5 time scale, 6 message, 8 status.
