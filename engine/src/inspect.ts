@@ -31,6 +31,13 @@ export interface InspectPlayer {
   team: string;
   isHltv: boolean;
   isRecorder: boolean;
+  /** Network settings from the player's userinfo (as sent; later changes are listed in `settingChanges`). */
+  rate?: string;
+  updateRate?: string;
+  /** cl_lw (client weapon prediction) and cl_lc (lag compensation). */
+  clientWeapons?: string;
+  lagCompensation?: string;
+  settingChanges: { time: number; setting: string; value: string }[];
   voicePackets: number;
   /** Packets with no voice bytes (the recorder's own microphone is stored this way). */
   emptyVoicePackets: number;
@@ -65,6 +72,10 @@ export interface InspectReport {
   seconds: number;
   voiceCodec?: string;
   voiceQuality?: number;
+  /** Server updates the recorder actually received per second of playback (network frames / length). */
+  measuredUpdatesPerSecond?: number;
+  /** The recorder's frame rate during playback (client-data frames / length). */
+  measuredFps?: number;
   players: InspectPlayer[];
   /** Problems in plain language. Empty for a healthy demo. */
   problems: string[];
@@ -94,7 +105,7 @@ export function inspectParsed(demo: DemoFile, fileSize: number): InspectReport {
   const player = (slot: number): InspectPlayer => {
     let p = players.get(slot);
     if (!p) {
-      p = { slot, name: '', team: '', isHltv: false, isRecorder: false, voicePackets: 0, emptyVoicePackets: 0, voiceBytes: 0, talkBursts: 0 };
+      p = { slot, name: '', team: '', isHltv: false, isRecorder: false, settingChanges: [], voicePackets: 0, emptyVoicePackets: 0, voiceBytes: 0, talkBursts: 0 };
       players.set(slot, p);
     }
     return p;
@@ -179,6 +190,17 @@ export function inspectParsed(demo: DemoFile, fileSize: number): InspectReport {
             const p = player(b.slot);
             if (b.info.name !== undefined) p.name = b.info.name;
             if (b.info['*hltv'] !== undefined) p.isHltv = true;
+            const settings: [keyof InspectPlayer & string, string][] = [['rate', 'rate'], ['updateRate', 'cl_updaterate'], ['clientWeapons', 'cl_lw'], ['lagCompensation', 'cl_lc']];
+            for (const [field, key] of settings) {
+              const v = b.info[key];
+              if (v === undefined) continue;
+              const old = p[field] as string | undefined;
+              if (old === undefined) (p as unknown as Record<string, string>)[field] = v;
+              else if (Number(old) !== Number(v)) {
+                p.settingChanges.push({ time: f.time, setting: key, value: v });
+                (p as unknown as Record<string, string>)[field] = v;
+              }
+            }
             break;
           }
           case 'voiceInit':
@@ -210,6 +232,12 @@ export function inspectParsed(demo: DemoFile, fileSize: number): InspectReport {
     }
   }
 
+  const playback = demo.sections.find((s) => s.entry?.description.toLowerCase() === 'playback');
+  if (playback && playback.entry && playback.entry.trackTime > 0) {
+    const secs = playback.entry.trackTime;
+    report.measuredUpdatesPerSecond = Math.round((10 * playback.frames.filter((f) => f.type === FrameType.NetMessages).length) / secs) / 10;
+    report.measuredFps = Math.round(playback.frames.filter((f) => f.type === FrameType.ClientData).length / secs);
+  }
   if (state.hltv) report.recording = 'HLTV';
   if (report.recording === 'POV' && recorderSlot !== undefined) player(recorderSlot).isRecorder = true;
   if (report.voiceCodec === 'voice_miles') {

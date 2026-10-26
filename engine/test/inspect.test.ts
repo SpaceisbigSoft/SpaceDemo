@@ -36,6 +36,9 @@ describe.skipIf(demos.length === 0)('inspector on real demos (CDF_DEMOS)', () =>
     expect(r.maps.length).toBeGreaterThan(0);
     for (const m of r.maps) expect(m).not.toMatch(/maps\/|\.bsp/i);
     expect(r.seconds).toBeGreaterThan(0);
+    expect(r.measuredUpdatesPerSecond).toBeGreaterThan(5);
+    expect(r.measuredFps).toBeGreaterThan(20);
+    for (const p of r.players) if (p.name && !p.isHltv) expect(p.updateRate).toBeDefined();
     for (const s of r.sections) if (s.directoryFrames !== undefined) expect(s.netFrames).toBe(s.directoryFrames);
     if (r.recording === 'POV') expect(r.players.filter((p) => p.isRecorder)).toHaveLength(1);
     if (r.voiceCodec === 'voice_miles') {

@@ -66,6 +66,7 @@ for (const path of demos) {
   console.log(`  Length ${time(r.seconds)}; directory ${r.directoryOk ? 'OK' : 'MISSING (rebuilt by scanning)'}; sections: ${r.sections
     .map((s) => `${s.description} ${time(s.seconds)} (${s.netFrames} network frames)`)
     .join(', ')}`);
+  if (r.measuredUpdatesPerSecond !== undefined) console.log(`  Measured: ${r.measuredUpdatesPerSecond} server updates/s received, ${r.measuredFps} FPS (ex_interp, cl_cmdrate, cl_rate, fps_max are not stored in demos)`);
   console.log(`  Voice codec: ${r.voiceCodec === undefined ? 'none announced' : `"${r.voiceCodec || 'Steam voice'}"${r.voiceQuality !== undefined ? ` quality ${r.voiceQuality}` : ''}`}`);
   console.log('  Players:');
   for (const p of r.players) {
@@ -73,7 +74,8 @@ for (const path of demos) {
     const voice = p.voicePackets === 0 ? 'no voice'
       : p.voicePackets === p.emptyVoicePackets ? `own microphone not recorded (${p.emptyVoicePackets} empty voice packets)`
       : `${p.voicePackets - p.emptyVoicePackets} voice packets${p.voiceSeconds !== undefined ? ` (${time(p.voiceSeconds)})` : ''}, ${p.talkBursts} bursts${p.emptyVoicePackets ? `, ${p.emptyVoicePackets} empty` : ''}`;
-    console.log(`    ${String(p.slot).padStart(2)} ${p.name || '(no name)'}${tags ? ` [${tags}]` : ''}: ${voice}`);
+    const net = p.rate !== undefined ? ` · rate ${Number(p.rate)}, cl_updaterate ${p.updateRate ?? '?'}${p.settingChanges.length ? ` (${p.settingChanges.length} changes)` : ''}` : '';
+    console.log(`    ${String(p.slot).padStart(2)} ${p.name || '(no name)'}${tags ? ` [${tags}]` : ''}: ${voice}${net}`);
   }
   if (r.problems.length) console.log('  Problems:\n    ' + r.problems.join('\n    '));
   else console.log('  No problems found.');
