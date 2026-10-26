@@ -1,4 +1,5 @@
-// "Voice cleanup" setting (plan 2.8; off by default so the faithful original stays the default). Mirrors the ffmpeg
+// "Voice cleanup" setting (plan 2.8). ON by default since 2026-10-26 (owner preferred it after listening in game);
+// "plain" keeps the voice exactly as decoded. Mirrors the ffmpeg
 // chain tested on 2026-10-25 (highpass=110, lowpass=3400, equalizer 2.2 kHz +3 dB, dynaudnorm) with standard biquad
 // filters (RBJ audio-EQ cookbook formulas) and a per-burst level evening. The FFT de-hiss step (afftdn) is not
 // included yet.
