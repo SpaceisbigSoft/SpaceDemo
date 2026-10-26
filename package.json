@@ -17,12 +17,17 @@
     "match": "tsx tools/match.ts",
     "repair": "tsx tools/repair.ts",
     "map": "tsx tools/map.ts",
-    "walk": "tsx tools/walk.ts"
+    "walk": "tsx tools/walk.ts",
+    "fix": "tsx tools/fix.ts",
+    "build:helper": "sh helpers/voice-helper/build.sh"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
     "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "opusscript": "0.1.1"
   }
 }

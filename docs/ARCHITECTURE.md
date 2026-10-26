@@ -62,3 +62,16 @@ Each layer depends only on the layer below it.
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).
 - `tools/` — command-line tools for development.
+
+## Fixing a demo (plan 2.8)
+- `engine/src/fix/fix.ts` — `fixDemo()`: recover a cut-off recording, convert to protocol 48 (sprites/models today's game
+  lacks are dropped: checked in the player's `cstrike`/`valve` folders, or the known build-10210 list), and put old
+  Miles voice back as Steam voice. `npm run fix -- <in> <out> [--game <Half-Life>] [--asi <mssvoice.asi>] [--decoder helper|emulator] [--cleanup]`.
+- `engine/src/voice/restore.ts` — old voice packets → decoder → one Opus stream per talk burst (libopus 1.4 as
+  WebAssembly, `opusscript`, MIT; 8 kHz in, 24 kbps, 20 ms frames) → frames shared out over the burst's original packets.
+- `engine/src/voice/decoders.ts` — decoders behind one batch protocol: `helperDecoder` (our Windows program
+  `helpers/voice-helper/`, loads the user's own `mssvoice.asi` itself; built with `npm run build:helper`, MinGW-w64
+  i686) and `emulatorDecoder` (development: Python + Unicorn). Both decode bit-identically.
+- `engine/src/voice/cleanup.ts` — optional "voice cleanup" (high-pass 110 Hz, low-pass 3.4 kHz, +3 dB at 2.2 kHz,
+  per-burst level), off by default.
+

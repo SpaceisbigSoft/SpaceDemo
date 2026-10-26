@@ -25,3 +25,4 @@ Thumbs.db
 *.wav
 *.voice
 __pycache__/
+helpers/voice-helper/*.exe
