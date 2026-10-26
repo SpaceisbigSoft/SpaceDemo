@@ -161,17 +161,19 @@ export function readDemo(bytes: Uint8Array): DemoFile {
     return { header, sections, problems, recovered: false };
   }
 
-  // No usable directory: scan the frame data from the end of the header and split it at section ends.
+  // No usable directory: scan the frame data from the end of the header. The first section end closes the
+  // LOADING section; everything after it is the Playback section up to the end of the data. (Playback sections
+  // can contain extra section-end frames left over from map loads, like healthy demos have; splitting there
+  // would make the game stop early.)
   problems.push(directory);
-  let offset = HEADER_SIZE;
-  while (offset < bytes.length) {
-    const scan = scanSection(bytes, offset, bytes.length, P, true);
-    if (scan.frames.length > 0) sections.push({ entry: null, frames: scan.frames });
-    if (!scan.endedCleanly) {
-      if (scan.problem) problems.push(scan.problem);
-      break;
-    }
-    offset = scan.endOffset;
+  const loading = scanSection(bytes, HEADER_SIZE, bytes.length, P, true);
+  if (loading.frames.length > 0) sections.push({ entry: null, frames: loading.frames });
+  if (!loading.endedCleanly) {
+    if (loading.problem) problems.push(loading.problem);
+  } else if (loading.endOffset < bytes.length) {
+    const playback = scanSection(bytes, loading.endOffset, bytes.length, P, false);
+    if (playback.frames.length > 0) sections.push({ entry: null, frames: playback.frames });
+    if (playback.problem) problems.push(playback.problem);
   }
   return { header, sections, problems, recovered: true };
 }

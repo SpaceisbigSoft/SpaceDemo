@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "inspect": "tsx tools/inspect.ts",
     "convert": "tsx tools/convert.ts",
-    "match": "tsx tools/match.ts"
+    "match": "tsx tools/match.ts",
+    "repair": "tsx tools/repair.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
