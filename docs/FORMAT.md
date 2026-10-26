@@ -64,3 +64,23 @@ byte-identically.*
     ends a talk burst. Frames are 20 ms; TOC byte 0x68 (SILK wideband, 20 ms, mono).
   - A packet may contain several chunks in any order (e.g. Opus, silence, Opus).
 - Old demos' Miles (Voxware) voice cannot be played by this path, which explains "talking icon but no sound".
+
+## Old voice: `voice_miles` (CS 1.0–1.5 era) — Voxware MetaVoice VR12
+*Measured 2026-10-25 on Set 1 (`modCTside.dem`, protocol 46) by decoding with the owner's `mssvoice.asi`
+(Miles Sound System plugin, PE timestamp 1353973871) in an emulator — see `tools/dev/miles-emu/`.*
+- `mssvoice.asi` registers three codecs: VR12 encoder, **VR12 decoder** (input `.V12 files`, wave tag 0x77, maximum
+  frame size 6 bytes) and RT24 decoder (`.V24 files`, wave tag 0x74, 7 bytes). The RT29 name is in the file but not
+  registered.
+- **`voice_miles` packets are VR12.** Evidence: VR12 output has normal speech levels and a speech recogniser
+  (pocketsphinx) finds English phrases in it; RT24 output is clipped noise and random input gives no words.
+- `svc_voicedata` payload = raw VR12 bytes, no header. Packet sizes 12 / 24 / 36 bytes; each 12 bytes decode to
+  360 samples at 8 kHz, 16-bit mono (45 ms). Measured arrival rate while talking ≈ 250 bytes/s, matching 12 bytes per
+  45 ms (≈ 267 bytes/s) with network jitter.
+- Use one decoder per player and feed that player's packets in order (the codec keeps state between frames).
+- The recorder's own slot sends 0-byte packets (nothing to decode).
+
+## Putting old voice back (route A)
+`tools/voice-transcode-test.ts`: each player's talk burst (packets ≤ 0.3 s apart) is resampled 8 → 24 kHz and
+encoded with Opus (voice mode, 24 kbit/s, 20 ms frames). The Opus frames are shared over the burst's original packets
+in step with the audio each one carried; the last packet ends the burst (0xFFFF). Sequence numbers run on per player.
+On `modCTside`: 314 bursts, 8,366 packets, 20,517 frames (410 s); playback queue lag median 0.036 s, worst 0.225 s.

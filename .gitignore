@@ -17,3 +17,11 @@ coverage/
 Thumbs.db
 .vscode/
 .idea/
+
+# Game and codec files (Valve/RAD) are never committed; decoded audio stays local
+*.dll
+*.asi
+*.pcm
+*.wav
+*.voice
+__pycache__/

@@ -8,35 +8,13 @@ import { readDemo } from '../engine/src/container/read.js';
 import { writeDemo } from '../engine/src/container/write.js';
 import { replaceVoice } from '../engine/src/transforms/replace-voice.js';
 import { opusVoicePacket } from '../engine/src/voice/steam-voice.js';
+import { oggPackets } from './ogg.js';
 
 /** Encodes `seconds` of a sine tone to 20 ms Opus packets (24 kHz mono, voice mode) and returns the packets. */
 function opusTone(freq: number, seconds: number): Uint8Array[] {
   const ogg = execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', `sine=frequency=${freq}:duration=${seconds}:sample_rate=24000`,
     '-af', 'volume=0.3', '-ac', '1', '-ar', '24000', '-c:a', 'libopus', '-application', 'voip', '-b:a', '24k', '-frame_duration', '20', '-f', 'ogg', 'pipe:1'], { maxBuffer: 1 << 26 });
   return oggPackets(new Uint8Array(ogg)).slice(2); // skip OpusHead and OpusTags
-}
-
-/** Minimal Ogg page reader returning the packets of a single logical stream. */
-function oggPackets(b: Uint8Array): Uint8Array[] {
-  const packets: Uint8Array[] = [];
-  let pending: number[] = [];
-  let p = 0;
-  while (p + 27 <= b.length) {
-    if (b[p] !== 0x4f || b[p + 1] !== 0x67 || b[p + 2] !== 0x67 || b[p + 3] !== 0x53) throw new Error('Bad Ogg page');
-    const segments = b[p + 26];
-    const table = b.subarray(p + 27, p + 27 + segments);
-    let q = p + 27 + segments;
-    for (const len of table) {
-      for (let i = 0; i < len; i++) pending.push(b[q + i]);
-      q += len;
-      if (len < 255) {
-        packets.push(Uint8Array.from(pending));
-        pending = [];
-      }
-    }
-    p = q;
-  }
-  return packets;
 }
 
 const [input, output] = process.argv.slice(2);
