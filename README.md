@@ -3,6 +3,8 @@
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
 > Status: **early research.** Nothing to download yet.
+>
+> Main repository: https://github.com/SpaceisbigSoft/i69-demoviewer (moved from `SpaceisbigSoft/cs-demo-fixer` on 2026-10-26 with full history).
 
 ## Developer notes
 - The engine is **original code** (see `docs/ARCHITECTURE.md`). Other projects are used only as references for facts about the demo format.

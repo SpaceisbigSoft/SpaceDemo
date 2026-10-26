@@ -4,6 +4,10 @@
   "private": true,
   "description": "Repair and play old Counter-Strike 1.0-1.6 demos with voice in modern CS 1.6",
   "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SpaceisbigSoft/i69-demoviewer"
+  },
   "type": "module",
   "scripts": {
     "test": "vitest run",
