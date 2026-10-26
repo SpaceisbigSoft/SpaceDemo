@@ -56,6 +56,30 @@ export interface LibraryDemo {
   fixedCopy?: string;
 }
 
+/** One demo in a batch fix (plan 4.6). */
+export interface FixItem {
+  /** Library key (or file key for files picked on the Fix page). */
+  key: string;
+  name: string;
+  map?: string;
+  state: 'waiting' | 'fixing' | 'fixed' | 'failed' | 'skipped';
+  seconds?: number;
+  /** "7.7 min · 332 bursts", "none in this demo", or undefined while waiting. */
+  voice?: string;
+  done: string[];
+  notes: string[];
+  error?: string;
+  output?: string;
+  /** In the library (so Watch works from the results). */
+  inLibrary: boolean;
+}
+
+export interface FixBatchState {
+  items: FixItem[];
+  running: boolean;
+  outputFolder: string;
+}
+
 /** What the Watch dialog shows before starting (plan 4.5). */
 export interface WatchInfo {
   key: string;
@@ -204,6 +228,15 @@ export interface SpaceDemoApi {
   watch(key: string, options: { speed?: number; keepCopy?: boolean }): Promise<WatchProgress>;
   onWatchProgress(listener: (p: WatchProgress) => void): () => void;
 
+  /** Fix & convert (plan 4.6): fix library demos, or files (no paths = Windows' file picker). Originals are only read. */
+  fixDemos(keys: string[]): Promise<FixBatchState>;
+  fixFiles(paths?: string[]): Promise<FixBatchState>;
+  stopFixing(): Promise<FixBatchState>;
+  getFixBatch(): Promise<FixBatchState>;
+  onFixBatch(listener: (s: FixBatchState) => void): () => void;
+  /** Opens the fixed-demos folder in Explorer. */
+  openOutputFolder(): Promise<void>;
+
   getSettings(): Promise<AppSettingsView>;
   /** Choose where fixed copies go (folder picker). */
   chooseOutputFolder(): Promise<AppSettingsView>;
@@ -230,6 +263,12 @@ export const IPC = {
   watchStart: 'watch:start',
   watchProgress: 'watch:progress',
   outputFolderChoose: 'settings:output-folder',
+  fixDemos: 'fix:demos',
+  fixFiles: 'fix:files',
+  fixStop: 'fix:stop',
+  fixGet: 'fix:get',
+  fixChanged: 'fix:changed',
+  openOutput: 'shell:open-output',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',

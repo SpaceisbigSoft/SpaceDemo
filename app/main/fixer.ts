@@ -33,6 +33,8 @@ export interface FixResult {
   done: string[];
   /** Things to know (e.g. voice left as is). */
   notes: string[];
+  /** Original voice put back (seconds and talk bursts), when there was some. */
+  voice?: { seconds: number; bursts: number };
 }
 
 export function runFix(job: FixJob): FixResult {
@@ -51,7 +53,8 @@ export function runFix(job: FixJob): FixResult {
     if (report.recovered) done.push('Repaired a cut-off recording.');
     if (report.converted) done.push(`Converted protocol ${report.sourceProtocol} → 48 for today's CS 1.6.`);
     if (report.voice) done.push(`Put the original voice back as Steam voice (${Math.round(report.voice.seconds / 6) / 10} min${job.cleanup ? ', voice cleanup on' : ''}).`);
-    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes] };
+    const voice = report.voice ? { seconds: report.voice.seconds, bursts: report.voice.bursts } : undefined;
+    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes], voice };
   } catch (err) {
     return { ok: false, error: (err as Error).message, done: [], notes: [] };
   }

@@ -82,6 +82,9 @@ Each layer depends only on the layer below it.
     one-step fix as `npm run fix`, written with writeNewFile into the fixed-demos folder; then the 3.2 launcher and the
     3.5 cleanup when the game closes), `main/fixed-store.ts` (which demos have a valid fixed copy: `%APPDATA%\SpaceDemo\fixed.json`;
     a copy counts only while the original is unchanged). Bundles get `import.meta.url` from a banner (`app/build.mjs`).
+  - Fix & convert (plan 4.6): `main/fix-service.ts` — one fixing path for Watch and batches (library "Fix all", files
+    picked or dropped on the Fix page, .dem or .zip); one demo at a time in the background thread; Stop skips the rest;
+    results per demo (time, voice restored, what was done).
   - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)

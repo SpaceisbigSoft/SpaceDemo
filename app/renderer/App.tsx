@@ -1,6 +1,6 @@
 // The app frame (plan 4.2): title bar, left navigation, the game card and the current page.
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
-import type { GameStatus, LibraryState } from '../shared/api.js';
+import type { FixBatchState, GameStatus, LibraryState } from '../shared/api.js';
 import { FixIcon, LibraryIcon, LogoMark, SettingsIcon } from './icons.js';
 import { LibraryPage } from './pages/LibraryPage.js';
 import { FixPage } from './pages/FixPage.js';
@@ -23,6 +23,12 @@ export function App() {
   const [library, setLibrary] = useState<LibraryState | undefined>();
   const [detailsKey, setDetailsKey] = useState<string | undefined>();
   const openDetails = (key: string) => { setDetailsKey(key); setPage('details'); };
+  const [fixBatch, setFixBatch] = useState<FixBatchState | undefined>();
+  useEffect(() => {
+    void window.spacedemo.getFixBatch().then(setFixBatch);
+    return window.spacedemo.onFixBatch(setFixBatch);
+  }, []);
+  const fixAll = (keys: string[]) => { void window.spacedemo.fixDemos(keys); setPage('fix'); };
   const [watchKey, setWatchKey] = useState<string | undefined>();
   const watchDemo = library?.demos.find((d) => d.key === watchKey);
   const navPage: PageId = page === 'details' ? 'library' : page;
@@ -61,6 +67,7 @@ export function App() {
         <span aria-hidden="true">·</span>
         <span data-testid="titlebar-page">{current.label}{page === 'details' && detailsDemo ? ` › ${detailsDemo.name}` : ''}</span>
         {library?.scan && <span className="titlebar-progress">· reading demos {library.scan.done}/{library.scan.total}</span>}
+        {fixBatch?.running && <span className="titlebar-progress">· fixing {fixBatch.items.filter((i) => i.state !== 'waiting' && i.state !== 'fixing').length}/{fixBatch.items.length}</span>}
       </header>
       <div className="frame">
         <nav className="sidebar" aria-label="Main">
@@ -86,9 +93,9 @@ export function App() {
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
         <main className="page" data-testid={`page-${page}`}>
-          {page === 'library' && <LibraryPage library={library} onOpen={openDetails} onWatch={setWatchKey} />}
+          {page === 'library' && <LibraryPage library={library} onOpen={openDetails} onWatch={setWatchKey} onFixAll={fixAll} fixing={!!fixBatch?.running} />}
           {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} onWatch={setWatchKey} />}
-          {page === 'fix' && <FixPage />}
+          {page === 'fix' && <FixPage batch={fixBatch} library={library} onWatch={setWatchKey} />}
           {page === 'settings' && <SettingsPage game={game} looking={looking} onLookAgain={lookForGame} />}
         </main>
       </div>

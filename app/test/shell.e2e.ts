@@ -46,9 +46,10 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseOutputFolder', 'findGame', 'getDemoDetails', 'getLibrary', 'getSettings', 'getTheme',
-      'getWatchInfo', 'info', 'onLibraryChanged', 'onThemeChanged', 'onWatchProgress', 'pathForFile', 'removeFromLibrary',
-      'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder', 'watch',
+      'addMapFolder', 'addToLibrary', 'chooseOutputFolder', 'findGame', 'fixDemos', 'fixFiles', 'getDemoDetails', 'getFixBatch', 'getLibrary',
+      'getSettings', 'getTheme', 'getWatchInfo', 'info', 'onFixBatch', 'onLibraryChanged', 'onThemeChanged', 'onWatchProgress',
+      'openOutputFolder', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'showInFolder',
+      'stopFixing', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);

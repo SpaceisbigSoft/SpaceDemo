@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type LibraryState, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
+import { IPC, type FixBatchState, type LibraryState, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -32,6 +32,16 @@ const api: SpaceDemoApi = {
     return () => { ipcRenderer.removeListener(IPC.watchProgress, handler); };
   },
   chooseOutputFolder: () => ipcRenderer.invoke(IPC.outputFolderChoose),
+  fixDemos: (keys: string[]) => ipcRenderer.invoke(IPC.fixDemos, keys),
+  fixFiles: (paths?: string[]) => ipcRenderer.invoke(IPC.fixFiles, paths),
+  stopFixing: () => ipcRenderer.invoke(IPC.fixStop),
+  getFixBatch: () => ipcRenderer.invoke(IPC.fixGet),
+  onFixBatch: (listener: (s: FixBatchState) => void) => {
+    const handler = (_event: unknown, s: FixBatchState) => listener(s);
+    ipcRenderer.on(IPC.fixChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.fixChanged, handler); };
+  },
+  openOutputFolder: () => ipcRenderer.invoke(IPC.openOutput),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

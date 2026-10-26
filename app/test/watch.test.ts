@@ -10,6 +10,7 @@ import { FixedStore, fixedOutputPath } from '../main/fixed-store.js';
 import { LibraryService } from '../main/library-service.js';
 import { directReader } from '../main/reader.js';
 import { WatchService } from '../main/watch-service.js';
+import { FixService } from '../main/fix-service.js';
 import type { WatchProgress } from '../shared/api.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'sd-watch-'));
@@ -67,8 +68,9 @@ describe.skipIf(!zips)('watch a real demo', () => {
     const progress: WatchProgress[] = [];
     let running = false;
     const findRaw = () => { const f = findGame({ gameDir: game }); f.steam = { dir: '/steam', exe: '/steam/steam.exe', source: 'manual' }; return f; };
+    const fixer = new FixService({ library, reader, fixed, gameDir: () => game, outputFolder: () => outDir, helperExe: '/none.exe', onChange: () => {} });
     const watch = new WatchService({
-      library, reader, fixed, findGame: findRaw, outputFolder: () => outDir, helperExe: '/none.exe',
+      library, fixed, fixer, findGame: findRaw, outputFolder: () => outDir,
       onProgress: (p) => progress.push(p), start: (_exe, args) => { started.push(args); running = true; },
       gameRunning: () => running, sleep: async () => { running = false; },
     });

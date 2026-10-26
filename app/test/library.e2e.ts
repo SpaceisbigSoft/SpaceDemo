@@ -183,12 +183,32 @@ describe.skipIf(!zips)('library screen', () => {
     expect(await page.locator('[data-testid="watch-dialog"]').count()).toBe(0);
   });
 
+  it('fixes everything that needs it from the library, with results (4.6)', async () => {
+    if (!process.env.SPACEDEMO_GAME_DIR) return;
+    const n = Number((await page.textContent('[data-testid="library-fix-all"]'))!.match(/\d+/)![0]);
+    expect(n).toBe(26); // modTside was fixed by the Watch test
+    await page.click('[data-testid="library-fix-all"]');
+    await page.waitForSelector('[data-testid="fixpage"]');
+    expect(await page.textContent('[data-testid="titlebar-page"]')).toBe('Fix & convert');
+    await page.waitForSelector('[data-testid="fix-row"][data-state="fixing"], [data-testid="fix-row"][data-state="fixed"]');
+    await shot('14 fix running');
+    await page.waitForFunction(() => /\d+ of \d+ demos fixed/.test(document.querySelector('[data-testid="fix-summary"]')?.textContent ?? ''), undefined, { timeout: 600_000 });
+    expect(await page.textContent('[data-testid="fix-summary"]')).toContain('26 of 26 demos fixed');
+    expect(await page.locator('[data-testid="fix-row"][data-state="fixed"]').count()).toBe(26);
+    await shot('15 fix results');
+    await page.click('nav button:has-text("Library")');
+    await page.waitForSelector('[data-testid="demo-table"]');
+    expect(await page.locator('[data-testid="demo-row"][data-status="fixed"]').count()).toBe(27);
+    expect(await page.locator('[data-testid="library-fix-all"]').count()).toBe(0);
+  });
+
   it('opens instantly from the cache after a restart', async () => {
     await app.close();
     await launch();
     await page.waitForSelector('[data-testid="demo-row"]');
     expect(await page.locator('[data-testid="demo-row"][data-status="waiting"]').count()).toBe(0);
     expect(await rows().count()).toBe(27);
+    if (process.env.SPACEDEMO_GAME_DIR) expect(await page.locator('[data-testid="demo-row"][data-status="fixed"]').count()).toBe(27);
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
     await shot('9 library (light)');
     await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });

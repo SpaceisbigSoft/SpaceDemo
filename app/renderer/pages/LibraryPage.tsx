@@ -25,7 +25,7 @@ const SORTS: Record<SortKey, (a: LibraryDemo, b: LibraryDemo) => number> = {
   voice: (a, b) => (a.info?.voiceSeconds ?? a.info?.talkBursts ?? 0) - (b.info?.voiceSeconds ?? b.info?.talkBursts ?? 0),
 };
 
-export function LibraryPage({ library, onOpen, onWatch }: { library?: LibraryState; onOpen: (key: string) => void; onWatch: (key: string) => void }) {
+export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { library?: LibraryState; onOpen: (key: string) => void; onWatch: (key: string) => void; onFixAll: (keys: string[]) => void; fixing: boolean }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [map, setMap] = useState('');
@@ -33,6 +33,7 @@ export function LibraryPage({ library, onOpen, onWatch }: { library?: LibrarySta
   const [dragging, setDragging] = useState(false);
 
   const demos = library?.demos ?? [];
+  const needFix = demos.filter((d) => d.status === 'needs-fix' || d.status === 'damaged');
   const folders = library?.folders ?? [];
   const maps = useMemo(() => [...new Set(demos.map((d) => d.info?.map).filter((m): m is string => !!m))].sort(), [demos]);
 
@@ -86,6 +87,11 @@ export function LibraryPage({ library, onOpen, onWatch }: { library?: LibrarySta
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           {folders.length > 0 && <button type="button" className="btn" onClick={() => void window.spacedemo.rescanLibrary()} disabled={!!library?.scan}>Read again</button>}
           <button type="button" className={`btn${folders.length === 0 ? ' primary' : ''}`} onClick={add}>Add folder…</button>
+          {needFix.length > 0 && (
+            <button type="button" className="btn primary" disabled={fixing} onClick={() => onFixAll(needFix.map((d) => d.key))} data-testid="library-fix-all">
+              Fix all {needFix.length} that need it
+            </button>
+          )}
         </div>
       </div>
 

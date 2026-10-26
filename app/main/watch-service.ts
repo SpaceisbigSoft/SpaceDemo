@@ -6,16 +6,15 @@ import { isGameRunning, launch, planLaunch, type LaunchPlan } from '../../engine
 import type { FindResult } from '../../engine/src/launch/steam.js';
 import type { WatchInfo, WatchProgress } from '../shared/api.js';
 import { fixedOutputPath, type FixedStore } from './fixed-store.js';
+import type { FixService } from './fix-service.js';
 import type { LibraryService } from './library-service.js';
-import type { LibraryReader } from './reader.js';
 
 export interface WatchDeps {
   library: LibraryService;
-  reader: LibraryReader;
   fixed: FixedStore;
+  fixer: FixService;
   findGame: () => FindResult;
   outputFolder: () => string;
-  helperExe: string;
   onProgress: (p: WatchProgress) => void;
   /** Replaceable in tests: starting Steam, checking whether the game runs, waiting. */
   start?: (exe: string, args: string[]) => void;
@@ -81,18 +80,8 @@ export class WatchService {
 
       if (info.needsFix) {
         say({ stage: 'fixing', message: 'Fixing: repairing, converting for today\'s CS 1.6 and putting the original voice back…' });
-        const out = fixedOutputPath(this.d.outputFolder(), row.demo.name, this.d.fixed.ownOutput(key));
-        const r = await this.d.reader.fix({
-          file: row.candidate.file, zipEntry: row.candidate.zipEntry, output: out.path, overwrite: out.overwrite,
-          gameDir: found.game?.dir, helperExe: this.d.helperExe, cleanup: true,
-        });
+        const r = await this.d.fixer.fixOne(key, row.candidate, row.demo.name);
         if (!r.ok || !r.output) return say({ stage: 'error', message: `Fixing didn't work: ${r.error}` });
-        const { statSync } = await import('node:fs');
-        this.d.fixed.set(key, {
-          output: r.output, size: row.candidate.size, mtime: row.candidate.mtime, fixedAt: Date.now(),
-          outputSize: statSync(r.output).size, done: r.done, notes: r.notes,
-        });
-        this.d.library.fixedChanged(key);
         source = r.output;
         done = r.done;
         notes = r.notes;

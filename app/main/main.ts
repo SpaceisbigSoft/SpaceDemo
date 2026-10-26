@@ -9,6 +9,8 @@ import { gameStatus, toGameStatus } from './game.js';
 import { findGame } from '../../engine/src/launch/steam.js';
 import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
+import { FixService } from './fix-service.js';
+import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
 import { loadSettings, saveSettings, settingsFile, type Settings } from './settings.js';
 import { workerReader } from './worker-reader.js';
@@ -29,6 +31,7 @@ let win: BrowserWindow | undefined;
 let game: GameStatus | undefined;
 let library: LibraryService;
 let watcher: WatchService;
+let fixer: FixService;
 let fixedStore: FixedStore;
 
 /** Test-only switches: a stand-in game folder, and "pretend to start Steam" (writes what it would run to a log). */
@@ -180,6 +183,23 @@ function registerIpc(): void {
     const speed = typeof o.speed === 'number' && o.speed > 0 && o.speed <= 4 ? o.speed : 1;
     return typeof key === 'string' ? watcher.watch(key, { speed, keepCopy: o.keepCopy === true }) : { key: '', stage: 'error', message: 'No demo given.' };
   });
+  ipcMain.handle(IPC.fixDemos, (_e, keys: unknown) => fixer.addLibrary(Array.isArray(keys) ? keys.filter((k): k is string => typeof k === 'string') : []));
+  ipcMain.handle(IPC.fixFiles, async (_e, paths: unknown) => {
+    let files = paths === undefined ? [] : cleanPaths(paths);
+    if (paths === undefined) {
+      const opts: Electron.OpenDialogOptions = { title: 'Choose old demos to fix', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Demos and zips', extensions: ['dem', 'zip'] }] };
+      const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+      files = r.canceled ? [] : r.filePaths;
+    }
+    return fixer.addCandidates(findCandidates(files).candidates);
+  });
+  ipcMain.handle(IPC.fixStop, () => fixer.stop());
+  ipcMain.handle(IPC.fixGet, () => fixer.state());
+  ipcMain.handle(IPC.openOutput, async () => {
+    const { mkdirSync } = await import('node:fs');
+    mkdirSync(outputFolder(), { recursive: true });
+    await shell.openPath(outputFolder());
+  });
   ipcMain.handle(IPC.outputFolderChoose, async () => {
     const [p] = await pickFolders('Choose where fixed demos are saved', false);
     if (p) saveAndApply({ ...settings, outputFolder: p });
@@ -237,9 +257,13 @@ if (!app.requestSingleInstanceLock()) {
       onChange: (state) => win?.webContents.send(IPC.libraryChanged, state),
     });
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
-    watcher = new WatchService({
-      library, reader, fixed: fixedStore, findGame: findRaw, outputFolder,
+    fixer = new FixService({
+      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder,
       helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
+      onChange: (s) => win?.webContents.send(IPC.fixChanged, s),
+    });
+    watcher = new WatchService({
+      library, fixed: fixedStore, fixer, findGame: findRaw, outputFolder,
       onProgress: (p) => win?.webContents.send(IPC.watchProgress, p),
       ...(DRY_LAUNCH ? { start: (exe: string, args: string[]) => appendFileSync(launchLog, JSON.stringify({ exe, args }) + '\n'), gameRunning: () => false, noWait: true } : {}),
     });
