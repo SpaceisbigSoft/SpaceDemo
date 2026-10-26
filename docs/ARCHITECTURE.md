@@ -51,6 +51,13 @@ Each layer depends only on the layer below it.
     demos of the same map version (boost spots, trick jumps). Kept: what is reachable from a spawn or a spot players
     stood on (big drops count one way, so roofs are left out). Shortest paths (Dijkstra), nearest spot for a position,
     compact JSON for caching per map checksum. Used by position estimates (2.16).
+- `engine/src/match/estimate.ts` — position estimates between sightings (plan 2.16): per player and round life, anchors
+  (seen, radar, heard, spawn during freeze time, death spot at the kill time) and, between them, the shortest walkable
+  route at the weapon's top speed (`WEAPON_SPEED`, from the game code); timing 'adaptive' (even spread in short gaps,
+  go-then-wait in long ones); every point has a source, an uncertainty radius and a confidence, calibrated on Set 1
+  (POV knowledge vs the HLTV recording of the same half: `tools/dev/estimate-check.ts`). `estimateMatch()` = whole demo.
+- POV demos: the recorder's own exact position comes from each network frame's view info (`viewInfo()` in
+  `match/extract.ts`: simorg, on-ground, view height, health, view angles).
 - `engine/src/map-index.ts` — finds the exact map version a demo needs among folders of .bsp files (by checksum).
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).

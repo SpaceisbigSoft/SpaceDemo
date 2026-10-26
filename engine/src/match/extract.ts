@@ -149,6 +149,16 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         lastTeamScore = {};
       }
 
+      // POV: the recorder's own exact position from the frame's view info (simorg), plan 2.16.
+      if (wantTracks && playback && m.recording !== 'HLTV' && m.recorderSlot !== undefined) {
+        const v = viewInfo(f.info);
+        const id = idOf(m.recorderSlot);
+        if (v && v.health > 0 && v.viewHeight > 0 && t - (lastSample.get(id) ?? -1) >= sampleStep) {
+          lastSample.set(id, t);
+          track(id).seen.push({ time: t, x: q8(v.origin[0]), y: q8(v.origin[1]), z: q8(v.origin[2]), yaw: Math.round(((v.yaw % 360) + 360) % 360), alive: true });
+        }
+      }
+
       const pendingEvents: EventsBody['events'] = [];
       for (const msg of decodeMessages(f.messages, s)) {
         const b = msg.body;
@@ -243,7 +253,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
                 lastSample.set(id, t);
                 const yaw = es['angles[1]'];
                 track(id).seen.push({
-                  time: t, x: Math.round(es['origin[0]'] as number), y: Math.round(es['origin[1]'] as number), z: Math.round(es['origin[2]'] as number),
+                  time: t, x: q8(es['origin[0]'] as number), y: q8(es['origin[1]'] as number), z: q8(es['origin[2]'] as number),
                   yaw: typeof yaw === 'number' ? Math.round(yaw) : undefined, weapon: weaponName(es['weaponmodel']), alive: true,
                 });
               }
@@ -261,7 +271,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
             }
             if (wantTracks && playback && b.entity >= 1 && b.entity <= 32 && b.origin[0] !== undefined && b.origin[1] !== undefined) {
               track(idOf(b.entity - 1)).heard.push({
-                time: t, x: Math.round(b.origin[0]), y: Math.round(b.origin[1]), z: Math.round(b.origin[2] ?? 0), alive: true,
+                time: t, x: q8(b.origin[0]), y: q8(b.origin[1]), z: q8(b.origin[2] ?? 0), alive: true,
                 sound: (sounds[b.sound] ?? `sound${b.sound}`).replace(/\.wav$/i, ''),
               });
             }
@@ -397,7 +407,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         // Teammate positions sent to the recorder (POV): entity, x, y, z.
         const slot = p.u8() - 1;
         const x = p.coord(), y = p.coord(), z = p.coord();
-        if (wantTracks && playback && slot >= 0 && slot < 32) track(idOf(slot)).radar.push({ time: t, x: Math.round(x), y: Math.round(y), z: Math.round(z), alive: true });
+        if (wantTracks && playback && slot >= 0 && slot < 32) track(idOf(slot)).radar.push({ time: t, x: q8(x), y: q8(y), z: q8(z), alive: true });
         break;
       }
       case 'ScoreInfo': {
@@ -523,4 +533,19 @@ export function checkMatch(m: MatchData): MatchCheck {
     roundsWon,
     serverScore,
   };
+}
+
+/** Positions keep the demo's own precision (1/8 unit). */
+const q8 = (v: number) => Math.round(v * 8) / 8;
+
+/**
+ * The recorder's view info at the start of a network frame (protocol 44+; checked on Set 1 POV demos 2026-10-26):
+ * simorg (origin) at byte 104, onground i32 at 84, viewheight z at 124 (17 standing, 12 crouching, 0 dead),
+ * health i32 at 144, viewangles at 16 (yaw at 20).
+ */
+export function viewInfo(info: Uint8Array): { origin: [number, number, number]; onGround: boolean; viewHeight: number; health: number; yaw: number } | undefined {
+  if (info.length < 148) return undefined;
+  const v = new DataView(info.buffer, info.byteOffset, info.byteLength);
+  const f = (o: number) => v.getFloat32(o, true);
+  return { origin: [f(104), f(108), f(112)], onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), yaw: f(20) };
 }
