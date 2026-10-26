@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "inspect": "tsx tools/inspect.ts",
-    "convert": "tsx tools/convert.ts"
+    "convert": "tsx tools/convert.ts",
+    "match": "tsx tools/match.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

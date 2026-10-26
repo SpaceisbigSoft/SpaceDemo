@@ -37,6 +37,9 @@ Each layer depends only on the layer below it.
 - `engine/src/mapcrc.ts` — engine-exact map checksum.
 - `engine/src/inspect.ts` — demo inspector: version, recording type, maps played, sections, voice codec, players with voice
   statistics, problems in plain language (basis of the app's health report).
+- `engine/src/match/` — match data (plan 2.12): players (by server user id), rounds with winner/reason/score, kills,
+  death spots (corpses matched to kills), chat, radio, bomb, shots, voice bursts, recorder data, HLTV director events;
+  `checkMatch` compares the result with the server's own frags and team score.
 - `engine/src/map-index.ts` — finds the exact map version a demo needs among folders of .bsp files (by checksum).
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).
