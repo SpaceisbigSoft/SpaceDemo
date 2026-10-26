@@ -3,8 +3,16 @@
 // bomb events and shots; chat, radio and voice are kept for the whole demo (with `round` undefined before the match).
 import { FrameType, type DemoFile } from '../container/types.js';
 import { createState, decodeMessages, type EventsBody } from '../protocol/messages.js';
+import { EntityTracker, incomingSequence } from './entities.js';
 import { PayloadReader } from './payload.js';
-import type { BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, RecorderData, Round, RoundEndReason, Team, VoiceBurst } from './types.js';
+import type { BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
+
+export interface ExtractOptions {
+  /** Also build position tracks (plan 2.13). Costs time and memory on long demos. */
+  tracks?: boolean;
+  /** Maximum seen-positions per second per player (default 10). */
+  samplesPerSecond?: number;
+}
 
 /** Voice packets further apart than this start a new talk burst. */
 const BURST_GAP = 0.3;
@@ -37,8 +45,20 @@ function toTeam(name: string): Team {
 
 const round1 = (n: number) => Math.round(n * 100) / 100;
 
-export function extractMatch(demo: DemoFile): MatchData {
+export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): MatchData {
   const s = createState(demo.header.networkProtocol, demo.header.gameDir);
+  const wantTracks = options.tracks === true;
+  const sampleStep = 1 / (options.samplesPerSecond ?? 10);
+  const tracker = new EntityTracker(s);
+  const tracks = new Map<number, PlayerTrack>();
+  const lastSample = new Map<number, number>();
+  let models: string[] = [];
+  let sounds: string[] = [];
+  const track = (id: number): PlayerTrack => tracks.get(id) ?? (tracks.set(id, { player: id, seen: [], radar: [], heard: [] }).get(id)!);
+  const weaponName = (index: unknown) => {
+    const n = typeof index === 'number' ? models[index] : undefined;
+    return n ? n.replace(/^models\/p_/i, '').replace(/\.mdl$/i, '') : undefined;
+  };
   // Players by server user id; the current occupant of each slot.
   const players = new Map<number, MatchPlayer>();
   const occupant = new Map<number, number>();
@@ -137,6 +157,12 @@ export function extractMatch(demo: DemoFile): MatchData {
             m.recording = 'HLTV';
             break;
           case 'resourceList':
+            models = [];
+            sounds = [];
+            for (const r of b.resources) {
+              if (r.type === 2) models[r.index] = r.name;
+              if (r.type === 0) sounds[r.index] = r.name;
+            }
             eventNames = [];
             for (const r of b.resources) if (r.type === 5) eventNames[r.index] = r.name.replace(/^events\//i, '').replace(/\.sc$/i, '');
             break;
@@ -191,9 +217,35 @@ export function extractMatch(demo: DemoFile): MatchData {
           case 'events':
             if (playback) pendingEvents.push(...b.events);
             break;
-          case 'entities':
-            if (!b.isDelta) packet.clear();
-            for (const e of b.entities) (e.remove ? packet.delete(e.number) : packet.add(e.number));
+          case 'entities': {
+            const states = tracker.packet(b, incomingSequence(f.info));
+            packet.clear();
+            for (const n of states.keys()) packet.add(n);
+            if (wantTracks && playback) {
+              for (const [n, es] of states) {
+                if (n < 1 || n > 32 || es['origin[0]'] === undefined) continue;
+                const id = idOf(n - 1);
+                if (t - (lastSample.get(id) ?? -1) < sampleStep) continue;
+                lastSample.set(id, t);
+                const yaw = es['angles[1]'];
+                track(id).seen.push({
+                  time: t, x: Math.round(es['origin[0]'] as number), y: Math.round(es['origin[1]'] as number), z: Math.round(es['origin[2]'] as number),
+                  yaw: typeof yaw === 'number' ? Math.round(yaw) : undefined, weapon: weaponName(es['weaponmodel']), alive: true,
+                });
+              }
+            }
+            break;
+          }
+          case 'baseline':
+            tracker.baseline(b);
+            break;
+          case 'sound':
+            if (wantTracks && playback && b.entity >= 1 && b.entity <= 32 && b.origin[0] !== undefined && b.origin[1] !== undefined) {
+              track(idOf(b.entity - 1)).heard.push({
+                time: t, x: Math.round(b.origin[0]), y: Math.round(b.origin[1]), z: Math.round(b.origin[2] ?? 0), alive: true,
+                sound: (sounds[b.sound] ?? `sound${b.sound}`).replace(/\.wav$/i, ''),
+              });
+            }
             break;
           case 'user':
             handleUser(b.name, new PayloadReader(b.payload), t, f.time);
@@ -311,6 +363,13 @@ export function extractMatch(demo: DemoFile): MatchData {
         }
         break;
       }
+      case 'Radar': {
+        // Teammate positions sent to the recorder (POV): entity, x, y, z.
+        const slot = p.u8() - 1;
+        const x = p.coord(), y = p.coord(), z = p.coord();
+        if (wantTracks && playback && slot >= 0 && slot < 32) track(idOf(slot)).radar.push({ time: t, x: Math.round(x), y: Math.round(y), z: Math.round(z), alive: true });
+        break;
+      }
       case 'ScoreInfo': {
         const pl = player(p.u8() - 1);
         pl.frags = p.i16();
@@ -355,6 +414,19 @@ export function extractMatch(demo: DemoFile): MatchData {
     if (k.killer !== null && !k.suicide) k.teamKill = k.killerTeam !== undefined && k.killerTeam === k.victimTeam;
   }
   matchDeaths(m);
+  if (wantTracks) {
+    // Mark points after the player's death in a round as not alive (bodies and death sounds can still appear).
+    const deathsOf = new Map<number, number[]>();
+    for (const k of m.kills) (deathsOf.get(k.victim) ?? deathsOf.set(k.victim, []).get(k.victim)!).push(k.time);
+    const roundStarts = rounds.map((r) => r.start).sort((a, b) => a - b);
+    const nextStart = (t: number) => roundStarts.find((x) => x > t) ?? Infinity;
+    for (const tr of tracks.values()) {
+      const deaths = deathsOf.get(tr.player) ?? [];
+      const dead = (t: number) => deaths.some((d) => d <= t && t < nextStart(d));
+      for (const list of [tr.seen, tr.radar, tr.heard] as TrackPoint[][]) for (const pt of list) pt.alive = !dead(pt.time);
+    }
+    m.tracks = [...tracks.values()].filter((tr) => players.get(tr.player)?.name).sort((a, b) => a.player - b.player);
+  }
   if (s.hltv) m.recording = 'HLTV';
   // Chat and radio from before the match started belong to no round (round numbers restart at 1 after a restart).
   if (m.liveStart !== undefined) for (const x of [...m.chat, ...m.radio]) if (x.time < m.liveStart) x.round = undefined;

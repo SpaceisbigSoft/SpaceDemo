@@ -114,6 +114,31 @@ export interface RecorderData {
   keys: { time: number; command: string }[];
 }
 
+/** One known position of a player (plan 2.13). */
+export interface TrackPoint {
+  time: number;
+  x: number;
+  y: number;
+  z: number;
+  /** View direction (degrees, 0 = +x, counter-clockwise), when seen. */
+  yaw?: number;
+  /** Weapon in hand ("ak47", "knife", …), when seen. */
+  weapon?: string;
+  /** False after the player died in this round (the body can stay visible). */
+  alive: boolean;
+}
+
+/** Where a player is known to be, by source (plan 2.13). POV demos: seen only within the recorder's view area. */
+export interface PlayerTrack {
+  player: number;
+  /** Exact positions from the entity data (~10 per second while known). */
+  seen: TrackPoint[];
+  /** Teammate positions from the radar (POV, ~1 per second, 1/8-unit precision). */
+  radar: TrackPoint[];
+  /** Positions of sounds the player made (footsteps, shots, reloads…). */
+  heard: (TrackPoint & { sound: string })[];
+}
+
 export interface MatchData {
   map: string;
   recording: 'POV' | 'HLTV';
@@ -138,6 +163,8 @@ export interface MatchData {
   recorder?: RecorderData;
   /** HLTV director events (type 2 = highlight) with their time. */
   director: { time: number; type: number }[];
+  /** Position tracks per player (only with `extractMatch(demo, { tracks: true })`). */
+  tracks?: PlayerTrack[];
 }
 
 export interface MatchCheck {

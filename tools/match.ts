@@ -1,5 +1,5 @@
 // Match data of demos (plan 2.12): summary per demo plus a check against the server's own scores.
-//   npm run match -- <demo.dem | folder>... [--json <out folder>]
+//   npm run match -- <demo.dem | folder>... [--json <out folder>] [--tracks]   (--tracks adds position tracks to the JSON)
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
 import { readDemo } from '../engine/src/container/read.js';
@@ -8,6 +8,9 @@ import { checkMatch, extractMatch } from '../engine/src/match/extract.js';
 const args = process.argv.slice(2);
 const ji = args.indexOf('--json');
 const jsonDir = ji >= 0 ? args.splice(ji, 2)[1] : undefined;
+const ti = args.indexOf('--tracks');
+const withTracks = ti >= 0;
+if (withTracks) args.splice(ti, 1);
 if (jsonDir) mkdirSync(jsonDir, { recursive: true });
 const files: string[] = [];
 const collect = (p: string) => {
@@ -20,7 +23,7 @@ if (!files.length) {
   process.exit(1);
 }
 for (const path of files) {
-  const m = extractMatch(readDemo(new Uint8Array(readFileSync(path))));
+  const m = extractMatch(readDemo(new Uint8Array(readFileSync(path))), { tracks: withTracks });
   const c = checkMatch(m);
   const hs = m.kills.filter((k) => k.headshot).length;
   const shots = m.players.reduce((n, p) => n + Object.values(p.shots).reduce((a, b) => a + b, 0), 0);

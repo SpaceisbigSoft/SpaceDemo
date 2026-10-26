@@ -115,6 +115,11 @@ Game ("user") messages, CS 1.5 layouts as found in the demos (sizes: -1 = sized 
 - `svc_sound`: 9-bit flags, volume/attenuation (if flagged), channel 3 bits, **entity 11 bits** (= player when 1–32), sound index
   8 or 16 bits, origin per axis as a bit-coord (int/frac flags, sign, 12-bit int, 3-bit eighths), pitch if flagged. Gives positions
   of footsteps, shots, reloads, jumps — also of enemies the recorder only *heard*.
-- **POV knowledge of other players** (Set 1, 23 POV demos, per 1 s of alive time): teammates 74 % (entity 55 %, `Radar` 42 %,
-  sounds 30 %), enemies 39 % (entity 27 %, sounds 22 %). At kills, both positions known for 87 % (both exact 73 %).
+- **Packet entities are deltas against an older frame:** `svc_deltapacketentities` names its reference frame with a sequence
+  byte (Set 1: 2 frames back 89 %, 3 back 9 %, previous frame only 2 %). Keep the last 64 frames by the frame's incoming
+  sequence (first i32 of the 28-byte sequence info at the end of the frame's info block) and build each frame from the one
+  named; unlisted entities keep the reference frame's state (`engine/src/match/entities.ts`).
+- **POV knowledge of other players** (Set 1, exact tracks, per 1 s of alive time): teammates 70 % (seen 52 %, `Radar` 41 %,
+  sounds 29 %), enemies 32 % (seen 19 %, sounds 21 %); 2 s window: 74 % / 36 %. HLTV: 94 %. At POV kills both positions are
+  known ±1 s for 85 % (both seen 72 %). Track position at a kill is within 50 units of the corpse for 84 % (median 3–9 units).
 - HLTV `svc_director` types seen: 1 start, 2 event (highlights: kills etc.), 5 time scale, 6 message, 8 status.
