@@ -112,4 +112,9 @@ Game ("user") messages, CS 1.5 layouts as found in the demos (sizes: -1 = sized 
 - Player entities (`entity_state_player_t`): origin, angles, `weaponmodel` (→ `models/p_*.mdl`: weapon in hand), sequence/gait.
   POV demos only contain players in the recorder's view area (median 28–56 % of frames); HLTV demos about 76–88 %.
 - Server text (`svc_print`): welcome text with `BUILD n`, cvar changes (`"mp_freezetime" changed to "…"`), `status` output.
+- `svc_sound`: 9-bit flags, volume/attenuation (if flagged), channel 3 bits, **entity 11 bits** (= player when 1–32), sound index
+  8 or 16 bits, origin per axis as a bit-coord (int/frac flags, sign, 12-bit int, 3-bit eighths), pitch if flagged. Gives positions
+  of footsteps, shots, reloads, jumps — also of enemies the recorder only *heard*.
+- **POV knowledge of other players** (Set 1, 23 POV demos, per 1 s of alive time): teammates 74 % (entity 55 %, `Radar` 42 %,
+  sounds 30 %), enemies 39 % (entity 27 %, sounds 22 %). At kills, both positions known for 87 % (both exact 73 %).
 - HLTV `svc_director` types seen: 1 start, 2 event (highlights: kills etc.), 5 time scale, 6 message, 8 status.

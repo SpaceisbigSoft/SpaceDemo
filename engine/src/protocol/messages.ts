@@ -93,6 +93,14 @@ export interface EventsBody {
   kind: 'events';
   events: { index: number; entity?: number; record?: DeltaRecord; fireTime?: number }[];
 }
+/** svc_sound: a sound played by an entity (footsteps, shots, reloads, bomb beeps), with its position when sent. */
+export interface SoundBody {
+  kind: 'sound';
+  entity: number;
+  channel: number;
+  sound: number;
+  origin: [number | undefined, number | undefined, number | undefined];
+}
 export interface TextBody {
   kind: 'text';
   text: string;
@@ -151,7 +159,7 @@ export interface UserMessageBody {
 
 export type MessageBody =
   | ServerInfoBody | UserInfoBody | NewUserMsgBody | VoiceInitBody | VoiceDataBody | HltvBody | DirectorBody
-  | TextBody | EventsBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody;
+  | TextBody | EventsBody | SoundBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody;
 
 export interface Message {
   id: number;
@@ -340,21 +348,29 @@ function readEvents(r: BitReader, s: ProtocolState): EventsBody {
   return body;
 }
 
-function skipSound(r: BitReader): void {
+function readSound(r: BitReader): SoundBody {
   const flags = r.bits(9);
   if (flags & 1) r.skipBits(8); // volume
   if (flags & 2) r.skipBits(8); // attenuation
-  r.skipBits(3 + 11); // channel, entity
-  r.skipBits(flags & 4 ? 16 : 8); // sound index
+  const channel = r.bits(3);
+  const entity = r.bits(11);
+  const sound = r.bits(flags & 4 ? 16 : 8);
   const axes = [r.bool(), r.bool(), r.bool()];
-  for (const present of axes) {
-    if (!present) continue;
+  const origin: SoundBody['origin'] = [undefined, undefined, undefined];
+  axes.forEach((present, i) => {
+    if (!present) return;
     const hasInt = r.bool();
     const hasFrac = r.bool();
-    if (hasInt || hasFrac) r.skipBits(1 + (hasInt ? 12 : 0) + (hasFrac ? 3 : 0));
-  }
+    if (!hasInt && !hasFrac) { origin[i] = 0; return; }
+    const negative = r.bool();
+    const whole = hasInt ? r.bits(12) : 0;
+    const frac = hasFrac ? r.bits(3) : 0;
+    const v = whole + frac / 8;
+    origin[i] = negative ? -v : v;
+  });
   if (flags & 8) r.skipBits(8); // pitch
   r.alignToByte();
+  return { kind: 'sound', entity, channel, sound, origin };
 }
 
 function skipTempEntity(r: BitReader): void {
@@ -402,7 +418,7 @@ function decodeOne(r: BitReader, id: number, s: ProtocolState): MessageBody | un
       r.alignToByte();
       return undefined;
     }
-    case Svc.Sound: skipSound(r); return undefined;
+    case Svc.Sound: return readSound(r);
     case Svc.ServerInfo: return readServerInfo(r, s);
     case Svc.UpdateUserInfo: return readUserInfo(r, s);
     case Svc.DeltaDescription: readDeltaDescription(r, s); return undefined;
