@@ -22,6 +22,12 @@ describe.skipIf(demos.length === 0)('crashed-demo repair on real demos (plan 2.6
     expect(crashed.recovered).toBe(true);
     expect(crashed.sections.length).toBe(2);
 
+    // Same split as the original: the LOADING section is identical, playback is the original's up to the cut.
+    expect(crashed.sections[0].frames.length).toBe(original.sections[0].frames.length);
+    const orig = original.sections[1].frames, rec = crashed.sections[1].frames;
+    expect(rec.length).toBeGreaterThan(0);
+    expect(rec.length).toBeLessThanOrEqual(orig.length);
+    expect(rec.every((f, i) => f.type === orig[i].type && f.time === orig[i].time)).toBe(true);
     const repaired = readDemo(writeDemo(crashed, { rebuildDirectory: true }));
     expect(repaired.recovered).toBe(false);
     expect(repaired.problems).toEqual([]);

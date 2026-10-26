@@ -161,19 +161,18 @@ export function readDemo(bytes: Uint8Array): DemoFile {
     return { header, sections, problems, recovered: false };
   }
 
-  // No usable directory: scan the frame data from the end of the header. The first section end closes the
-  // LOADING section; everything after it is the Playback section up to the end of the data. (Playback sections
-  // can contain extra section-end frames left over from map loads, like healthy demos have; splitting there
-  // would make the game stop early.)
+  // No usable directory: scan all frame data from the end of the header, then split it where playback starts.
+  // Playback always begins with a DemoStart frame; everything before it is the LOADING section. Both sections can
+  // contain extra section-end frames (a map loaded twice, map changes), so those must not be used to split.
   problems.push(directory);
-  const loading = scanSection(bytes, HEADER_SIZE, bytes.length, P, true);
-  if (loading.frames.length > 0) sections.push({ entry: null, frames: loading.frames });
-  if (!loading.endedCleanly) {
-    if (loading.problem) problems.push(loading.problem);
-  } else if (loading.endOffset < bytes.length) {
-    const playback = scanSection(bytes, loading.endOffset, bytes.length, P, false);
-    if (playback.frames.length > 0) sections.push({ entry: null, frames: playback.frames });
-    if (playback.problem) problems.push(playback.problem);
+  const scan = scanSection(bytes, HEADER_SIZE, bytes.length, P, false);
+  if (scan.problem) problems.push(scan.problem);
+  const start = scan.frames.findIndex((f) => f.type === FrameType.DemoStart);
+  if (start > 0) {
+    sections.push({ entry: null, frames: scan.frames.slice(0, start) });
+    sections.push({ entry: null, frames: scan.frames.slice(start) });
+  } else if (scan.frames.length > 0) {
+    sections.push({ entry: null, frames: scan.frames });
   }
   return { header, sections, problems, recovered: true };
 }
