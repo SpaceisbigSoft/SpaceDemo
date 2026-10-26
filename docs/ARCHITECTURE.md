@@ -40,8 +40,17 @@ Each layer depends only on the layer below it.
 - `engine/src/match/` — match data (plan 2.12): players (by server user id), rounds with winner/reason/score, kills,
   death spots (corpses matched to kills), chat, radio, bomb, shots, voice bursts, recorder data, HLTV director events;
   `checkMatch` compares the result with the server's own frags and team score.
-- `engine/src/map/` — map facts for the radar (plan 2.14): bomb sites, spawns and floor polygons from the .bsp (read-only),
-  the game's overview images (`overview.ts`: world → image mapping, checked against player positions).
+- `engine/src/map/` — map facts for the radar (plan 2.14): bomb sites (with letters A/B: map-file order, per-version
+  corrections in `SITE_LETTER_OVERRIDES`), spawns and floor polygons from the .bsp (read-only), the game's overview images
+  (`overview.ts`: world → image mapping, checked against player positions).
+  - `hull.ts` — the map's player collision ("clip hulls": the world grown by the player's box): does a standing or
+    crouching player fit with his origin here, where is the ground below. 99.75–100 % of Set 1 positions fit (allowing
+    the demos' whole-unit rounding and crouching).
+  - `walk.ts` — walkable-area map (plan 2.15): 32×32-unit spots on every floor (columns scanned with the collision),
+    links for walk/step/jump (≤ 64 up)/drop (≤ 220 down)/ladder, plus spots and links from players' real movements in
+    demos of the same map version (boost spots, trick jumps). Kept: what is reachable from a spawn or a spot players
+    stood on (big drops count one way, so roofs are left out). Shortest paths (Dijkstra), nearest spot for a position,
+    compact JSON for caching per map checksum. Used by position estimates (2.16).
 - `engine/src/map-index.ts` — finds the exact map version a demo needs among folders of .bsp files (by checksum).
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).

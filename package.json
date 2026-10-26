@@ -16,7 +16,8 @@
     "convert": "tsx tools/convert.ts",
     "match": "tsx tools/match.ts",
     "repair": "tsx tools/repair.ts",
-    "map": "tsx tools/map.ts"
+    "map": "tsx tools/map.ts",
+    "walk": "tsx tools/walk.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

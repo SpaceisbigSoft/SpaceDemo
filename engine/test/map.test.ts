@@ -33,8 +33,8 @@ describe('map entities', () => {
   });
   it('tells stacked sites apart by height (de_nuke A above B)', () => {
     const sites: BombSite[] = [
-      { index: 1, mins: [544, -976, -416], maxs: [816, -576, -320], source: 'func_bomb_target' },
-      { index: 2, mins: [528, -1024, -768], maxs: [768, -784, -672], source: 'func_bomb_target' },
+      { index: 1, letter: 'A', mins: [544, -976, -416], maxs: [816, -576, -320], source: 'func_bomb_target' },
+      { index: 2, letter: 'B', mins: [528, -1024, -768], maxs: [768, -784, -672], source: 'func_bomb_target' },
     ];
     expect(siteAt(sites, [600, -800, -380])).toBe(1);
     expect(siteAt(sites, [600, -800, -740])).toBe(2);

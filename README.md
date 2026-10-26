@@ -10,6 +10,7 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - The engine is **original code** (see `docs/ARCHITECTURE.md`). Other projects are used only as references for facts about the demo format.
 - `npm install`, then `npm test`. To include round-trip tests on real demos, set `CDF_DEMOS` to a folder of `.dem` files (demos are never committed).
 - Match data: `npm run match -- <demo.dem or folder> [--json <out folder>]` — rounds, kills, score, chat, radio, bomb, shots, voice, with a check against the server's own scores.
+- Walkable-area map (where players can stand and walk, shortest routes): `npm run walk -- <map.bsp> [--demos <folder>] [--json <out.json>] [--route <x,y,z> <x,y,z>]` — map files are only read; demos teach it boost spots and trick jumps.
 - Inspect demos: `npm run inspect -- <demo.dem or folder> [--maps <folder with .bsp files>]... [--json]` — version, recording type, maps, length, voice per player, map-version check and problems.
 
 ## Goals

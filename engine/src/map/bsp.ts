@@ -7,8 +7,13 @@ export interface BspEntity {
 }
 
 export interface BombSite {
-  /** 1-based in map order. Site letters (A/B) are not stored in the map; see `name`. */
+  /** 1-based in map order (order of the first trigger piece in the map's entity list). */
   index: number;
+  /**
+   * Site letter. GoldSrc maps don't store one; we use Valve's rule from its later games: the first bomb target in the
+   * map file is A, the next B (and so on). A per-map-version correction can override it (SITE_LETTER_OVERRIDES).
+   */
+  letter: string;
   /** Area as an axis-aligned box. info_bomb_target (a point) gets a box of ±BOMB_TARGET_RADIUS around it. */
   mins: [number, number, number];
   maxs: [number, number, number];
@@ -55,6 +60,22 @@ const vec = (s: string | undefined): [number, number, number] => {
   return [p[0] || 0, p[1] || 0, p[2] || 0];
 };
 
+/**
+ * Corrections to the default site letters, per map version ("<map>:<checksum>" → letters in map order), when the
+ * community name of a site differs from the map-file order (plan 2.14; the owner checks the previews).
+ */
+export const SITE_LETTER_OVERRIDES: Record<string, string[]> = {
+  // 2002 de_inferno (Set 1): the map file lists the north site (end of the long lane from the T side, usually called
+  // "banana") first; players call that site B. Claude's call 2026-10-26, owner to confirm on the preview.
+  'de_inferno:3890491249': ['B', 'A'],
+};
+
+/** Applies a correction from SITE_LETTER_OVERRIDES (or a given list) to the sites' letters. */
+export function applySiteLetters(sites: BombSite[], mapName: string, checksum: number, letters = SITE_LETTER_OVERRIDES[`${mapName.toLowerCase()}:${checksum}`]): BombSite[] {
+  if (!letters || letters.length !== sites.length) return sites;
+  return sites.map((s, i) => ({ ...s, letter: letters[i] }));
+}
+
 export function readMapFacts(bsp: Uint8Array): MapFacts {
   const version = new DataView(bsp.buffer, bsp.byteOffset).getInt32(0, true);
   if (version !== 30) throw new Error(`Not a GoldSrc map (BSP version ${version})`);
@@ -73,11 +94,11 @@ export function readMapFacts(bsp: Uint8Array): MapFacts {
     if (e.classname === 'func_bomb_target') {
       const n = Number((e.props.model ?? '').replace('*', ''));
       const b = Number.isFinite(n) ? modelBounds(n) : undefined;
-      if (b) bombSites.push({ index: bombSites.length + 1, mins: b[0], maxs: b[1], source: 'func_bomb_target' });
+      if (b) bombSites.push({ index: bombSites.length + 1, letter: '', mins: b[0], maxs: b[1], source: 'func_bomb_target' });
     } else if (e.classname === 'info_bomb_target') {
       const o = vec(e.props.origin);
       const r = BOMB_TARGET_RADIUS;
-      bombSites.push({ index: bombSites.length + 1, mins: [o[0] - r, o[1] - r, o[2] - r], maxs: [o[0] + r, o[1] + r, o[2] + r], source: 'info_bomb_target' });
+      bombSites.push({ index: bombSites.length + 1, letter: '', mins: [o[0] - r, o[1] - r, o[2] - r], maxs: [o[0] + r, o[1] + r, o[2] + r], source: 'info_bomb_target' });
     }
   }
   return {
@@ -98,11 +119,12 @@ function mergeSites(sites: BombSite[], gap = 64): BombSite[] {
     for (let i = out.length - 1; i >= 0; i--) {
       if (!near(out[i], merged)) continue;
       const o = out.splice(i, 1)[0];
-      merged = { ...merged, mins: [0, 1, 2].map((k) => Math.min(o.mins[k], merged.mins[k])) as BombSite['mins'], maxs: [0, 1, 2].map((k) => Math.max(o.maxs[k], merged.maxs[k])) as BombSite['maxs'] };
+      merged = { ...merged, index: Math.min(o.index, merged.index), mins: [0, 1, 2].map((k) => Math.min(o.mins[k], merged.mins[k])) as BombSite['mins'], maxs: [0, 1, 2].map((k) => Math.max(o.maxs[k], merged.maxs[k])) as BombSite['maxs'] };
     }
     out.push(merged);
   }
-  return out.map((s, i) => ({ ...s, index: i + 1 }));
+  // Keep map-file order (joining pieces must not reorder the sites: the order decides the letters).
+  return out.sort((a, b) => a.index - b.index).map((s, i) => ({ ...s, index: i + 1, letter: String.fromCharCode(65 + i) }));
 }
 
 /**
