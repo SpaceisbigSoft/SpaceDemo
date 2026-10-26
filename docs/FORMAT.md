@@ -51,3 +51,16 @@ What the upgrade changes, and why:
 ## Map checksum
 CRC-32 of all BSP lumps except entities (bshift: except lump 1), in lump order, **without** the final inversion.
 *Source: ReHLDS `crc.cpp` (algorithm); measured against the owner's maps.*
+
+## Voice in today's CS 1.6 (build 10210) — Steam voice
+*Measured from `voicetest.dem` (owner, build 10210, `voice_loopback 1`): 158 packets, all checksums valid, all rebuild
+byte-identically.*
+- `svc_voiceinit`: empty codec name and quality 0 → Steam voice.
+- `svc_voicedata` payload:
+  `SteamID (u64)` · chunks · `CRC-32 (u32)` of everything before it.
+  - `0x0B` sample rate (u16) — 24000 in every packet seen.
+  - `0x00` silence: number of silent samples (u16), e.g. 1500.
+  - `0x06` Opus frames: byte length (u16), then frames of `[length u16][sequence u16][Opus packet]`; a lone `0xFFFF`
+    ends a talk burst. Frames are 20 ms; TOC byte 0x68 (SILK wideband, 20 ms, mono).
+  - A packet may contain several chunks in any order (e.g. Opus, silence, Opus).
+- Old demos' Miles (Voxware) voice cannot be played by this path, which explains "talking icon but no sound".

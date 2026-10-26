@@ -17,7 +17,7 @@ describe('upgradePlayerSequence', () => {
   });
 });
 
-const demos = fixtureDemos();
+const demos = fixtureDemos().filter((p) => readDemo(new Uint8Array(readFileSync(p))).header.networkProtocol !== 48);
 
 describe.skipIf(demos.length === 0)('upgrade real demos to protocol 48 (CDF_DEMOS)', () => {
   it.each(demos.map((d) => [basename(d), d]))('%s: converted demo reads cleanly as protocol 48', (_n, path) => {

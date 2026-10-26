@@ -160,3 +160,12 @@ export function encodeResourceList(b: ResourceListBody): Uint8Array {
   w.alignToByte();
   return w.finish();
 }
+
+export function encodeVoiceData(slot: number, data: Uint8Array): Uint8Array {
+  const w = new BitWriter();
+  w.u8(Svc.VoiceData);
+  w.u8(slot);
+  w.u16(data.length);
+  w.bytes(data);
+  return w.finish();
+}
