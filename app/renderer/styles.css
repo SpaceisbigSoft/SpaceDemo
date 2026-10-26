@@ -1,0 +1,192 @@
+/* SpaceDemo look (approved mockups, plan 4.1): dark by default, amber accent, Inter + JetBrains Mono.
+   Colours are tokens; the light set below replaces them when <html data-theme="light"> (set from the app: Settings
+   choice, or Windows' own setting).
+   Text colours are checked for at least 4.5:1 contrast on their backgrounds. */
+:root {
+  color-scheme: dark;
+  --bg: #15171a;
+  --surface: #1b1e22;
+  --surface-2: #22262b;
+  --surface-3: #2a2f35;
+  --border: #2c3136;
+  --border-strong: #3a4047;
+  --text: #e8eaed;
+  --text-2: #c9cdd2;
+  --muted: #a3a9b1;
+  --accent: #f2a93b;
+  --accent-text: #f5c77a;       /* accent used as text */
+  --on-accent: #15171a;         /* text on an accent button */
+  --accent-soft: #2e2717;
+  --info-bg: #16314d;
+  --info-text: #9fd0ff;
+  --warn-bg: #3a2c14;
+  --warn-text: #f5c77a;
+  --bad-text: #ff9b8f;
+  --focus: #7cbcff;
+  --titlebar: #1b1e22;
+  --font: 'Inter', system-ui, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f4;
+  --surface-3: #e6e9ed;
+  --border: #dde1e6;
+  --border-strong: #c5cbd2;
+  --text: #1b1e22;
+  --text-2: #3b4148;
+  --muted: #5b626b;
+  --accent: #f2a93b;
+  --accent-text: #8a5300;
+  --on-accent: #15171a;
+  --accent-soft: #fdf1dc;
+  --info-bg: #e3f0ff;
+  --info-text: #0b4a86;
+  --warn-bg: #fdf1dc;
+  --warn-text: #7a4a00;
+  --bad-text: #a8261a;
+  --focus: #1a6fd1;
+  --titlebar: #ffffff;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Frame: title bar + sidebar + page ---------- */
+.app { height: 100%; display: flex; flex-direction: column; }
+
+.titlebar {
+  flex: 0 0 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 150px 0 14px; /* the right side holds Windows' minimise / maximise / close buttons */
+  background: var(--titlebar);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.titlebar strong { color: var(--text); font-weight: 600; }
+
+.frame { flex: 1 1 auto; min-height: 0; display: flex; }
+
+.sidebar {
+  flex: 0 0 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+.brand-name { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; }
+.brand-tag { font-size: 12px; color: var(--muted); }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.nav-item:hover { background: var(--surface-2); color: var(--text); }
+.nav-item[aria-current='page'] { background: var(--surface-3); color: var(--text); font-weight: 600; }
+
+.game-card {
+  margin-top: auto;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.game-card:hover { background: var(--surface-3); }
+.game-card .label { font-size: 12px; color: var(--muted); }
+.game-card .state { font-size: 13px; font-weight: 600; }
+.game-card .state.ok { color: var(--text); }
+.game-card .state.bad { color: var(--bad-text); }
+.game-card .where { font-size: 12px; color: var(--muted); font-family: var(--mono); overflow-wrap: anywhere; }
+
+.page { flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 20px; }
+.page-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.page-header h1 { margin: 0; font-size: 26px; font-weight: 700; }
+.page-sub { color: var(--muted); font-size: 13px; }
+
+/* ---------- Building blocks ---------- */
+.btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: var(--surface-3); }
+.btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); font-weight: 600; }
+
+.empty { align-items: center; text-align: center; padding: 56px 24px; gap: 10px; }
+.empty .icon { color: var(--muted); }
+.empty h2 { text-transform: none; letter-spacing: 0; font-size: 18px; color: var(--text); }
+.empty p { margin: 0; color: var(--text-2); max-width: 520px; }
+.chip { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: var(--info-bg); color: var(--info-text); }
+
+.note { margin: 0; color: var(--muted); font-size: 13px; }
+
+.choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+}
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; margin: 0; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.problem { color: var(--bad-text); margin: 0; }

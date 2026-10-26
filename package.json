@@ -11,7 +11,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p app/tsconfig.json",
     "inspect": "tsx tools/inspect.ts",
     "convert": "tsx tools/convert.ts",
     "match": "tsx tools/match.ts",
@@ -20,15 +20,32 @@
     "walk": "tsx tools/walk.ts",
     "fix": "tsx tools/fix.ts",
     "play": "tsx tools/play.ts",
-    "build:helper": "sh helpers/voice-helper/build.sh"
+    "build:helper": "sh helpers/voice-helper/build.sh",
+    "app:build": "node app/build.mjs",
+    "app": "node app/build.mjs && electron .",
+    "test:app": "node app/build.mjs && vitest run --config app/vitest.config.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "44.7.0",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.64.0",
     "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
   },
   "dependencies": {
-    "opusscript": "0.1.1"
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "opusscript": "0.1.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "main": "out/app/main/main.cjs",
+  "allowScripts": {
+    "esbuild": true,
+    "electron": true
   }
 }

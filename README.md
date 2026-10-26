@@ -2,7 +2,7 @@
 
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
-> Status: **engine and launcher working** (fix + play from the command line); the app window comes next. Nothing to download yet.
+> Status: **engine and launcher working** (fix + play from the command line); **app window started** (plan 4.2: the frame, navigation and light/dark theme). Nothing to download yet.
 >
 > Main repository: https://github.com/SpaceisbigSoft/SpaceDemo (renamed from `i69-demoviewer` on 2026-10-26; earlier `cs-demo-fixer`). Working name during development: CS Demo Fixer.
 
@@ -12,6 +12,7 @@ A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`
 - Match data: `npm run match -- <demo.dem or folder> [--json <out folder>]` — rounds, kills, score, chat, radio, bomb, shots, voice, with a check against the server's own scores.
 - **Fix a demo** (repair, convert, original voice back as Steam voice): `npm run fix -- <old.dem> <fixed.dem> --game <Half-Life folder>` — uses your own `mssvoice.asi` through our voice helper (`npm run build:helper` first).
 - Walkable-area map (where players can stand and walk, shortest routes): `npm run walk -- <map.bsp> [--demos <folder>] [--json <out.json>] [--route <x,y,z> <x,y,z>]` — map files are only read; demos teach it boost spots and trick jumps.
+- **The app** (Electron + React): `npm run app` builds it into `out/app/` and opens the window (Electron downloads itself the first time). Interface test: `npm run test:app` (on Linux: `xvfb-run -a npm run test:app`; screenshots in `out/screenshots/`).
 - Inspect demos: `npm run inspect -- <demo.dem or folder> [--maps <folder with .bsp files>]... [--json]` — version, recording type, maps, length, voice per player, map-version check and problems.
 
 ## Goals
@@ -34,6 +35,7 @@ SpaceDemo is designed so it cannot trigger Valve Anti-Cheat (VAC) or any Valve p
 - **compLexity Demo Player** (COL) by jpcy and contributors — https://github.com/jpcy/coldemoplayer — GPL v3. The pioneering CS 1.0–1.6 demo player and converter; an important reference for how old demos differ from current ones. (This project's code is written from scratch.)
 - **CS Demo Manager** by AkiVer — https://github.com/akiver/cs-demo-manager — MIT. Inspiration for the interface.
 - **SK Player** by Andreas Thorstensson — feature ideas only; no code used.
+- **Inter** (Rasmus Andersson) and **JetBrains Mono** fonts — SIL Open Font Licence 1.1, via Fontsource.
 - **Speex** by Xiph.Org — BSD-style licence (when added).
 - Format notes from the community, incl. the talent GoldSrc demo-structure notes (cgdangelo) and ReHLDS (map checksum algorithm).
 

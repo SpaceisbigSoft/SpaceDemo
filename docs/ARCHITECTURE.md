@@ -62,6 +62,15 @@ Each layer depends only on the layer below it.
 - `engine/test/` — Vitest tests. Tests that need real demos read them from the folder in `CDF_DEMOS`
   (demos are never committed).
 - `tools/` — command-line tools for development.
+- `app/` — the SpaceDemo window (plan 4.x), Electron + React + TypeScript, built with esbuild (`app/build.mjs` → `out/app/`):
+  - `main/` — the app process: one window (sandboxed, no Node.js in the page, links open in the normal browser, one
+    SpaceDemo at a time), settings in `%APPDATA%\SpaceDemo\settings.json` (`settings.ts`), the game finder (`game.ts`
+    → `engine/src/launch/steam.ts`).
+  - `preload/` — the only bridge: the named calls in `shared/api.ts` (`window.spacedemo`).
+  - `renderer/` — the page (React): title bar (Windows' own min/max/close buttons drawn over it, coloured per theme),
+    left navigation, pages. Colours are CSS tokens; `<html data-theme="light|dark">` is set from the app (Settings:
+    same as Windows / dark / light), so the look never depends on the page guessing the system colours.
+  - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)
 - `engine/src/fix/fix.ts` — `fixDemo()`: recover a cut-off recording, convert to protocol 48 (sprites/models today's game
