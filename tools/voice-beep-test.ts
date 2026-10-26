@@ -3,9 +3,10 @@
 //   npx tsx tools/voice-beep-test.ts <converted-48.dem> <output.dem>
 // Needs ffmpeg with libopus (development machine only).
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { readDemo } from '../engine/src/container/read.js';
 import { writeDemo } from '../engine/src/container/write.js';
+import { writeNewFile } from '../engine/src/fix/safe-output.js';
 import { replaceVoice } from '../engine/src/transforms/replace-voice.js';
 import { opusVoicePacket } from '../engine/src/voice/steam-voice.js';
 import { oggPackets } from './ogg.js';
@@ -39,5 +40,5 @@ const { demo: out, report } = replaceVoice(demo, ({ slot, data }) => {
   }
   return opusVoicePacket(76561197960265728n + BigInt(slot + 1), 24000, frames);
 });
-writeFileSync(output, writeDemo(out, { rebuildDirectory: true }));
+writeNewFile(process.argv.slice(2, -1), output, writeDemo(out, { rebuildDirectory: true }));
 console.log(`Wrote ${output}: ${report.replaced} voice packets replaced with beeps, ${report.dropped} empty ones dropped.`);

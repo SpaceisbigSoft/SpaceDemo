@@ -1,9 +1,10 @@
 // Development tool: dump every svc_voicedata message of a demo, in order, as [slot u8][time f64][length u16][bytes].
 //   npx tsx tools/dump-voice.ts <demo.dem> <output.voice>
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { readDemo } from '../engine/src/container/read.js';
 import { FrameType } from '../engine/src/container/types.js';
 import { createState, decodeMessages } from '../engine/src/protocol/messages.js';
+import { writeNewFile } from '../engine/src/fix/safe-output.js';
 const [input, output] = process.argv.slice(2);
 const demo = readDemo(new Uint8Array(readFileSync(input)));
 const state = createState(demo.header.networkProtocol, demo.header.gameDir);
@@ -20,5 +21,5 @@ for (const s of demo.sections) for (const f of s.frames) {
     sizes.set(m.body.data.length, (sizes.get(m.body.data.length) ?? 0) + 1);
   }
 }
-writeFileSync(output, Buffer.concat(parts));
+writeNewFile([input], output, Buffer.concat(parts));
 console.log('sizes', [...sizes].sort((a, b) => b[1] - a[1]).slice(0, 12));
