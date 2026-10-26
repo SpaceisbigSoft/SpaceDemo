@@ -115,6 +115,9 @@ class Emu:
         sp -= 4; self.w32(sp, SENTINEL)
         uc.reg_write(UC_X86_REG_ESP, sp)
         uc.reg_write(UC_X86_REG_EBP, 0)
+        if not getattr(self, '_fpu_set', False):
+            uc.reg_write(UC_X86_REG_FPCW, 0x027F)  # Windows default: all FP exceptions masked, 53-bit precision
+            self._fpu_set = True
         uc.emu_start(fn, SENTINEL)
         return uc.reg_read(UC_X86_REG_EAX)
 

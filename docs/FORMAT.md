@@ -84,3 +84,6 @@ byte-identically.*
 encoded with Opus (voice mode, 24 kbit/s, 20 ms frames). The Opus frames are shared over the burst's original packets
 in step with the audio each one carried; the last packet ends the burst (0xFFFF). Sequence numbers run on per player.
 On `modCTside`: 314 bursts, 8,366 packets, 20,517 frames (410 s); playback queue lag median 0.036 s, worst 0.225 s.
+- Same result with the 2002-era decoder: Half-Life 1.1.1.0's `Mssv12.asi` (Miles 6.0m, built 2000-11-13) decodes the
+  Set 1 voice bit-identically to the 2012 `mssvoice.asi` (with Windows' FPU settings). In 2002, `voice_miles.dll`
+  (2001-05-08) loaded `Mss32.dll` + `Mssv12.asi`; the 2002 engine (`hw.dll`) did not load Miles itself.

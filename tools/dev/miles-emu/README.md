@@ -26,3 +26,15 @@ npx tsx tools/voice-transcode-test.ts old_48.dem old_48.pcm old_48_voice.dem
 - Output: 8 kHz, 16-bit, mono. 12 bytes of voice data → 360 samples (45 ms).
 
 See `docs/FORMAT.md` (Old voice: voice_miles) for the measured facts.
+
+## Miles 6 (2000-era) plugins
+`miles6_emu.py` loads an old Miles 6 voice plugin (`Mssv12.asi`, as shipped with Half-Life 1.1.1.0 in 2002). These
+register themselves from DllMain, so the emulator supplies a small set of Windows functions, a thread block (FS) and
+flat segments; `ASI_stream_open` takes 3 arguments (user, fetch callback, total size).
+
+**Result (2026-10-26):** with Windows' default FPU control word (0x027F: exceptions masked, 53-bit precision), the
+2000 `Mssv12.asi` and the 2012 `mssvoice.asi` decode modCTside **bit-identically** (3,239,640 samples). The decoder
+build is not why old voice sounds rough; that is VR12 itself.
+
+The emulator now sets FPCW 0x027F before running plugin code, to match Windows. (Before, it used Unicorn's default;
+the output differed sample by sample but sounded the same: same recogniser word count, same spectral flatness.)
