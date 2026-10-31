@@ -85,6 +85,11 @@ Each layer depends only on the layer below it.
   - Fix & convert (plan 4.6): `main/fix-service.ts` — one fixing path for Watch and batches (library "Fix all", files
     picked or dropped on the Fix page, .dem or .zip); one demo at a time in the background thread; Stop skips the rest;
     results per demo (time, voice restored, what was done).
+  - Phase 5 details tabs: `main/details-extra.ts` — 5.h overview (server, build, slots, voice codec, server messages
+    such as the league config, network settings per player, recorder's updates/s and fps), 5.c rounds (timeline of
+    kills and bomb, bomb timer), 5.d stats (K, D, HS, weapons, 2K–5K, first kills/deaths, 1vX clutches, team kills,
+    shots). Sides come from the kill events (players' "last team" can be wrong after half-time); reconnects are added up
+    by name. Checked: kills − team kills − suicides = the server's own frags for every player in Set 1.
   - `test/` — `*.test.ts` run with `npm test`; `*.e2e.ts` start the real window (`npm run test:app`, Playwright).
 
 ## Fixing a demo (plan 2.8)

@@ -10,6 +10,7 @@ import { checkMatch, extractMatch } from '../../engine/src/match/extract.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
+import { overviewInfo, playersByName, roundDetails, statRows } from './details-extra.js';
 
 export interface DetailsJob {
   key: string;
@@ -49,25 +50,20 @@ export function chatMessage(text: string, who: string | undefined): string {
   return t.trim();
 }
 
-export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): DemoDetails {
-  const playing = m.players.filter((p) => !p.isHltv && (p.team === 'T' || p.team === 'CT'));
-  const row = (id: number, name: string, recorder: boolean): PlayerRow => ({
-    name,
-    kills: m.kills.filter((k) => k.killer === id && !k.teamKill && !k.suicide).length,
-    deaths: m.kills.filter((k) => k.victim === id).length,
-    headshots: m.kills.filter((k) => k.killer === id && k.headshot && !k.teamKill).length,
-    talkSeconds: talkByName.get(name) ?? 0,
-    recorder,
-  });
-  const team = (t: Team): TeamDetails => {
-    const ps = playing.filter((p) => p.team === t);
-    const players = ps.map((p) => row(p.id, p.name, p.isRecorder)).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
-    return { tag: teamTag(ps.map((p) => p.name)), players, heard: players.some((p) => p.talkSeconds > 0) };
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats'> {
+  // Players per side from the stats (sides from the kill events; reconnects added up by name).
+  const stats = statRows(m);
+  const team = (t: 'T' | 'CT'): TeamDetails => {
+    const players: PlayerRow[] = stats.filter((p) => p.team === t).map((p) => ({
+      name: p.name, kills: p.kills, deaths: p.deaths, headshots: p.headshots, talkSeconds: talkByName.get(p.name) ?? 0, recorder: p.recorder,
+    }));
+    return { tag: teamTag(players.map((p) => p.name)), players, heard: players.some((p) => p.talkSeconds > 0) };
   };
   const asTeam = (t: Team | undefined) => (t === 'T' || t === 'CT' ? t : undefined);
   const teamOf = (id: number | undefined) => asTeam(m.players.find((p) => p.id === id)?.team);
   // A name can belong to more than one connection (reconnects): use the one that played on a team.
-  const teamOfName = (name: string) => asTeam(m.players.filter((p) => p.name === name).map((p) => p.team).find((t) => t === 'T' || t === 'CT'));
+  const sides = playersByName(m);
+  const teamOfName = (name: string) => sides.get(name)?.team;
 
   const check = checkMatch(m);
   const score = check.serverScore
@@ -85,7 +81,7 @@ export function buildDetails(m: MatchData, talkByName: Map<string, number>, job:
     rounds: m.rounds.map((r) => ({ number: r.number, winner: r.winner, reason: r.reason ? REASON_CODE[r.reason] ?? 'O' : undefined })),
     chat: m.chat.map((c) => {
       const who = m.players.find((p) => p.id === c.sender)?.name;
-      return { time: c.time, who, team: teamOf(c.sender), text: chatMessage(c.text, who), teamOnly: c.teamOnly, dead: c.dead };
+      return { time: c.time, who, team: who ? teamOfName(who) : teamOf(c.sender), text: chatMessage(c.text, who), teamOnly: c.teamOnly, dead: c.dead };
     }),
     talk,
     talkBursts: m.voice.length,
@@ -139,7 +135,12 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
         if (name) talk.set(name, (talk.get(name) ?? 0) + (b.end - b.start));
       }
     }
-    return buildDetails(m, talk, job, detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum));
+    return {
+      ...buildDetails(m, talk, job, detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum)),
+      overview: overviewInfo(report, m),
+      roundDetails: roundDetails(m),
+      stats: statRows(m),
+    };
   } catch (err) {
     return { error: (err as Error).message };
   }

@@ -355,3 +355,28 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .fix-fixed { background: var(--info-bg); color: var(--info-text); }
 .fix-fixing, .fix-waiting, .fix-skipped { background: var(--surface-3); color: var(--text-2); }
 .fix-failed { background: var(--surface-3); color: var(--bad-text); }
+
+/* ---------- Details tabs (Phase 5) ---------- */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.tab {
+  min-height: 44px; padding: 0 16px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--text-2); font-weight: 600; cursor: pointer;
+}
+.tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--text); }
+.round-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.round-line { display: flex; flex-direction: column; gap: 6px; }
+.round-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.round-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 24px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+.round-badge.t { background: var(--warn-bg); color: var(--warn-text); }
+.round-badge.ct { background: var(--info-bg); color: var(--info-text); }
+.round-badge.draw { background: var(--surface-3); color: var(--text-2); }
+.score-after { margin-left: auto; color: var(--text-2); }
+.timeline { position: relative; height: 22px; }
+.timeline .track { position: absolute; top: 9px; left: 0; height: 4px; border-radius: 2px; background: var(--surface-3); }
+.timeline .tick { position: absolute; top: 3px; width: 3px; height: 16px; margin-left: -1px; border-radius: 1px; background: var(--muted); }
+.timeline .tick.t { background: #e3a24a; }
+.timeline .tick.ct { background: #5aa7f0; }
+.timeline .tick.tk { outline: 1px dashed var(--bad-text); }
+.timeline .bomb { position: absolute; top: 1px; transform: translateX(-50%); font-size: 13px; color: var(--bad-text); line-height: 20px; }
+.scoreboard td.num, .scoreboard th.num { white-space: nowrap; }

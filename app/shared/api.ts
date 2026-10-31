@@ -158,6 +158,78 @@ export interface DemoDetails {
   map: DetailsMap;
   /** Warm-up restarts skipped (data before the last restart isn't counted). */
   restarts: number;
+  /** 5.h match overview. */
+  overview: OverviewInfo;
+  /** 5.c rounds with their timeline. */
+  roundDetails: RoundDetail[];
+  /** 5.d scoreboard and stats. */
+  stats: StatRow[];
+}
+
+export interface OverviewInfo {
+  hostName?: string;
+  serverBuild?: number;
+  maxClients?: number;
+  voiceCodec?: string;
+  voiceQuality?: number;
+  /** The recorder's measured network updates per second and frames per second. */
+  measuredUpdatesPerSecond?: number;
+  measuredFps?: number;
+  restarts: number;
+  liveStart?: number;
+  /** Server messages, e.g. "CAL config file has been executed". */
+  serverMessages: string[];
+  network: NetworkRow[];
+}
+
+export interface NetworkRow {
+  name: string;
+  team?: 'T' | 'CT';
+  rate?: string;
+  updateRate?: string;
+  /** cl_lw and cl_lc. */
+  clientWeapons?: string;
+  lagCompensation?: string;
+  /** Changes during the demo, e.g. "rate 25000 at 3:12". */
+  changes: string[];
+  recorder: boolean;
+}
+
+export interface RoundDetail {
+  number: number;
+  winner?: 'T' | 'CT' | 'draw';
+  reason?: string;
+  scoreT?: number;
+  scoreCT?: number;
+  /** From the end of freeze time to the round's end. */
+  seconds: number;
+  /** Kills, `at` = seconds after freeze time ended. */
+  kills: { at: number; killer: string; victim: string; killerTeam?: 'T' | 'CT'; victimTeam?: 'T' | 'CT'; weapon: string; headshot: boolean; teamKill: boolean }[];
+  plantedAt?: number;
+  bombEnd?: { kind: 'defused' | 'exploded'; at: number };
+  /** Seconds from plant to defuse/explosion. */
+  bombTimer?: number;
+}
+
+export interface StatRow {
+  name: string;
+  team: 'T' | 'CT';
+  recorder: boolean;
+  kills: number;
+  deaths: number;
+  headshots: number;
+  teamKills: number;
+  suicides: number;
+  /** Enemy kills per weapon. */
+  weapons: Record<string, number>;
+  /** Rounds with 2, 3, 4 and 5 enemy kills. */
+  multiKills: { 2: number; 3: number; 4: number; 5: number };
+  firstKills: number;
+  firstDeaths: number;
+  /** Rounds won alone against `vs` enemies. */
+  clutches: { round: number; vs: number }[];
+  /** Shots fired per weapon. */
+  shots: Record<string, number>;
 }
 
 export interface TeamDetails {

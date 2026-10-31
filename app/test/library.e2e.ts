@@ -141,6 +141,18 @@ describe.skipIf(!zips)('library screen', () => {
       expect(await page.locator('.overview .site-letter').allTextContents()).toEqual(['A', 'B']);
     }
     await shot('10 details modTside');
+    // Phase 5 tabs: server card (5.h), rounds (5.c), scoreboard (5.d).
+    expect(await page.textContent('[data-testid="details-server"]')).toContain('CAL config file has been executed');
+    expect(await page.locator('[data-testid="details-network"] tbody tr').count()).toBeGreaterThanOrEqual(10);
+    await page.click('[role="tab"]:has-text("Rounds")');
+    expect(await page.locator('[data-testid="round-line"]').count()).toBe(12);
+    expect(await page.locator('[data-testid="round-line"]').first().textContent()).toContain('bomb defused');
+    await shot('10b details rounds');
+    await page.click('[role="tab"]:has-text("Scoreboard")');
+    expect(await page.locator('[data-testid="stat-row"]').count()).toBe(10);
+    expect(await page.locator('[data-testid="stat-row"]').first().textContent()).toContain(':i69:Endbringer');
+    await shot('10c details scoreboard');
+    await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');
 

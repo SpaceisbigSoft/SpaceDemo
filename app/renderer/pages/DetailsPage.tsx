@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { DemoDetails, LibraryDemo, PlayerRow, TeamDetails } from '../../shared/api.js';
 import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } from '../format.js';
+import { RoundsTab, ScoreboardTab, ServerCard } from './DetailsTabs.js';
 
 const TEAM_NAME = { T: 'Terrorists', CT: 'Counter-Terrorists' } as const;
 const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb exploded', D: 'bomb defused', T: 'time ran out', '=': 'draw', O: 'other' };
@@ -10,10 +11,12 @@ const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb explode
 export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard'>('overview');
 
   useEffect(() => {
     setDetails(undefined);
     setAllChat(false);
+    setTab('overview');
     if (demo) void window.spacedemo.getDemoDetails(demo.key).then(setDetails);
   }, [demo?.key]);
 
@@ -61,7 +64,16 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
       {details && 'error' in details && <p className="problem" role="alert">{details.error}</p>}
 
       {d && (
-        <div className="details-grid">
+        <div role="tablist" aria-label="Details" className="tabs">
+          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard']] as const).map(([id, label]) => (
+            <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} className="tab" onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+      )}
+      {d && tab === 'rounds' && <div role="tabpanel" id="panel-rounds" aria-labelledby="tab-rounds"><RoundsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
+      {d && tab === 'scoreboard' && <div role="tabpanel" id="panel-scoreboard" aria-labelledby="tab-scoreboard"><ScoreboardTab d={d} /></div>}
+      {d && tab === 'overview' && (
+        <div className="details-grid" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
           <div className="col-main">
             <section className="card" aria-labelledby="score-h" data-testid="details-score">
               <h2 id="score-h">Score{i?.recording === 'POV' ? ' · this recording' : ''}</h2>
@@ -101,6 +113,7 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
               </div>
               {i?.recording === 'POV' && <span className="note">A player's demo only holds the voice of his own team. The recorder's own voice isn't in it.</span>}
             </section>
+            <ServerCard d={d} />
           </div>
 
           <div className="col-side">
