@@ -252,6 +252,16 @@ describe.skipIf(!zips)('library screen', () => {
     // The keys also show live on the radar replay.
     await page.click('[role="tab"]:has-text("Radar replay")');
     await page.waitForSelector('[data-testid="replay-keys"]');
+    // 5.o highlights → the Radar replay at that moment.
+    await page.click('[role="tab"]:has-text("Highlights")');
+    await page.waitForSelector('[data-testid="details-highlights"]');
+    expect(await page.locator('[data-testid="highlight"]').count()).toBeGreaterThanOrEqual(5);
+    expect(await page.locator('[data-testid="highlight"]').first().textContent()).toContain('3 kills');
+    await shot('10n details highlights');
+    await page.locator('[data-testid="highlight"] button').first().click();
+    await page.waitForSelector('[data-testid="replay-svg"]');
+    await page.waitForFunction(() => document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') && (document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') as HTMLSelectElement).value === '2');
+    expect(await page.textContent('[data-testid="replay-clock"]')).not.toContain('freeze time');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');

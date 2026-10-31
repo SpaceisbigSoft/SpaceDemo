@@ -171,7 +171,7 @@ export interface MatchData {
   scoreCT?: number;
   recorder?: RecorderData;
   /** HLTV director events (type 2 = highlight) with their time. */
-  director: { time: number; type: number }[];
+  director: { time: number; type: number; entity1?: number; entity2?: number; flags?: number }[];
   /** Position tracks per player (only with `extractMatch(demo, { tracks: true })`). */
   tracks?: PlayerTrack[];
   /** Thrown grenades while visible (only with tracks): kind and positions; the last point is where it went off (HE,

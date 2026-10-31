@@ -216,7 +216,13 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
             break;
           }
           case 'director':
-            if (playback) m.director.push({ time: t, type: b.data[0] });
+            if (playback) {
+              const dv = new DataView(b.data.buffer, b.data.byteOffset, b.data.byteLength);
+              // Type 2 (event): entity1 u16, entity2 u16, flags u32 (priority = low 4 bits; HL SDK hltv.h).
+              m.director.push(b.data[0] === 2 && b.data.length >= 9
+                ? { time: t, type: 2, entity1: dv.getUint16(1, true), entity2: dv.getUint16(3, true), flags: dv.getUint32(5, true) }
+                : { time: t, type: b.data[0] });
+            }
             break;
           case 'voiceData': {
             if (!playback || b.data.length === 0) break;

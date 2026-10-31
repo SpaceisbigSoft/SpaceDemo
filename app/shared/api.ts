@@ -180,6 +180,20 @@ export interface DemoDetails {
   sightings?: SightingsData;
   /** 5.n the recorder's own money, health, speed and keys (POV demos only). */
   recorder?: RecorderPanel;
+  /** 5.o moments worth watching. */
+  highlights: Highlight[];
+}
+
+/** 5.o: a moment worth watching; `time` is where to start watching (demo seconds). */
+export interface Highlight {
+  time: number;
+  round: number;
+  kind: 'director' | 'multikill' | 'clutch' | 'knife';
+  title: string;
+  players: string[];
+  team?: 'T' | 'CT';
+  /** 0–15: how interesting (the HLTV director's priority, or ours for the others). */
+  priority: number;
 }
 
 /** 5.n: the recorder's own data. Times are demo seconds. */

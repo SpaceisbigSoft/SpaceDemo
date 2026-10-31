@@ -85,9 +85,11 @@ export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[], estimate
 
 const STATUS: Record<Source, string> = { seen: 'seen', radar: 'on the radar', heard: 'heard', estimated: 'estimated', last: 'last seen', dead: 'dead', unknown: 'not known' };
 
-export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; tagCT: string }) {
+export function ReplayTab({ d, tagT, tagCT, start }: { d: DemoDetails; tagT: string; tagCT: string; start?: { round: number; time: number } }) {
   const rounds = d.roundDetails.map((r) => r.number);
-  const [round, setRound] = useState(rounds[0] ?? 1);
+  const [round, setRound] = useState(start?.round ?? rounds[0] ?? 1);
+  // Where to start once the round has loaded (a highlight), then from the round's start as usual.
+  const startAt = useRef(start?.time);
   const [data, setData] = useState<ReplayData | { error: string } | undefined>();
   const [t, setT] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -103,7 +105,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
     void window.spacedemo.getReplay(d.key, round).then((x) => {
       if (!live) return;
       setData(x);
-      if (!('error' in x)) setT(x.start);
+      if (!('error' in x)) { setT(startAt.current !== undefined ? Math.max(x.start, Math.min(x.end, startAt.current)) : x.start); startAt.current = undefined; }
     });
     return () => { live = false; };
   }, [d.key, round]);

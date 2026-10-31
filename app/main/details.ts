@@ -14,6 +14,7 @@ import { heatmapAndProjection } from './heatmap.js';
 import { replayData, type EstimateInput } from './replay.js';
 import { sightingsData } from './sightings.js';
 import { recorderPanel } from './recorder.js';
+import { highlights } from './highlights.js';
 import { readSight } from '../../engine/src/map/sight.js';
 import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
@@ -58,7 +59,7 @@ export function chatMessage(text: string, who: string | undefined): string {
   return t.trim();
 }
 
-export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds' | 'heatmap'> {
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds' | 'heatmap' | 'highlights'> {
   // Players per side from the stats (sides from the kill events; reconnects added up by name).
   const stats = statRows(m);
   const team = (t: 'T' | 'CT'): TeamDetails => {
@@ -219,6 +220,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       seconds: ps[ps.length - 1].end,
       heatmap: heat.data,
       recorder: recorderPanel(m),
+      highlights: highlights(m),
       sightings: sightingsData(m, heat.project, heat.data.sites, sightFor(job.mapFile)),
     };
   } catch (err) {
