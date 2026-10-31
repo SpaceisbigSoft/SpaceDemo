@@ -9,6 +9,8 @@ const KINDS: { id: Highlight['kind']; label: string }[] = [
   { id: 'multikill', label: 'Multi-kills' },
   { id: 'clutch', label: 'Clutches' },
   { id: 'knife', label: 'Knife kills' },
+  { id: 'behind', label: 'From behind' },
+  { id: 'wallbang', label: 'No clear line' },
 ];
 
 export function HighlightsTab({ d, onWatch }: { d: DemoDetails; onWatch: (h: Highlight) => void }) {
@@ -43,7 +45,7 @@ export function HighlightsTab({ d, onWatch }: { d: DemoDetails; onWatch: (h: Hig
         </ol>
       )}
       <span className="note">
-        The HLTV director's picks are the moments it chose to show (priority 7 or more of 15); it moves the camera there a few seconds before the action. Watch on the radar opens the Radar replay 3 s before.
+        The HLTV director's picks are the moments it chose to show (priority 7 or more of 15); it moves the camera there a few seconds before the action. Watch on the radar opens the Radar replay 3 s before. From behind = the killer was more than 110° off where the victim faced. No clear line = solid map between the killer's eye and the victim (a shot through a wall, or through a door or box the map file doesn't count as solid): check these in game.
         {' '}Jumping the game itself to a highlight comes after a test in your game.
       </span>
     </section>

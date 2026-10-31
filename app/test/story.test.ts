@@ -44,8 +44,13 @@ describe.skipIf(!zips || !game)('5.y on Set 1', () => {
     const stories = d.roundDetails.map((r) => roundStory(d, r, tags));
     expect(stories).toHaveLength(12);
     expect(stories.every((s) => s.length > 20)).toBe(true);
-    expect(stories[0]).toBe('Pistol round. MoD opened: 4u2nv.MoD killed :i69:Dr.StrangeLove at 0:58 near B. i69 planted at B at 1:07, 3 v 4 alive. MoD retook and defused at 1:31, 24 s after the plant.');
+    expect(stories[0]).toBe('Pistol round. First sight at 0:57: :i69:Dr.StrangeLove and 4u2nv.MoD saw each other. MoD opened: 4u2nv.MoD killed :i69:Dr.StrangeLove at 0:58 near B. i69 planted at B at 1:07, 3 v 4 alive. MoD retook and defused at 1:31, 24 s after the plant.');
     expect(stories[8]).toContain('The bomb exploded');
     expect(stories[2]).toContain('time ran out');
+    // 5.s from this player's demo: most kills have both positions known, nearly all with a clear line.
+    expect(d.sightlines!.known).toBeGreaterThan(45);
+    expect(d.sightlines!.kills.filter((k) => k.known && k.clear).length / d.sightlines!.known).toBeGreaterThan(0.9);
+    expect(d.sightlines!.sawFirst.won).toBeGreaterThan(d.sightlines!.sawFirst.fights / 2);
+    expect(d.highlights.filter((h) => h.kind === 'wallbang').length).toBeGreaterThan(0);
   }, 120_000);
 });

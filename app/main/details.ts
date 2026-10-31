@@ -15,6 +15,7 @@ import { replayData, type EstimateInput } from './replay.js';
 import { sightingsData } from './sightings.js';
 import { recorderPanel } from './recorder.js';
 import { aimPanel } from './aim.js';
+import { sightHighlights, sightlineData } from './sightlines.js';
 import { highlights } from './highlights.js';
 import { lagData } from './lag.js';
 import { readSight } from '../../engine/src/map/sight.js';
@@ -310,6 +311,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     const heat = heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image);
     const sight = sightFor(job.mapFile);
     const aim = aimPanel(m, sight);
+    const sl = sightlineData(m, sight);
     delete m.aim; // full-rate data, only needed for the Aim tab (keeps the remembered demo small)
     lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills, mapFile: job.mapFile, mapName: report.maps[0] ?? report.mapName, checksum: report.mapChecksum, pictureShown: !!map.image, job };
     return {
@@ -323,7 +325,8 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       seconds: ps[ps.length - 1].end,
       heatmap: heat.data,
       recorder: recorderPanel(m),
-      highlights: highlights(m),
+      highlights: [...highlights(m), ...sightHighlights(sl, m)].sort((a, b) => a.time - b.time),
+      sightlines: sl,
       lag: lagData(m, ps[ps.length - 1].end),
       sightings: sightingsData(m, heat.project, heat.data.sites, sight),
       aim,

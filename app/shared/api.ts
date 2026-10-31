@@ -186,6 +186,8 @@ export interface DemoDetails {
   recorder?: RecorderPanel;
   /** 5.o moments worth watching. */
   highlights: Highlight[];
+  /** 5.s who could see whom (needs the map file). */
+  sightlines?: SightlineData;
   /** 5.u the recorder's aim: reaction time, crosshair placement, shooting while moving (POV demos only). */
   aim?: AimPanel;
 }
@@ -228,7 +230,7 @@ export interface CombinedData {
 export interface Highlight {
   time: number;
   round: number;
-  kind: 'director' | 'multikill' | 'clutch' | 'knife';
+  kind: 'director' | 'multikill' | 'clutch' | 'knife' | 'wallbang' | 'behind';
   title: string;
   players: string[];
   team?: 'T' | 'CT';
@@ -258,6 +260,19 @@ export interface RecorderPanel {
     damage: { time: number; amount: number }[];
     topSpeed?: number; avgSpeed?: number;
   }[];
+}
+
+/** 5.s line of sight between players. Times are demo seconds. */
+export interface SightlineData {
+  /** Every kill: both positions known, a clear line from the killer's eye at the kill, the angle off the victim's view
+   *  (180 = his back), and how long each had been seeing the other (s; undefined = not seen). */
+  kills: { time: number; round?: number; killer: string; victim: string; known: boolean; clear?: boolean; offView?: number; killerSaw?: number; victimSaw?: number }[];
+  /** Per round: the first time a player saw an enemy after freeze time. */
+  firsts: { round: number; time: number; seer: string; seen: string; mutual: boolean }[];
+  /** Kills where one player saw the other first (by 0.15 s+), and how many of them the one who saw first won. */
+  sawFirst: { fights: number; won: number };
+  known: number;
+  total: number;
 }
 
 /** 5.u summary numbers for a set of moments and shots. */

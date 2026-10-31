@@ -34,6 +34,14 @@ export function roundStory(d: DemoDetails, r: RoundDetail, tags: { T: string; CT
   const i = d.roundDetails.indexOf(r);
   if (r.number === 1 || (i > 0 && (r.scoreT ?? -1) + (r.scoreCT ?? -1) === 1)) parts.push('Pistol round.');
 
+  // 5.s The first time anyone saw an enemy.
+  const fs = d.sightlines?.firsts.find((f) => f.round === r.number);
+  if (fs) {
+    const t0 = d.periods.find((p) => p.round === r.number);
+    const rel = fs.time - (t0?.freezeEnd ?? t0?.start ?? fs.time);
+    parts.push(`First sight at ${at(rel)}: ${fs.mutual ? `${fs.seer} and ${fs.seen} saw each other` : `${fs.seer} saw ${fs.seen}`}.`);
+  }
+
   // Opening kill, and where.
   const first = r.kills.find((k) => !k.teamKill && k.killer !== k.victim && k.killerTeam);
   if (first) {

@@ -153,6 +153,7 @@ describe.skipIf(!zips)('library screen', () => {
     const mom = await page.textContent('[data-testid="momentum"]');
     expect(mom).toContain('Opening kill won the round: 9 of 12');
     expect(mom).toContain('Round 4:');
+    if (process.env.SPACEDEMO_GAME_DIR) expect(await page.textContent('[data-testid="saw-first"]')).toContain('Saw the enemy first');
     // 5.y a story under every round.
     expect(await page.locator('[data-testid="round-story"]').count()).toBe(12);
     expect(await page.locator('[data-testid="round-story"]').first().textContent()).toContain('Pistol round.');
@@ -319,9 +320,15 @@ describe.skipIf(!zips)('library screen', () => {
     await page.click('[role="tab"]:has-text("Highlights")');
     await page.waitForSelector('[data-testid="details-highlights"]');
     expect(await page.locator('[data-testid="highlight"]').count()).toBeGreaterThanOrEqual(5);
-    expect(await page.locator('[data-testid="highlight"]').first().textContent()).toContain('3 kills');
+    // 5.s kills with no clear line and from behind are listed too (with the map file).
+    if (process.env.SPACEDEMO_GAME_DIR) {
+      expect(await page.locator('[data-testid="highlight"]', { hasText: 'no clear line' }).count()).toBeGreaterThan(0);
+      expect(await page.locator('[data-testid="highlight"]', { hasText: 'from behind' }).count()).toBeGreaterThan(0);
+    }
+    const multi = page.locator('[data-testid="highlight"]', { hasText: '3 kills' }).first();
+    expect(await multi.textContent()).toContain('round 2');
     await shot('10n details highlights');
-    await page.locator('[data-testid="highlight"] button').first().click();
+    await multi.locator('button').click();
     await page.waitForSelector('[data-testid="replay-svg"]');
     await page.waitForFunction(() => document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') && (document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') as HTMLSelectElement).value === '2');
     // The round loads (combined with the HLTV demo by default), then the clock stands at the highlight.

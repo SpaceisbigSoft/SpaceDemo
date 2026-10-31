@@ -146,6 +146,7 @@ function MomentumSummary({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; tag
   return (
     <div className="chip-row" data-testid="momentum">
       <span className="tag" title="The side that got the round's first kill went on to win it">Opening kill won the round: <strong>{m.openingWins} of {m.openings}</strong></span>
+      {d.sightlines && d.sightlines.sawFirst.fights > 0 && <span className="tag" title="Kills where one player saw the other at least 0.15 s first (in his view, nothing solid in between): how often the one who saw first got the kill" data-testid="saw-first">Saw the enemy first: won <strong>{d.sightlines.sawFirst.won} of {d.sightlines.sawFirst.fights}</strong> fights</span>}
       {m.comebacks.length === 0
         ? <span className="tag">No comebacks from 2+ players down</span>
         : m.comebacks.map((c) => (
