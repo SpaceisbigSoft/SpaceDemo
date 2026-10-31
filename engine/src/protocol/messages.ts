@@ -149,6 +149,11 @@ export interface ResourceListBody {
   /** Raw consistency-list bits are not kept; whether one was present is. */
   hadConsistencyList: boolean;
 }
+/** svc_pings: the scoreboard's ping and loss per player slot (sent while someone holds the scoreboard open). */
+export interface PingsBody {
+  kind: 'pings';
+  pings: { slot: number; ping: number; loss: number }[];
+}
 export interface UserMessageBody {
   kind: 'user';
   name: string;
@@ -159,7 +164,7 @@ export interface UserMessageBody {
 
 export type MessageBody =
   | ServerInfoBody | UserInfoBody | NewUserMsgBody | VoiceInitBody | VoiceDataBody | HltvBody | DirectorBody
-  | TextBody | EventsBody | SoundBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody;
+  | TextBody | EventsBody | SoundBody | ClientDataBody | EntitiesBody | BaselineBody | ResourceListBody | UserMessageBody | PingsBody;
 
 export interface Message {
   id: number;
@@ -423,7 +428,13 @@ function decodeOne(r: BitReader, id: number, s: ProtocolState): MessageBody | un
     case Svc.UpdateUserInfo: return readUserInfo(r, s);
     case Svc.DeltaDescription: readDeltaDescription(r, s); return undefined;
     case Svc.ClientData: return readClientData(r, s);
-    case Svc.Pings: while (r.bool()) r.skipBits(24); r.alignToByte(); return undefined;
+    case Svc.Pings: {
+      // Per entry: slot (5 bits), ping in ms (12), loss in % (7).
+      const pings: PingsBody['pings'] = [];
+      while (r.bool()) { const slot = r.bits(5); const ping = r.bits(12); const loss = r.bits(7); pings.push({ slot, ping, loss }); }
+      r.alignToByte();
+      return { kind: 'pings', pings };
+    }
     case Svc.SpawnStatic: { r.skipBytes(18); if (r.u8() !== 0) r.skipBytes(5); return undefined; }
     case Svc.SpawnBaseline: return readBaseline(r, s);
     case Svc.TempEntity: skipTempEntity(r); return undefined;

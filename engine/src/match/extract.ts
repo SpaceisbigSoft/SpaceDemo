@@ -3,9 +3,10 @@
 // bomb events and shots; chat, radio and voice are kept for the whole demo (with `round` undefined before the match).
 import { FrameType, type DemoFile } from '../container/types.js';
 import { createState, decodeMessages, type EventsBody } from '../protocol/messages.js';
+import { Svc } from '../protocol/ids.js';
 import { EntityTracker, incomingSequence } from './entities.js';
 import { PayloadReader } from './payload.js';
-import type { Grenade, BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
+import type { NetData, Grenade, BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
 
 export interface ExtractOptions {
   /** Also build position tracks (plan 2.13). Costs time and memory on long demos. */
@@ -103,7 +104,11 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
     bomb: [],
     voice: [],
     director: [],
+    net: { pings: [], choke: [], lost: [] },
   };
+  const net: NetData = m.net!;
+  const lastPing = new Map<number, number>();
+  let lastSeq = -1;
   const rec: RecorderData = { money: [], health: [], damageTaken: [], menus: [], shots: 0, keys: [], weapons: [] };
   const rounds: Round[] = [];
   let cur: Round | undefined;
@@ -162,11 +167,29 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         }
       }
 
+      // 5.z packets that never arrived: a jump in the incoming packet number (big jumps = a new connection).
+      if (playback) {
+        const seq = incomingSequence(f.info);
+        if (lastSeq >= 0 && seq > lastSeq + 1 && seq - lastSeq <= 100) net.lost.push({ time: t, packets: seq - lastSeq - 1 });
+        if (seq > lastSeq || lastSeq - seq > 1000) lastSeq = seq;
+      }
+
       const pendingEvents: EventsBody['events'] = [];
       for (const msg of decodeMessages(f.messages, s)) {
         const b = msg.body;
+        if (msg.id === Svc.Choke && playback) net.choke.push(t);
         if (!b) continue;
         switch (b.kind) {
+          case 'pings':
+            if (!playback) break;
+            for (const p of b.pings) {
+              if (p.ping >= 999) continue;
+              const id = idOf(p.slot);
+              if (t - (lastPing.get(id) ?? -Infinity) < 1) continue;
+              lastPing.set(id, t);
+              net.pings.push({ time: t, player: id, ping: p.ping, loss: p.loss });
+            }
+            break;
           case 'serverInfo':
             m.recorderSlot = b.playerSlot;
             m.map = b.mapName.replace(/^maps[\\/]/i, '').replace(/\.bsp$/i, '');

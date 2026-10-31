@@ -279,6 +279,16 @@ describe.skipIf(!zips)('library screen', () => {
     // The keys also show live on the radar replay.
     await page.click('[role="tab"]:has-text("Radar replay")');
     await page.waitForSelector('[data-testid="replay-keys"]');
+    // 5.z lag: a ping line per player, the recorder's connection, laggy moments → the Radar replay.
+    await page.click('[role="tab"]:has-text("Lag")');
+    await page.waitForSelector('[data-testid="details-lag"]');
+    expect(await page.locator('[data-testid="lag-player"]').count()).toBe(10);
+    expect(await page.textContent('[data-testid="lag-recorder"]')).toContain('choked');
+    const lagText = await page.textContent('[data-testid="lag-moments"]');
+    expect(lagText).toContain(':i69:Guido · ping 629 ms');
+    await shot('10q details lag (5.z)');
+    await page.locator('[data-testid="lag-moment"]', { hasText: ':i69:Guido' }).locator('button').click();
+    await page.waitForFunction(() => (document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') as HTMLSelectElement | null)?.value === '3');
     // 5.o highlights → the Radar replay at that moment.
     await page.click('[role="tab"]:has-text("Highlights")');
     await page.waitForSelector('[data-testid="details-highlights"]');

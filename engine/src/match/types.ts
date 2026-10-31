@@ -150,6 +150,17 @@ export interface Grenade {
   points: { time: number; x: number; y: number; z: number }[];
 }
 
+/** 5.z the connection over time. Times are demo seconds. */
+export interface NetData {
+  /** Scoreboard ping (ms) and loss (%) per player, at most one sample per player per second. Pings of 999+ (still
+   *  connecting) are left out. */
+  pings: { time: number; player: number; ping: number; loss: number }[];
+  /** Moments the server held a packet back from the recorder (svc_choke; POV demos). */
+  choke: number[];
+  /** Packets from the server that never reached the recorder (gaps in the packet numbers). */
+  lost: { time: number; packets: number }[];
+}
+
 export interface MatchData {
   map: string;
   recording: 'POV' | 'HLTV';
@@ -172,6 +183,8 @@ export interface MatchData {
   scoreT?: number;
   scoreCT?: number;
   recorder?: RecorderData;
+  /** 5.z pings, choke and lost packets. */
+  net?: NetData;
   /** HLTV director events (type 2 = highlight) with their time. */
   director: { time: number; type: number; entity1?: number; entity2?: number; flags?: number }[];
   /** Position tracks per player (only with `extractMatch(demo, { tracks: true })`). */

@@ -164,6 +164,8 @@ export interface DemoDetails {
   roundDetails: RoundDetail[];
   /** 5.t momentum from the players-alive counts. */
   momentum: Momentum;
+  /** 5.z pings, choke, lost packets and laggy moments. */
+  lag: LagData;
   /** 5.d scoreboard and stats. */
   stats: StatRow[];
   /** Parts of the demo used by 5.l and 5.m: warm-up, each round, after the match. */
@@ -479,6 +481,47 @@ export interface RoundDetail {
   /** 5.t players alive: at the start of the round (after freeze time) and after each change, `at` = seconds after
    *  freeze time ended; a change is a death or a player leaving the server. */
   alive: { T: number; CT: number; steps: { at: number; T: number; CT: number; who: string; left?: boolean }[] };
+}
+
+/** 5.z one player's connection as the scoreboard showed it. */
+export interface LagPlayer {
+  name: string;
+  team?: 'T' | 'CT';
+  recorder: boolean;
+  /** Ping samples (at most one a second), median, 95th percentile and highest, in ms; average loss in %. */
+  samples: number;
+  median: number;
+  p95: number;
+  max: number;
+  loss: number;
+  /** Samples well above his usual ping. */
+  spikes: number;
+  /** Flat [time, ping, …]. */
+  pings: number[];
+}
+
+/** 5.z a laggy moment: a ping spike, or the recorder losing / being choked several packets in 2 s. */
+export interface LagMoment {
+  time: number;
+  end: number;
+  round?: number;
+  kind: 'ping' | 'lost' | 'choke';
+  who: string;
+  /** Highest ping (ms), or packets lost / choked in the window. */
+  worst: number;
+}
+
+/** 5.z the Lag tab. */
+export interface LagData {
+  seconds: number;
+  players: LagPlayer[];
+  /** POV demos: the recorder's own connection. `lost` is flat [time, packets, …]. */
+  recorder?: { name: string; choke: number[]; lost: number[]; lostTotal: number };
+  moments: LagMoment[];
+  rounds: { number: number; start: number; end: number }[];
+  liveStart?: number;
+  /** POV demos only have pings while the recorder held the scoreboard open. */
+  pingsWhenScoreboardOpen: boolean;
 }
 
 /** 5.t momentum over the demo, from the players-alive counts. */
