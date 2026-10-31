@@ -178,6 +178,32 @@ export interface DemoDetails {
   heatmap: HeatmapData;
   /** 5.q enemy sightings (POV demos only). */
   sightings?: SightingsData;
+  /** 5.n the recorder's own money, health, speed and keys (POV demos only). */
+  recorder?: RecorderPanel;
+}
+
+/** 5.n: the recorder's own data. Times are demo seconds. */
+export interface RecorderPanel {
+  name: string;
+  /** [time, money] at every change. */
+  money: [number, number][];
+  /** [time, health] at every change. */
+  health: [number, number][];
+  /** Running speed (units/s), flat [time, speed] about 4 a second while alive. */
+  speed: number[];
+  /** Keys held: [key ("forward", "jump"…), from, to]. */
+  keys: [string, number, number][];
+  /** Weapon in his hand from this time on. */
+  weapons: [number, string][];
+  rounds: {
+    round: number; start: number; end: number; freezeEnd?: number; winner?: 'T' | 'CT' | 'draw';
+    startMoney?: number; spent: number; endMoney?: number;
+    /** Weapons he had in hand this round. */
+    weapons: string[];
+    kills: number; died?: number;
+    damage: { time: number; amount: number }[];
+    topSpeed?: number; avgSpeed?: number;
+  }[];
 }
 
 export type SoundKind = 'step' | 'hit' | 'death' | 'weapon' | 'other';

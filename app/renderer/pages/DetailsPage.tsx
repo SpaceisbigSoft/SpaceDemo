@@ -6,6 +6,7 @@ import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } fro
 import { HeatmapTab } from './DetailsHeatmap.js';
 import { ReplayTab } from './DetailsReplay.js';
 import { SightingsTab } from './DetailsSightings.js';
+import { RecorderTab } from './DetailsRecorder.js';
 import { ChatTab, VoiceTab } from './DetailsLog.js';
 import { RoundsTab, ScoreboardTab, ServerCard } from './DetailsTabs.js';
 
@@ -15,7 +16,7 @@ const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb explode
 export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice' | 'heatmap' | 'replay' | 'sightings'>('overview');
+  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice' | 'heatmap' | 'replay' | 'sightings' | 'recorder'>('overview');
 
   useEffect(() => {
     setDetails(undefined);
@@ -69,7 +70,7 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
 
       {d && (
         <div role="tablist" aria-label="Details" className="tabs">
-          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard'], ['chat', `Chat & radio (${d.log.length})`], ['voice', 'Voice'], ['heatmap', 'Heatmaps'], ['replay', 'Radar replay'], ['sightings', 'Sightings']] as const).map(([id, label]) => (
+          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard'], ['chat', `Chat & radio (${d.log.length})`], ['voice', 'Voice'], ['heatmap', 'Heatmaps'], ['replay', 'Radar replay'], ['sightings', 'Sightings'], ['recorder', 'Recorder']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} className="tab" onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -77,6 +78,7 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
       {d && tab === 'rounds' && <div role="tabpanel" id="panel-rounds" aria-labelledby="tab-rounds"><RoundsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'chat' && <div role="tabpanel" id="panel-chat" aria-labelledby="tab-chat"><ChatTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'voice' && <div role="tabpanel" id="panel-voice" aria-labelledby="tab-voice"><VoiceTab d={d} tagT={tag('T')} tagCT={tag('CT')} recording={i?.recording} /></div>}
+      {d && tab === 'recorder' && <div role="tabpanel" id="panel-recorder" aria-labelledby="tab-recorder"><RecorderTab d={d} /></div>}
       {d && tab === 'sightings' && <div role="tabpanel" id="panel-sightings" aria-labelledby="tab-sightings"><SightingsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'replay' && <div role="tabpanel" id="panel-replay" aria-labelledby="tab-replay"><ReplayTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'heatmap' && <div role="tabpanel" id="panel-heatmap" aria-labelledby="tab-heatmap"><HeatmapTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}

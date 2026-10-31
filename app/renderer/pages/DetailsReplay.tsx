@@ -263,6 +263,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
                 </ul>
               )}
             </div>
+            {d.recorder && <RecorderKeys p={d.recorder} t={t} />}
             <div className="replay-time">
               <span className="mono big" data-testid="replay-clock">{clock(t)}</span>
               <span className="note">round {r.round} · {formatLength(t)} in the demo</span>
@@ -322,6 +323,24 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
           <span className="note">Click a time to go to just before it.</span>
         </section>
       </div>
+    </div>
+  );
+}
+
+/** 5.n: the recorder's keys, health and money at this moment (drawn here, never into the game). */
+function RecorderKeys({ p, t }: { p: NonNullable<DemoDetails['recorder']>; t: number }) {
+  const held = new Set(p.keys.filter(([, a, b]) => a <= t && t <= b).map(([k]) => k));
+  const hp = p.health.filter(([ht]) => ht <= t).at(-1)?.[1];
+  const cash = p.money.filter(([mt]) => mt <= t).at(-1)?.[1];
+  const weapon = p.weapons.filter(([wt]) => wt <= t).at(-1)?.[1];
+  const k = (name: string, label: string, wide = false) => <span className={`key${held.has(name) ? ' down' : ''}${wide ? ' wide' : ''}`} aria-pressed={held.has(name)}>{label}</span>;
+  return (
+    <div className="rec-keys" aria-label={`${p.name}'s keys`} data-testid="replay-keys">
+      <span className="note">{p.name}</span>
+      <span className="wasd">{k('forward', 'W')}<br />{k('moveleft', 'A')}{k('back', 'S')}{k('moveright', 'D')}</span>
+      <span className="wasd">{k('jump', 'Jump', true)}{k('duck', 'Duck', true)}{k('speed', 'Walk', true)}</span>
+      <span className="wasd">{k('attack', 'Fire', true)}{k('attack2', 'Alt', true)}{k('reload', 'Reload', true)}</span>
+      <span className="mono note">{hp !== undefined ? `${hp} HP` : ''}{cash !== undefined ? ` · $${cash}` : ''}{weapon ? ` · ${weapon}` : ''}</span>
     </div>
   );
 }

@@ -238,6 +238,20 @@ describe.skipIf(!zips)('library screen', () => {
     await page.click('[data-testid="details-sightings"] button.filter-chip:text-is("R3")');
     expect(await page.textContent('[data-testid="sight-first"]')).toContain('heard');
     await shot('10k details sightings round 3');
+    // 5.n recorder panel.
+    await page.click('[role="tab"]:has-text("Recorder")');
+    await page.waitForSelector('[data-testid="details-recorder"]');
+    expect(await page.locator('[data-testid="rec-round"]').count()).toBe(12);
+    expect(await page.locator('[data-testid="rec-round"]').first().textContent()).toContain('$800');
+    await page.click('[data-testid="rec-round"] button:text-is("R3")');
+    expect(await page.textContent('[data-testid="rec-weapons"]')).toContain('ak47');
+    expect(await page.locator('[data-testid="rec-keys"] .vt-row').count()).toBeGreaterThanOrEqual(5);
+    await shot('10l details recorder');
+    await page.locator('[data-testid="rec-round-detail"]').scrollIntoViewIfNeeded();
+    await shot('10m details recorder round 3');
+    // The keys also show live on the radar replay.
+    await page.click('[role="tab"]:has-text("Radar replay")');
+    await page.waitForSelector('[data-testid="replay-keys"]');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');

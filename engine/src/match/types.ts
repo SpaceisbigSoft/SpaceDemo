@@ -110,6 +110,8 @@ export interface RecorderData {
   menus: { time: number; menu: string }[];
   /** Weapon-fire events played locally (the recorder's own shots). */
   shots: number;
+  /** The weapon in his hand from this time on (CurWeapon). */
+  weapons: { time: number; weapon: string }[];
   /** Key presses recorded as console commands (+attack, +jump, …). */
   keys: { time: number; command: string }[];
 }

@@ -104,7 +104,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
     voice: [],
     director: [],
   };
-  const rec: RecorderData = { money: [], health: [], damageTaken: [], menus: [], shots: 0, keys: [] };
+  const rec: RecorderData = { money: [], health: [], damageTaken: [], menus: [], shots: 0, keys: [], weapons: [] };
   const rounds: Round[] = [];
   let cur: Round | undefined;
   let restartAt: number | undefined;
@@ -453,6 +453,13 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         if (playback && amount > 0) rec.damageTaken.push({ time: t, amount, from });
         break;
       }
+      case 'CurWeapon': {
+        // state (1 = the weapon in hand), weapon id (CS weapon numbers), ammo in the clip.
+        const state = p.u8(), id = p.i8();
+        const weapon = CS_WEAPON_IDS[id];
+        if (playback && state === 1 && weapon && rec.weapons.at(-1)?.weapon !== weapon) rec.weapons.push({ time: t, weapon });
+        break;
+      }
       case 'ShowMenu': {
         p.i16();
         p.i8();
@@ -581,3 +588,11 @@ function grenadeKind(model: string | undefined): Grenade['kind'] | undefined {
   if (/w_smokegrenade\.mdl$/i.test(model)) return 'smoke';
   return undefined;
 }
+
+/** CS weapon numbers (CSW_* in the CS game code: CurWeapon, WeapPickup), as world-model names. 14/15 = galil/famas (1.6). */
+const CS_WEAPON_IDS: Record<number, string> = {
+  1: 'p228', 3: 'scout', 4: 'hegrenade', 5: 'xm1014', 6: 'c4', 7: 'mac10', 8: 'aug', 9: 'smokegrenade', 10: 'elite',
+  11: 'fiveseven', 12: 'ump45', 13: 'sg550', 14: 'galil', 15: 'famas', 16: 'usp', 17: 'glock18', 18: 'awp',
+  19: 'mp5navy', 20: 'm249', 21: 'm3', 22: 'm4a1', 23: 'tmp', 24: 'g3sg1', 25: 'flashbang', 26: 'deagle', 27: 'sg552',
+  28: 'ak47', 29: 'knife', 30: 'p90',
+};

@@ -13,6 +13,7 @@ import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/
 import { heatmapAndProjection } from './heatmap.js';
 import { replayData, type EstimateInput } from './replay.js';
 import { sightingsData } from './sightings.js';
+import { recorderPanel } from './recorder.js';
 import { readSight } from '../../engine/src/map/sight.js';
 import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
@@ -217,6 +218,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       voice: voiceTimeline(m),
       seconds: ps[ps.length - 1].end,
       heatmap: heat.data,
+      recorder: recorderPanel(m),
       sightings: sightingsData(m, heat.project, heat.data.sites, sightFor(job.mapFile)),
     };
   } catch (err) {
