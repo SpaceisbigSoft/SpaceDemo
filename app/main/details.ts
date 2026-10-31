@@ -18,7 +18,8 @@ import { highlights } from './highlights.js';
 import { readSight } from '../../engine/src/map/sight.js';
 import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
-import type { HeatKill, ReplayData } from '../shared/api.js';
+import type { CombinedData, CombinedRecording, HeatKill, ReplayData } from '../shared/api.js';
+import { alignMatches, mergeMatches, otherHalf, positionCoverage, sameRounds } from '../../engine/src/match/combine.js';
 import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
 
 export interface DetailsJob {
@@ -162,26 +163,123 @@ function sightFor(mapFile?: string) {
   try { return readSight(new Uint8Array(readFileSync(mapFile))); } catch { return undefined; }
 }
 
-/** The last demo read for the details page, kept for the radar replay (5.j) so a round opens without reading again. */
-let lastRead: { key: string; m: MatchData; project: Projection; kills: HeatKill[]; mapFile?: string; est?: EstimateInput } | undefined;
+/** What one demo needs for the radar replay: match data, projection, kills in pixels, and (built on first use) the
+ *  walk map for estimates. */
+interface ReplaySource { m: MatchData; project: Projection; kills: HeatKill[]; est?: EstimateInput }
 
-/** 5.j: one round for the radar replay (reads the demo first if it isn't the last one read). */
-export function readReplay(job: DetailsJob, round: number): ReplayData | { error: string } {
+/** The last demo read for the details page, kept for the radar replay (5.j) so a round opens without reading again;
+ *  `combined` = the same with the other recordings of the same half added (5.r), for these companion keys. */
+let lastRead: (ReplaySource & {
+  key: string; mapFile?: string; mapName: string; checksum: number; pictureShown: boolean; job: DetailsJob;
+  combined?: ReplaySource & { companions: string; result: CombinedData };
+}) | undefined;
+
+/** 5.j: one round for the radar replay (reads the demo first if it isn't the last one read). 5.r: `combined` uses the
+ *  positions of the other recordings of the same half, when they were combined (getCombined) before. */
+export function readReplay(job: DetailsJob, round: number, combined = false): ReplayData | { error: string } {
   if (lastRead?.key !== job.key) {
     const d = readDetails(job);
     if ('error' in d) return d;
   }
   try {
     const lr = lastRead!;
+    const src: ReplaySource = combined && lr.combined ? lr.combined : lr;
     // The walk map is built once per demo, the first time a round is opened (about 1–2 s).
-    if (!lr.est && lr.mapFile) {
+    if (!src.est && lr.mapFile) {
       try {
         const bsp = new Uint8Array(readFileSync(lr.mapFile));
         const facts = readMapFacts(bsp);
-        lr.est = { walk: buildWalkMap(bsp, { observations: observationsFrom(lr.m.tracks ?? []) }), spawns: { T: facts.spawnsT, CT: facts.spawnsCT } };
-      } catch { lr.est = { spawns: { T: [], CT: [] } }; }
+        src.est = { walk: buildWalkMap(bsp, { observations: observationsFrom(src.m.tracks ?? []) }), spawns: { T: facts.spawnsT, CT: facts.spawnsCT } };
+      } catch { src.est = { spawns: { T: [], CT: [] } }; }
     }
-    return replayData(lr.m, lr.project, lr.kills, round, lr.est);
+    return replayData(src.m, src.project, src.kills, round, src.est);
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+
+/** 5.r: a library demo that may be another recording of the same match. */
+export interface CompanionJob { key: string; name: string; file: string; zipEntry?: string; recording: 'POV' | 'HLTV' }
+
+/** Rounds won per team (clan tag, else side name) in one recording; teams known by their players. */
+function teamScores(m: MatchData): { tag: string; side: 'T' | 'CT'; rounds: number; names: Set<string> }[] {
+  const sides = playersByName(m);
+  const check = checkMatch(m);
+  // The server's score when it agrees with the rounds (HLTV demos can end with 0 : 0), else the rounds counted.
+  const won = check.serverScore && check.roundsMatch ? check.serverScore : check.roundsWon;
+  return (['T', 'CT'] as const).map((side) => {
+    const names = [...sides].filter(([, e]) => e.team === side).map(([n]) => n);
+    return { tag: teamTag(names) ?? (side === 'T' ? 'Terrorists' : 'Counter-Terrorists'), side, rounds: won[side], names: new Set(names) };
+  });
+}
+
+/**
+ * 5.r: reads the companion demos, keeps those that are recordings of the same match — the same rounds (lined up on
+ * the kills; their positions are added) or the other half (teams swapped sides; its score completes the match) — and
+ * builds combined heatmaps. Only reads files.
+ */
+export function readCombined(job: DetailsJob & { companions: CompanionJob[] }): CombinedData | { error: string } {
+  if (lastRead?.key !== job.key) {
+    const d = readDetails(job);
+    if ('error' in d) return d;
+  }
+  const lr = lastRead!;
+  const companions = job.companions.map((c) => c.key).sort().join('\n');
+  if (lr.combined?.companions === companions) return lr.combined.result;
+  try {
+    const recordings: CombinedRecording[] = [];
+    const same: { m: MatchData; align: NonNullable<ReturnType<typeof alignMatches>>; rec: CombinedRecording }[] = [];
+    const halves: { m: MatchData; rec: CombinedRecording }[] = [];
+    for (const c of job.companions) {
+      let cm: MatchData;
+      try {
+        const bytes = c.zipEntry ? readZipEntry(c.file, c.zipEntry) : readFileSync(c.file);
+        cm = extractMatch(readDemo(bytes), { tracks: true });
+      } catch (err) {
+        recordings.push({ key: c.key, name: c.name, recording: c.recording, relation: 'same-half', error: (err as Error).message });
+        continue;
+      }
+      const al = alignMatches(lr.m, cm);
+      if (al && sameRounds(al)) {
+        const rec: CombinedRecording = {
+          key: c.key, name: c.name, recording: cm.recording, relation: 'same-half', offset: Math.round(al.offset * 100) / 100,
+          killsLinedUp: al.consistent, kills: lr.m.kills.length, maxGap: Math.round(al.maxGap * 100) / 100, rounds: al.sharedRounds.length,
+        };
+        same.push({ m: cm, align: al, rec });
+        recordings.push(rec);
+      } else if (otherHalf(lr.m, cm)) {
+        const rec: CombinedRecording = { key: c.key, name: c.name, recording: cm.recording, relation: 'other-half', score: teamScores(cm).map(({ tag, side, rounds }) => ({ tag, side, rounds })) };
+        halves.push({ m: cm, rec });
+        recordings.push(rec);
+      }
+    }
+    const result: CombinedData = { key: job.key, recordings };
+
+    // The whole match: this half + the other half with the most rounds; teams matched by their players.
+    const other = [...halves].sort((a, b) => b.m.rounds.length - a.m.rounds.length)[0];
+    if (other) {
+      const mine = teamScores(lr.m), theirs = teamScores(other.m);
+      const overlap = (a: Set<string>, b: Set<string>) => [...a].filter((n) => b.has(n)).length;
+      result.fullMatch = {
+        rounds: lr.m.rounds.length + other.m.rounds.length,
+        teams: mine.map((t) => {
+          const o = [...theirs].sort((x, y) => overlap(t.names, y.names) - overlap(t.names, x.names))[0];
+          return { tag: t.tag, rounds: t.rounds + o.rounds, halves: [t.rounds, o.rounds] };
+        }),
+      };
+    }
+
+    let combined: (ReplaySource & { companions: string; result: CombinedData }) | undefined;
+    if (same.length) {
+      const merged = mergeMatches(lr.m, same.map((s) => ({ m: s.m, align: s.align })));
+      merged.added.forEach((a, i) => { same[i].rec.added = a; });
+      const heat = heatmap(lr.job, merged.m, lr.mapName, lr.checksum, lr.pictureShown);
+      result.heatmap = heat.data;
+      result.coverage = { before: positionCoverage(lr.m).share, after: positionCoverage(merged.m).share };
+      combined = { m: merged.m, project: heat.project, kills: heat.data.kills, companions, result };
+    }
+    lr.combined = combined ?? { ...lr, est: lr.est, companions, result };
+    return result;
   } catch (err) {
     return { error: (err as Error).message };
   }
@@ -208,7 +306,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     const ps = periods(m, report.seconds);
     const map = detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum);
     const heat = heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image);
-    lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills, mapFile: job.mapFile };
+    lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills, mapFile: job.mapFile, mapName: report.maps[0] ?? report.mapName, checksum: report.mapChecksum, pictureShown: !!map.image, job };
     return {
       ...buildDetails(m, talk, job, map),
       overview: overviewInfo(report, m),

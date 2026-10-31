@@ -24,7 +24,8 @@ const api: SpaceDemoApi = {
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
   getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
-  getReplay: (key: string, round: number) => ipcRenderer.invoke(IPC.demoReplay, key, round),
+  getReplay: (key: string, round: number, combined?: boolean) => ipcRenderer.invoke(IPC.demoReplay, key, round, combined === true),
+  getCombined: (key: string) => ipcRenderer.invoke(IPC.demoCombined, key),
   getPlayers: () => ipcRenderer.invoke(IPC.playersGet),
   onPlayersChanged: (listener: (view: PlayersView) => void) => {
     const handler = (_event: unknown, view: PlayersView) => listener(view);

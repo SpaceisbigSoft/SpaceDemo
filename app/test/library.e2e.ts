@@ -181,9 +181,22 @@ describe.skipIf(!zips)('library screen', () => {
     await page.locator('.vt-burst').first().click();
     expect(await page.textContent('[data-testid="voice-picked"]')).toContain('round 3');
     await shot('10f details voice round 3');
-    // 5.k heatmaps.
+    // 5.r other recordings of the same match (read after the details): the HLTV demo of the same rounds, the other half.
+    await page.click('[role="tab"]:has-text("Overview")');
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="combined-recording"]').length > 0, undefined, { timeout: 180_000 });
+    const comb = await page.textContent('[data-testid="details-combined"]');
+    expect(comb).toContain('MoD train T hltvdemo');
+    expect(comb).toContain('78 of 80 kills line up');
+    expect(await page.textContent('[data-testid="combined-full"]')).toContain('i69 17 : MoD 7');
+    expect(await page.textContent('[data-testid="combined-coverage"]')).toMatch(/57 %.*100 %/);
+    expect(await page.textContent('[data-testid="score-full"]')).toContain('i69 17 : MoD 7');
+    await page.locator('[data-testid="details-combined"]').scrollIntoViewIfNeeded();
+    await shot('10o details other recordings (5.r)');
+    // 5.k heatmaps (this recording alone first: switch the combining off).
     await page.click('[role="tab"]:has-text("Heatmaps")');
     await page.waitForSelector('[data-testid="details-heatmap"]');
+    await page.click('[data-testid="combine-switch"]');
+    expect(await page.getAttribute('[data-testid="combine-switch"]', 'aria-pressed')).toBe('false');
     expect(await page.locator('[data-testid="heat-kill"]').count()).toBeGreaterThan(60);
     expect(await page.locator('[data-testid="heat-plant"]').count()).toBe(10);
     if (process.env.SPACEDEMO_GAME_DIR) expect(await page.textContent('[data-testid="heat-plants"]')).toContain('Site A: 4 · Site B: 6');
@@ -229,6 +242,14 @@ describe.skipIf(!zips)('library screen', () => {
     }
     await page.locator('[data-testid="replay-svg"]').scrollIntoViewIfNeeded();
     await shot('10j details radar replay round 5');
+    // 5.r combined with the HLTV demo: the same moment, more players placed by sight.
+    const seenAlone = await page.locator('[data-testid="replay-dot"][data-source="seen"]').count();
+    const clock = await page.textContent('[data-testid="replay-clock"]');
+    await page.click('[data-testid="combine-switch"]');
+    await page.waitForFunction((n) => document.querySelectorAll('[data-testid="replay-dot"][data-source="seen"]').length > n, seenAlone, { timeout: 60_000 });
+    expect(await page.textContent('[data-testid="replay-clock"]')).toBe(clock);
+    expect(await page.locator('[data-testid="replay-dot"][data-source="estimated"]').count()).toBe(0);
+    await shot('10p details radar replay round 5 combined (5.r)');
     // 5.q enemy sightings (POV).
     await page.click('[role="tab"]:has-text("Sightings")');
     await page.waitForSelector('[data-testid="details-sightings"]');
@@ -261,7 +282,8 @@ describe.skipIf(!zips)('library screen', () => {
     await page.locator('[data-testid="highlight"] button').first().click();
     await page.waitForSelector('[data-testid="replay-svg"]');
     await page.waitForFunction(() => document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') && (document.querySelector('[data-testid="details-replay"] select[aria-label="Round"]') as HTMLSelectElement).value === '2');
-    expect(await page.textContent('[data-testid="replay-clock"]')).not.toContain('freeze time');
+    // The round loads (combined with the HLTV demo by default), then the clock stands at the highlight.
+    await page.waitForFunction(() => !(document.querySelector('[data-testid="replay-clock"]')?.textContent ?? 'freeze time').includes('freeze time'), undefined, { timeout: 30_000 });
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');

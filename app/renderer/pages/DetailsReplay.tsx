@@ -4,7 +4,8 @@
 //   seen = solid dot with view direction · radar (teammate, POV) = smaller solid dot · heard = dot with a ring ·
 //   last seen = hollow dashed dot that fades out over 15 s. Estimated positions (2.16) come in the next step.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { DemoDetails, HeatKill, ReplayData, ReplayPlayer } from '../../shared/api.js';
+import type { DemoDetails, HeatKill, ReplayData, ReplayPlayer, CombinedData } from '../../shared/api.js';
+import { CombineSwitch } from './DetailsCombined.js';
 import { formatLength } from '../format.js';
 
 const SPEEDS = [0.5, 1, 2, 4];
@@ -85,7 +86,13 @@ export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[], estimate
 
 const STATUS: Record<Source, string> = { seen: 'seen', radar: 'on the radar', heard: 'heard', estimated: 'estimated', last: 'last seen', dead: 'dead', unknown: 'not known' };
 
-export function ReplayTab({ d, tagT, tagCT, start }: { d: DemoDetails; tagT: string; tagCT: string; start?: { round: number; time: number } }) {
+export function ReplayTab({ d, tagT, tagCT, start, combined, useCombined = true, onUseCombined }: {
+  d: DemoDetails; tagT: string; tagCT: string; start?: { round: number; time: number };
+  combined?: CombinedData | { error: string }; useCombined?: boolean; onUseCombined?: (on: boolean) => void;
+}) {
+  // 5.r: ask for the combined positions once the other recordings of the same rounds are known.
+  const canCombine = !!combined && !('error' in combined) && combined.recordings.some((r) => r.relation === 'same-half' && !r.error);
+  const wantCombined = canCombine && useCombined;
   const rounds = d.roundDetails.map((r) => r.number);
   const [round, setRound] = useState(start?.round ?? rounds[0] ?? 1);
   // Where to start once the round has loaded (a highlight), then from the round's start as usual.
@@ -96,19 +103,28 @@ export function ReplayTab({ d, tagT, tagCT, start }: { d: DemoDetails; tagT: str
   const [speed, setSpeed] = useState(1);
   const [names, setNames] = useState(true);
   const [showEst, setShowEst] = useState(true);
+  const prevCombined = useRef(wantCombined);
   const h = d.heatmap;
 
   useEffect(() => {
     let live = true;
     setData(undefined);
     setPlaying(false);
-    void window.spacedemo.getReplay(d.key, round).then((x) => {
+    // Only switching between this recording and the combined one keeps the moment.
+    const keep = prevCombined.current !== wantCombined;
+    prevCombined.current = wantCombined;
+    void window.spacedemo.getReplay(d.key, round, wantCombined).then((x) => {
       if (!live) return;
       setData(x);
-      if (!('error' in x)) { setT(startAt.current !== undefined ? Math.max(x.start, Math.min(x.end, startAt.current)) : x.start); startAt.current = undefined; }
+      // Switching recordings keeps the moment; a new round starts at its start (or at a highlight).
+      if (!('error' in x)) {
+        setT((old) => (startAt.current !== undefined ? Math.max(x.start, Math.min(x.end, startAt.current)) : keep && old >= x.start && old <= x.end ? old : x.start));
+        startAt.current = undefined;
+      }
     });
     return () => { live = false; };
-  }, [d.key, round]);
+  }, [d.key, round, wantCombined]);
+
 
   const r = data && !('error' in data) ? data : undefined;
   // Playback: move the clock with the screen's frames.
@@ -204,6 +220,7 @@ export function ReplayTab({ d, tagT, tagCT, start }: { d: DemoDetails; tagT: str
           <button type="button" className="filter-chip" aria-pressed={names} onClick={() => setNames(!names)}>Names</button>
           <button type="button" className="filter-chip" aria-pressed={showEst} onClick={() => setShowEst(!showEst)} disabled={!!r && !r.estimates} data-testid="replay-est"
             title="Where a player the demo can't see probably is, worked out from where he was seen before and after">Estimated positions</button>
+          <CombineSwitch c={combined} on={useCombined} onChange={(on) => onUseCombined?.(on)} />
         </div>
         {!data && <p className="note" role="status">Loading round {round}…</p>}
         {data && 'error' in data && <p className="problem" role="alert">{data.error}</p>}

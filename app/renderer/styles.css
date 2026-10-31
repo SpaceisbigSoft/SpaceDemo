@@ -596,3 +596,8 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .sugg-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .sugg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .tag.sure { background: var(--accent-soft); color: var(--accent-text); }
+/* 5.r other recordings of the same match */
+.combined-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.combined-list li { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.combined-list li > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.combined-list .link-btn { min-height: 32px; font-weight: 600; }

@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 import { inspectDemo } from '../../engine/src/inspect.js';
 import { indexMaps, type MapFile } from '../../engine/src/map-index.js';
 import { readZipEntry } from '../../engine/src/zip.js';
-import type { DemoDetails, DemoPlayers, DemoSummary, ReplayData } from '../shared/api.js';
+import type { CombinedData, DemoDetails, DemoPlayers, DemoSummary, ReplayData } from '../shared/api.js';
 import { readDemo } from '../../engine/src/container/read.js';
 import { extractMatch } from '../../engine/src/match/extract.js';
 import { demoPlayers } from './players.js';
-import { readDetails, readReplay, type DetailsJob } from './details.js';
+import { readCombined, readDetails, readReplay, type CompanionJob, type DetailsJob } from './details.js';
 import { runFix, type FixJob, type FixResult } from './fixer.js';
 import { summarize, type Candidate } from './library.js';
 
@@ -18,7 +18,8 @@ export interface LibraryReader {
   maps(folders: string[]): Promise<MapFile[]>;
   demo(c: Pick<Candidate, 'file' | 'zipEntry'>): Promise<DemoResult>;
   details(job: DetailsJob): Promise<DemoDetails | { error: string }>;
-  replay(job: DetailsJob, round: number): Promise<ReplayData | { error: string }>;
+  replay(job: DetailsJob, round: number, combined?: boolean): Promise<ReplayData | { error: string }>;
+  combined(job: DetailsJob & { companions: CompanionJob[] }): Promise<CombinedData | { error: string }>;
   players(job: PlayersJob): Promise<DemoPlayers | { error: string }>;
   fix(job: FixJob): Promise<FixResult>;
   close(): void;
@@ -58,7 +59,8 @@ export function directReader(): LibraryReader {
     maps: async (folders) => indexMaps(folders),
     demo: async (c) => readDemoNow(c),
     details: async (job) => readDetails(job),
-    replay: async (job, round) => readReplay(job, round),
+    replay: async (job, round, combined) => readReplay(job, round, combined),
+    combined: async (job) => readCombined(job),
     players: async (job) => readPlayersNow(job),
     fix: async (job) => runFix(job),
     close: () => {},

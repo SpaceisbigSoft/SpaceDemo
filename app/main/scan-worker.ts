@@ -3,14 +3,15 @@
 import { parentPort } from 'node:worker_threads';
 import { indexMaps } from '../../engine/src/map-index.js';
 import { readDemoNow, readPlayersNow, type PlayersJob } from './reader.js';
-import { readDetails, readReplay, type DetailsJob } from './details.js';
+import { readCombined, readDetails, readReplay, type CompanionJob, type DetailsJob } from './details.js';
 import { runFix, type FixJob } from './fixer.js';
 
 type Job =
   | { id: number; kind: 'maps'; folders: string[] }
   | { id: number; kind: 'demo'; file: string; zipEntry?: string }
   | ({ id: number; kind: 'details' } & DetailsJob)
-  | ({ id: number; kind: 'replay'; round: number } & DetailsJob)
+  | ({ id: number; kind: 'replay'; round: number; combined?: boolean } & DetailsJob)
+  | ({ id: number; kind: 'combined'; companions: CompanionJob[] } & DetailsJob)
   | ({ id: number; kind: 'players' } & PlayersJob)
   | ({ id: number; kind: 'fix' } & FixJob);
 
@@ -24,7 +25,9 @@ parentPort!.on('message', (job: Job) => {
   } else if (job.kind === 'players') {
     parentPort!.postMessage({ id: job.id, players: readPlayersNow(job) });
   } else if (job.kind === 'replay') {
-    parentPort!.postMessage({ id: job.id, replay: readReplay(job, job.round) });
+    parentPort!.postMessage({ id: job.id, replay: readReplay(job, job.round, job.combined === true) });
+  } else if (job.kind === 'combined') {
+    parentPort!.postMessage({ id: job.id, combined: readCombined(job) });
   } else if (job.kind === 'details') {
     parentPort!.postMessage({ id: job.id, details: readDetails(job) });
   } else {

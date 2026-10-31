@@ -203,7 +203,8 @@ function registerIpc(): void {
     }
     return players.refresh();
   });
-  ipcMain.handle(IPC.demoReplay, (_e, key: unknown, round: unknown) => (typeof key === 'string' && Number.isInteger(round) ? library.replay(key, round as number) : { error: 'No demo or round given.' }));
+  ipcMain.handle(IPC.demoReplay, (_e, key: unknown, round: unknown, combined: unknown) => (typeof key === 'string' && Number.isInteger(round) ? library.replay(key, round as number, combined === true) : { error: 'No demo or round given.' }));
+  ipcMain.handle(IPC.demoCombined, (_e, key: unknown) => (typeof key === 'string' ? library.combined(key) : { error: 'No demo given.' }));
   ipcMain.handle(IPC.watchInfo, (_e, key: unknown) => (typeof key === 'string' ? watcher.info(key) : { error: 'No demo given.' }));
   ipcMain.handle(IPC.watchStart, (_e, key: unknown, options: unknown) => {
     const o = (options ?? {}) as { speed?: unknown; keepCopy?: unknown };

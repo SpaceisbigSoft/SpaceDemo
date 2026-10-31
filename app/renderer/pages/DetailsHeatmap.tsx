@@ -2,7 +2,8 @@
 // spent, over the game's overview picture (or the floor drawn from the map file), with fight distances.
 // Team colours follow the rest of the app (T orange, CT blue); shape is the second cue (T = square, CT = circle).
 import { useEffect, useMemo, useState } from 'react';
-import type { DemoDetails, HeatKill } from '../../shared/api.js';
+import type { CombinedData, DemoDetails, HeatKill } from '../../shared/api.js';
+import { CombineSwitch } from './DetailsCombined.js';
 import { formatLength } from '../format.js';
 
 type Layer = 'kills' | 'deaths' | 'time' | 'plants';
@@ -27,8 +28,13 @@ function groupBy<T>(xs: T[], key: (x: T) => string): Map<string, T[]> {
 }
 const median = (xs: number[]) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[s.length >> 1] : undefined; };
 
-export function HeatmapTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; tagCT: string }) {
-  const h = d.heatmap;
+export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUseCombined }: {
+  d: DemoDetails; tagT: string; tagCT: string;
+  combined?: CombinedData | { error: string }; useCombined?: boolean; onUseCombined?: (on: boolean) => void;
+}) {
+  const comb = combined && !('error' in combined) && combined.heatmap ? combined : undefined;
+  const isCombined = !!comb && useCombined;
+  const h = isCombined ? comb!.heatmap! : d.heatmap;
   const [layers, setLayers] = useState<Set<Layer>>(new Set(['kills', 'plants']));
   const [team, setTeam] = useState<'both' | 'T' | 'CT'>('both');
   const [player, setPlayer] = useState('');
@@ -103,6 +109,7 @@ export function HeatmapTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; t
           {LAYERS.map((l) => (
             <button key={l.id} type="button" className="filter-chip" aria-pressed={layers.has(l.id)} title={l.title} onClick={() => toggle(l.id)}>{l.label}</button>
           ))}
+          <CombineSwitch c={combined} on={useCombined} onChange={(on) => onUseCombined?.(on)} />
         </div>
         <div className="log-tools">
           <div className="chips" role="group" aria-label="Team">
@@ -168,7 +175,9 @@ export function HeatmapTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; t
         )}
         {h.note && <p className="note">{h.note}</p>}
         <span className="note">
-          {h.recording === 'POV'
+          {isCombined
+            ? `Positions from this demo and ${comb!.recordings.filter((r) => r.relation === 'same-half').length} other recording(s) of the same rounds, lined up on the kills.`
+            : h.recording === 'POV'
             ? "A player's demo only knows where others were when the recorder could see or hear them (and his teammates on the radar), so time spent is partly empty and some killers have no position."
             : 'An HLTV demo sees every player, so positions are complete.'}
           {' '}Hover a mark for details; click a kill to select it.

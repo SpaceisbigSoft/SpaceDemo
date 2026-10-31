@@ -184,6 +184,40 @@ export interface DemoDetails {
   highlights: Highlight[];
 }
 
+/** 5.r: another recording of the same match, found in the library. */
+export interface CombinedRecording {
+  key: string;
+  name: string;
+  recording: 'POV' | 'HLTV';
+  /** 'same-half' = the same rounds (its positions are added); 'other-half' = the teams' other half of the match. */
+  relation: 'same-half' | 'other-half';
+  /** Same half: its clock + offset = this demo's clock (seconds), kills lined up and the largest gap left. */
+  offset?: number;
+  killsLinedUp?: number;
+  kills?: number;
+  maxGap?: number;
+  /** Same half: rounds of this demo it also covers. */
+  rounds?: number;
+  /** Same half: positions it adds (points) and players this demo never placed before. */
+  added?: { seen: number; radar: number; heard: number; grenades: number; deaths: number; newPlayers: string[] };
+  /** Other half: its score per clan tag (or side name). */
+  score?: { tag: string; side: 'T' | 'CT'; rounds: number }[];
+  /** Read problem, if it couldn't be used. */
+  error?: string;
+}
+
+/** 5.r: this demo combined with the other recordings of its match. */
+export interface CombinedData {
+  key: string;
+  recordings: CombinedRecording[];
+  /** Both halves found: rounds won per team over the whole match. */
+  fullMatch?: { teams: { tag: string; rounds: number; halves: number[] }[]; rounds: number };
+  /** Same-half recordings found: share of the time alive with a known position, before and after combining (0–1). */
+  coverage?: { before: number; after: number };
+  /** Heatmaps from the combined positions (only when same-half recordings were found). */
+  heatmap?: HeatmapData;
+}
+
 /** 5.o: a moment worth watching; `time` is where to start watching (demo seconds). */
 export interface Highlight {
   time: number;
@@ -530,7 +564,9 @@ export interface SpaceDemoApi {
   /** Details of a library demo (plan 4.4), by its library key. Reads the demo; changes nothing. */
   getDemoDetails(key: string): Promise<DemoDetails | { error: string }>;
   /** 5.j: one round of a library demo for the radar replay. Reads the demo (kept from the details page); changes nothing. */
-  getReplay(key: string, round: number): Promise<ReplayData | { error: string }>;
+  getReplay(key: string, round: number, combined?: boolean): Promise<ReplayData | { error: string }>;
+  /** 5.r: the other recordings of this demo's match in the library, lined up and combined. Reads them; changes nothing. */
+  getCombined(key: string): Promise<CombinedData | { error: string }>;
 
   /** 5.p Players page: totals over the library (reads new demos in the background; updates come through onPlayersChanged). */
   getPlayers(): Promise<PlayersView>;
@@ -583,6 +619,7 @@ export const IPC = {
   showInFolder: 'shell:show-in-folder',
   demoDetails: 'library:details',
   demoReplay: 'library:replay',
+  demoCombined: 'library:combined',
   playersGet: 'players:get',
   playersChanged: 'players:changed',
   playersMerge: 'players:merge',

@@ -1,7 +1,8 @@
 // Demo details (plan 4.4, mockup screen 2): score and rounds, players, map with bomb sites, who talked, chat, health.
 // Everything comes from reading the demo; nothing is changed. Watch (4.5) and Fix (4.6) come next.
 import { useEffect, useState } from 'react';
-import type { DemoDetails, LibraryDemo, PlayerRow, TeamDetails } from '../../shared/api.js';
+import type { CombinedData, DemoDetails, LibraryDemo, PlayerRow, TeamDetails } from '../../shared/api.js';
+import { CombinedCard } from './DetailsCombined.js';
 import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } from '../format.js';
 import { HeatmapTab } from './DetailsHeatmap.js';
 import { ReplayTab } from './DetailsReplay.js';
@@ -14,20 +15,35 @@ import { RoundsTab, ScoreboardTab, ServerCard } from './DetailsTabs.js';
 const TEAM_NAME = { T: 'Terrorists', CT: 'Counter-Terrorists' } as const;
 const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb exploded', D: 'bomb defused', T: 'time ran out', '=': 'draw', O: 'other' };
 
-export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void }) {
+export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void; onOpen?: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
   const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice' | 'heatmap' | 'replay' | 'sightings' | 'recorder' | 'highlights'>('overview');
   // A highlight to open in the Radar replay (round, time); a new object each time so the replay starts fresh.
   const [replayStart, setReplayStart] = useState<{ round: number; time: number } | undefined>();
+  // 5.r other recordings of the same match (read after the details), and whether the replay/heatmaps use them.
+  const [combined, setCombined] = useState<CombinedData | { error: string } | undefined>();
+  const [useCombined, setUseCombined] = useState(true);
 
   useEffect(() => {
     setDetails(undefined);
     setAllChat(false);
     setTab('overview');
     setReplayStart(undefined);
-    if (demo) void window.spacedemo.getDemoDetails(demo.key).then(setDetails);
+    setCombined(undefined);
+    setUseCombined(true);
+    let live = true;
+    if (demo) {
+      const key = demo.key;
+      void window.spacedemo.getDemoDetails(key).then((x) => {
+        if (!live) return;
+        setDetails(x);
+        if (!('error' in x)) void window.spacedemo.getCombined(key).then((c) => { if (live) setCombined(c); });
+      });
+    }
+    return () => { live = false; };
   }, [demo?.key]);
+  const comb = combined && !('error' in combined) ? combined : undefined;
 
   if (!demo) {
     return (
@@ -85,8 +101,8 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
       {d && tab === 'highlights' && <div role="tabpanel" id="panel-highlights" aria-labelledby="tab-highlights"><HighlightsTab d={d} onWatch={(h) => { setReplayStart({ round: h.round, time: h.time - 3 }); setTab('replay'); }} /></div>}
       {d && tab === 'recorder' && <div role="tabpanel" id="panel-recorder" aria-labelledby="tab-recorder"><RecorderTab d={d} /></div>}
       {d && tab === 'sightings' && <div role="tabpanel" id="panel-sightings" aria-labelledby="tab-sightings"><SightingsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
-      {d && tab === 'replay' && <div role="tabpanel" id="panel-replay" aria-labelledby="tab-replay"><ReplayTab key={replayStart ? `${replayStart.round}-${replayStart.time}` : 'replay'} d={d} tagT={tag('T')} tagCT={tag('CT')} start={replayStart} /></div>}
-      {d && tab === 'heatmap' && <div role="tabpanel" id="panel-heatmap" aria-labelledby="tab-heatmap"><HeatmapTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
+      {d && tab === 'replay' && <div role="tabpanel" id="panel-replay" aria-labelledby="tab-replay"><ReplayTab key={replayStart ? `${replayStart.round}-${replayStart.time}` : 'replay'} d={d} tagT={tag('T')} tagCT={tag('CT')} start={replayStart} combined={combined} useCombined={useCombined} onUseCombined={setUseCombined} /></div>}
+      {d && tab === 'heatmap' && <div role="tabpanel" id="panel-heatmap" aria-labelledby="tab-heatmap"><HeatmapTab d={d} tagT={tag('T')} tagCT={tag('CT')} combined={combined} useCombined={useCombined} onUseCombined={setUseCombined} /></div>}
       {d && tab === 'scoreboard' && <div role="tabpanel" id="panel-scoreboard" aria-labelledby="tab-scoreboard"><ScoreboardTab d={d} /></div>}
       {d && tab === 'overview' && (
         <div className="details-grid" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
@@ -118,6 +134,9 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
                   <span className="note">D = bomb defused · K = team killed · B = bomb exploded · T = time ran out</span>
                 </>
               )}
+              {comb?.fullMatch && (
+                <span className="note" data-testid="score-full">Whole match with the other half: {comb.fullMatch.teams.map((t) => `${t.tag} ${t.rounds}`).join(' : ')}</span>
+              )}
               {d.restarts > 0 && <span className="note">Warm-up before the last restart ({d.restarts} restart{d.restarts > 1 ? 's' : ''}) isn't counted.</span>}
             </section>
 
@@ -129,6 +148,7 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
               </div>
               {i?.recording === 'POV' && <span className="note">A player's demo only holds the voice of his own team. The recorder's own voice isn't in it.</span>}
             </section>
+            <CombinedCard c={combined} onOpen={(k) => onOpen?.(k)} />
             <ServerCard d={d} />
           </div>
 

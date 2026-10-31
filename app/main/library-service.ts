@@ -4,8 +4,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { matchMap, type MapFile } from '../../engine/src/map-index.js';
-import type { DemoDetails, LibraryDemo, LibraryState, ReplayData } from '../shared/api.js';
-import type { DetailsJob } from './details.js';
+import type { CombinedData, DemoDetails, LibraryDemo, LibraryState, ReplayData } from '../shared/api.js';
+import type { CompanionJob, DetailsJob } from './details.js';
 import {
   cached, demoStatus, findCandidates, loadCache, mapStatus, mergeDuplicates, saveCache,
   type CacheEntry, type Candidate,
@@ -140,10 +140,33 @@ export class LibraryService {
     return 'error' in job ? job : this.o.reader.details(job);
   }
 
-  /** 5.j: one round for the radar replay. */
-  async replay(key: string, round: number): Promise<ReplayData | { error: string }> {
+  /** 5.j: one round for the radar replay (5.r: with the other recordings of the same half added when `combined`). */
+  async replay(key: string, round: number, combined = false): Promise<ReplayData | { error: string }> {
     const job = this.detailsJob(key);
-    return 'error' in job ? job : this.o.reader.replay(job, round);
+    return 'error' in job ? job : this.o.reader.replay(job, round, combined);
+  }
+
+  /** 5.r: the other recordings of this demo's match, lined up and combined. */
+  async combined(key: string): Promise<CombinedData | { error: string }> {
+    const job = this.detailsJob(key);
+    if ('error' in job) return job;
+    return this.o.reader.combined({ ...job, companions: this.companions(key) });
+  }
+
+  /**
+   * Library demos that may be recordings of the same match as `key`: same map version, recorded within 3 days, and 6+
+   * of the same player names. Whether they really are (same rounds, or the other half) is decided by reading them.
+   */
+  companions(key: string): CompanionJob[] {
+    const me = this.rows.find((r) => r.demo.key === key)?.demo;
+    if (!me?.info) return [];
+    const names = new Set(me.info.players);
+    return this.rows.map((r) => r.demo).filter((d) => d.key !== key && d.info && d.info.map === me.info!.map && d.info.mapChecksum === me.info!.mapChecksum
+      && Math.abs(d.date - me.date) <= 3 * 86_400_000 && d.info.players.filter((n) => names.has(n)).length >= 6)
+      .map((d) => {
+        const c = this.rows.find((r) => r.demo === d)!.candidate;
+        return { key: d.key, name: d.name, file: c.file, zipEntry: c.zipEntry, recording: d.info!.recording };
+      });
   }
 
   private detailsJob(key: string): DetailsJob | { error: string } {
