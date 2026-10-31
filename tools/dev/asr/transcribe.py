@@ -21,11 +21,14 @@ def load(path):
     return np.interp(t, np.arange(len(raw)) / rate, raw).astype(np.float32)
 res = []
 t0 = time.time()
-for b in info['bursts']:
+limit = int(os.environ.get('LIMIT', '0')) or None
+for b in info['bursts'][:limit]:
     p = os.path.join(src, b['file'])
     if not os.path.exists(p): continue
     audio = load(p)
     audio = np.concatenate([audio, np.zeros(16000 // 2, np.float32)])
+    # Short clips: a smaller encoder window (whisper.cpp audio_ctx; 1500 = 30 s, 50 per second) is much faster.
+    # (A smaller encoder window, audio_ctx, was tried: only ~20 % faster and clearly worse, so the full 30 s is used.)
     segs = m.transcribe(audio, language='en', initial_prompt=prompt, no_context=True, suppress_blank=True)
     text = ' '.join(s.text.strip() for s in segs).strip()
     res.append({**b, 'text': text})
