@@ -1,5 +1,6 @@
 // Phase 5 tabs of the details page: match overview extras (5.h), rounds and timeline (5.c), scoreboard and stats (5.d).
 import { useState } from 'react';
+import { roundStory } from '../story.js';
 import type { DemoDetails, RoundDetail, StatRow } from '../../shared/api.js';
 import { formatLength } from '../format.js';
 
@@ -71,16 +72,16 @@ export function RoundsTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
     <section className="card" aria-labelledby="rounds-h" data-testid="details-rounds">
       <h2 id="rounds-h">Rounds</h2>
       <MomentumSummary d={d} tagT={tagT} tagCT={tagCT} />
-      <p className="note">Each bar runs from the end of freeze time to the end of the round. Ticks are kills (colour = the killer's side), ▲ the bomb plant, ◆ the defuse or explosion. Under it, players alive per side (orange T, blue CT; 5 at the top). Hover for details.</p>
+      <p className="note">Under each round's heading, a short story of the round worked out from the demo. Each bar runs from the end of freeze time to the end of the round. Ticks are kills (colour = the killer's side), ▲ the bomb plant, ◆ the defuse or explosion. Under it, players alive per side (orange T, blue CT; 5 at the top). Hover for details.</p>
       <ol className="round-list">
-        {d.roundDetails.map((r) => <RoundLine key={r.number} r={r} longest={longest} tagT={tagT} tagCT={tagCT} />)}
+        {d.roundDetails.map((r) => <RoundLine key={r.number} r={r} longest={longest} tagT={tagT} tagCT={tagCT} story={roundStory(d, r, { T: tagT, CT: tagCT })} />)}
       </ol>
       <span className="note">Jumping to a round in the game needs a test in your game first (plan 5.c); for now use the demo panel's timeline.</span>
     </section>
   );
 }
 
-function RoundLine({ r, longest, tagT, tagCT }: { r: RoundDetail; longest: number; tagT: string; tagCT: string }) {
+function RoundLine({ r, longest, tagT, tagCT, story }: { r: RoundDetail; longest: number; tagT: string; tagCT: string; story: string }) {
   const pct = (t: number) => `${(Math.min(Math.max(t, 0), r.seconds) / longest) * 100}%`;
   const winner = r.winner === 'T' ? tagT : r.winner === 'CT' ? tagCT : 'draw';
   return (
@@ -92,6 +93,7 @@ function RoundLine({ r, longest, tagT, tagCT }: { r: RoundDetail; longest: numbe
         <span className="note mono" data-testid="alive-ends" title={`Players alive (${tagT} v ${tagCT}): at the start → at the end of the round`}>{r.alive.T}v{r.alive.CT} → {(r.alive.steps.at(-1) ?? r.alive).T}v{(r.alive.steps.at(-1) ?? r.alive).CT}</span>
         {r.scoreT !== undefined && <span className="mono score-after">{r.scoreT} : {r.scoreCT}</span>}
       </div>
+      {story && <p className="round-story" data-testid="round-story">{story}</p>}
       <div className="timeline" role="img" aria-label={`Round ${r.number}: ${r.kills.length} kills${r.plantedAt !== undefined ? ', bomb planted' : ''}`}>
         <div className="track" style={{ width: pct(r.seconds) }} />
         {r.kills.map((k, i) => (

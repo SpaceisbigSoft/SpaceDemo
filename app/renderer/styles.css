@@ -664,3 +664,6 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .team-table tr.picked-row td { background: var(--accent-soft); }
 [data-testid="aim-moments"] tbody tr { cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 5.y round story */
+.round-story { margin: 2px 0 4px; font-size: 13px; color: var(--text-2); line-height: 1.45; }

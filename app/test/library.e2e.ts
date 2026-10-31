@@ -153,6 +153,9 @@ describe.skipIf(!zips)('library screen', () => {
     const mom = await page.textContent('[data-testid="momentum"]');
     expect(mom).toContain('Opening kill won the round: 9 of 12');
     expect(mom).toContain('Round 4:');
+    // 5.y a story under every round.
+    expect(await page.locator('[data-testid="round-story"]').count()).toBe(12);
+    expect(await page.locator('[data-testid="round-story"]').first().textContent()).toContain('Pistol round.');
     await shot('10b details rounds');
     await page.click('[role="tab"]:has-text("Scoreboard")');
     expect(await page.locator('[data-testid="stat-row"]').count()).toBe(10);
