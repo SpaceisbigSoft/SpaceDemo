@@ -426,3 +426,40 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .radio-table td, .radio-table th { padding-left: 6px; padding-right: 6px; }
 .radio-table .most-used span { white-space: nowrap; }
 .log-layout > * { min-width: 0; }
+
+/* ---------- Heatmaps (5.k) ---------- */
+.heat-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .heat-layout { grid-template-columns: minmax(0, 1fr); } }
+.heat-layout > *, .heat-side { min-width: 0; }
+.heat-side { display: flex; flex-direction: column; gap: 20px; }
+.heat-map { border-radius: 8px; overflow: hidden; background: #0e1012; }
+.heat-map svg { display: block; width: 100%; height: auto; }
+.heat-bg { fill: #0e1012; }
+.heat-floor { fill: #3a4047; stroke: #4a5159; stroke-width: 0.5; }
+.heat-time { image-rendering: auto; }
+.heat-site circle { fill: rgba(0, 0, 0, 0.35); stroke: #ff9b8f; stroke-width: 2; }
+.heat-site text { fill: #ff9b8f; font-weight: 700; font-size: 32px; font-family: var(--font); }
+.heat-kill .line { stroke-width: 1.6; opacity: 0.75; }
+.heat-kill .line.t { stroke: #e3a24a; }
+.heat-kill .line.ct { stroke: #5aa7f0; }
+.heat-kill .hit { stroke: transparent; stroke-width: 10; }
+.heat-kill { cursor: pointer; }
+.heat-kill:hover .line, .heat-kill.sel .line { opacity: 1; stroke-width: 3; }
+.killer { stroke: #0e1012; stroke-width: 2; fill: var(--muted); }
+.killer.t { fill: #e3a24a; }
+.killer.ct { fill: #5aa7f0; }
+.heat-kill .x, .heat-death .x { stroke-width: 2.5; stroke: var(--muted); stroke-linecap: round; }
+.heat-kill .x.t, .heat-death .x.t { stroke: #e3a24a; }
+.heat-kill .x.ct, .heat-death .x.ct { stroke: #5aa7f0; }
+.heat-death .x { stroke-width: 3; }
+.heat-plant path, .plant-icon { fill: #ff9b8f; stroke: #0e1012; stroke-width: 2; }
+.heat-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--text-2); align-items: center; }
+.heat-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.heat-ramp { width: 60px; height: 10px; border-radius: 2px; background: linear-gradient(90deg, rgba(255,210,60,0.3), rgba(255,40,20,0.95)); }
+.big-number { margin: 0; font-size: 14px; }
+.big-number .mono { font-size: 28px; font-weight: 700; margin-right: 4px; }
+.dist-bars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.dist-bars li { display: grid; grid-template-columns: 90px 1fr 28px; gap: 8px; align-items: center; font-size: 12px; color: var(--text-2); }
+.dist-bars .bar { height: 10px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
+.dist-bars .bar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+.dist-bars .n { text-align: right; }

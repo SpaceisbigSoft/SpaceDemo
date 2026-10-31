@@ -59,3 +59,17 @@ describe.skipIf(!zips)('details on a real demo', () => {
     expect(d.map.note).toMatch(/old version/);
   }, 120_000);
 });
+
+describe('overview pictures', () => {
+  it('turns the green "no floor" colour of a paletted picture dark, leaving the rest', async () => {
+    const { keyOutGreen } = await import('../main/details.js');
+    // 1x1 8-bit BMP: 14-byte file header, 40-byte info header, 2 palette entries (green, red), 1 pixel row (4 bytes).
+    const b = Buffer.alloc(14 + 40 + 8 + 4);
+    b.write('BM', 0, 'latin1'); b.writeUInt32LE(b.length, 2); b.writeUInt32LE(62, 10);
+    b.writeUInt32LE(40, 14); b.writeInt32LE(1, 18); b.writeInt32LE(1, 22); b.writeUInt16LE(1, 26); b.writeUInt16LE(8, 28); b.writeUInt32LE(2, 46);
+    b.set([0, 255, 0, 0, 0, 0, 255, 0], 54);
+    const out = keyOutGreen(b);
+    expect([...out.subarray(54, 62)]).toEqual([18, 16, 14, 0, 0, 0, 255, 0]);
+    expect([...b.subarray(54, 58)]).toEqual([0, 255, 0, 0]); // the input is untouched
+  });
+});

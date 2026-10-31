@@ -10,6 +10,7 @@ import { checkMatch, extractMatch } from '../../engine/src/match/extract.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
+import { heatmapData } from './heatmap.js';
 import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
 
 export interface DetailsJob {
@@ -50,7 +51,7 @@ export function chatMessage(text: string, who: string | undefined): string {
   return t.trim();
 }
 
-export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds'> {
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds' | 'heatmap'> {
   // Players per side from the stats (sides from the kill events; reconnects added up by name).
   const stats = statRows(m);
   const team = (t: 'T' | 'CT'): TeamDetails => {
@@ -90,6 +91,24 @@ export function buildDetails(m: MatchData, talkByName: Map<string, number>, job:
   };
 }
 
+/**
+ * The game's overview pictures use pure green (0, 255, 0) for "no floor here" (the game hides it). Paletted (8-bit)
+ * pictures get that palette colour changed to a dark grey, on a copy in memory; the file is only read.
+ */
+export function keyOutGreen(bmp: Buffer, to: [number, number, number] = [14, 16, 18]): Buffer {
+  const out = Buffer.from(bmp);
+  if (out.length < 54 || out.toString('latin1', 0, 2) !== 'BM') return out;
+  const headerSize = out.readUInt32LE(14), bpp = out.readUInt16LE(28);
+  if (bpp !== 8) return out;
+  const colours = out.readUInt32LE(46) || 256;
+  for (let i = 0; i < colours; i++) {
+    const o = 14 + headerSize + i * 4; // blue, green, red, reserved
+    if (o + 3 >= out.length) break;
+    if (out[o] === 0 && out[o + 1] === 255 && out[o + 2] === 0) { out[o] = to[2]; out[o + 1] = to[1]; out[o + 2] = to[0]; }
+  }
+  return out;
+}
+
 /** Overview picture and bomb sites, when today's picture fits this map version. */
 export function detailsMap(job: DetailsJob, mapName: string, checksum: number): DetailsMap {
   if (!job.mapFile) return { sites: [], note: "This demo's map version wasn't found, so there's no map picture." };
@@ -103,7 +122,7 @@ export function detailsMap(job: DetailsJob, mapName: string, checksum: number): 
     const ov = parseOverview(readFileSync(job.overviewTxt, 'latin1'));
     // IMAGE is relative to the game's mod folder (e.g. "overviews/de_train.bmp").
     const imagePath = join(dirname(dirname(job.overviewTxt)), ov.image || `overviews/${mapName}.bmp`);
-    const image = `data:image/bmp;base64,${readFileSync(imagePath).toString('base64')}`;
+    const image = `data:image/bmp;base64,${keyOutGreen(readFileSync(imagePath)).toString('base64')}`;
     if (facts) {
       const project = projection(ov);
       sites = applySiteLetters(facts.bombSites, mapName, checksum).map((s) => {
@@ -117,13 +136,25 @@ export function detailsMap(job: DetailsJob, mapName: string, checksum: number): 
   }
 }
 
+/** 5.k: heatmaps over the overview picture when it fits, else over the floor drawn from the map file. */
+function heatmap(job: DetailsJob, m: MatchData, mapName: string, checksum: number, pictureShown: boolean) {
+  let bsp: Uint8Array | undefined;
+  try { if (job.mapFile) bsp = new Uint8Array(readFileSync(job.mapFile)); } catch { /* unreadable map */ }
+  // Same picture as the Overview tab's map card (only when it fits this map version).
+  let overview: { project: ReturnType<typeof projection> } | undefined;
+  if (pictureShown && job.overviewTxt) {
+    try { overview = { project: projection(parseOverview(readFileSync(job.overviewTxt, 'latin1'))) }; } catch { /* drawn from the map file */ }
+  }
+  return heatmapData({ m, mapName, checksum, bsp, overview });
+}
+
 /** Reads the demo and builds its details (runs in the background thread). */
 export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
   try {
     const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
     const demo = readDemo(bytes);
     const report = inspectParsed(demo, bytes.length);
-    const m = extractMatch(demo);
+    const m = extractMatch(demo, { tracks: true });
     const talk = new Map<string, number>();
     if (report.players.some((p) => p.voiceSeconds !== undefined)) {
       // Miles voice: measured from the voice data (same numbers as the library).
@@ -136,8 +167,9 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       }
     }
     const ps = periods(m, report.seconds);
+    const map = detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum);
     return {
-      ...buildDetails(m, talk, job, detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum)),
+      ...buildDetails(m, talk, job, map),
       overview: overviewInfo(report, m),
       roundDetails: roundDetails(m),
       stats: statRows(m),
@@ -145,6 +177,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       ...chatRadioLog(m, ps, report.hostName),
       voice: voiceTimeline(m),
       seconds: ps[ps.length - 1].end,
+      heatmap: heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image),
     };
   } catch (err) {
     return { error: (err as Error).message };

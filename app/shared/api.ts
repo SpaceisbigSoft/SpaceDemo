@@ -174,6 +174,52 @@ export interface DemoDetails {
   voice: VoiceRow[];
   /** Length of the demo in seconds. */
   seconds: number;
+  /** 5.k heatmaps. */
+  heatmap: HeatmapData;
+}
+
+/** 5.k: what the Heatmaps tab draws, in picture pixels (width x height). */
+export interface HeatmapData {
+  width: number;
+  height: number;
+  /** True: draw over the details' overview picture (d.map.image), which fits this map version. */
+  useMapPicture: boolean;
+  /** Otherwise the map's floor drawn from the map file, as an SVG path. */
+  floorPath?: string;
+  /** Why the background is drawn or missing, in plain words. */
+  note?: string;
+  sites: { letter: string; x: number; y: number }[];
+  kills: HeatKill[];
+  plants: { x: number; y: number; round?: number; time: number; site?: string }[];
+  /** Time spent per player: [cell index, count, round] (round 0 = outside the rounds); cell index = row * (width / cell)
+   *  + column; one count = `step` seconds. */
+  heat: Record<string, { team?: 'T' | 'CT'; cells: [number, number, number][] }>;
+  cell: number;
+  step: number;
+  recording: 'POV' | 'HLTV';
+}
+
+export interface HeatKill {
+  time: number;
+  round?: number;
+  killer: string;
+  killerTeam?: 'T' | 'CT';
+  victim: string;
+  victimTeam?: 'T' | 'CT';
+  weapon: string;
+  headshot: boolean;
+  teamKill: boolean;
+  suicide: boolean;
+  /** Where the victim died: the body (corpse) or, without one, his last known position. */
+  vx: number;
+  vy: number;
+  victimFrom: 'corpse' | 'seen' | 'radar' | 'heard';
+  /** Where the killer stood, when known (within about a second). */
+  kx?: number;
+  ky?: number;
+  killerFrom?: 'seen' | 'radar' | 'heard';
+  /** Killer to victim in game units (1 unit ≈ 1 inch). */
+  distance?: number;
 }
 
 /** A part of the demo: warm-up (before round 1), a round (its start to the next round's start), or after the match. */

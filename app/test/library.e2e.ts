@@ -181,6 +181,22 @@ describe.skipIf(!zips)('library screen', () => {
     await page.locator('.vt-burst').first().click();
     expect(await page.textContent('[data-testid="voice-picked"]')).toContain('round 3');
     await shot('10f details voice round 3');
+    // 5.k heatmaps.
+    await page.click('[role="tab"]:has-text("Heatmaps")');
+    await page.waitForSelector('[data-testid="details-heatmap"]');
+    expect(await page.locator('[data-testid="heat-kill"]').count()).toBeGreaterThan(60);
+    expect(await page.locator('[data-testid="heat-plant"]').count()).toBe(10);
+    if (process.env.SPACEDEMO_GAME_DIR) expect(await page.textContent('[data-testid="heat-plants"]')).toContain('Site A: 4 · Site B: 6');
+    expect(await page.textContent('[data-testid="heat-distances"]')).toContain('median');
+    await page.click('button.filter-chip:has-text("Time spent")');
+    await page.waitForSelector('[data-testid="heat-time"]');
+    await shot('10g details heatmaps');
+    await page.selectOption('select[aria-label="Round"]', '1');
+    await page.selectOption('select[aria-label="Player"]', ':i69:Endbringer');
+    expect(await page.locator('[data-testid="heat-plant"]').count()).toBe(1);
+    await page.locator('[data-testid="heat-kill"]').first().click({ force: true });
+    expect(await page.textContent('[data-testid="heat-picked"]')).toContain(':i69:Endbringer →');
+    await shot('10h details heatmaps round 1 Endbringer');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');
@@ -189,6 +205,13 @@ describe.skipIf(!zips)('library screen', () => {
     await page.click('[data-testid="demo-row"] button.name-btn:text-is("mfaTside")');
     await page.waitForSelector('[data-testid="details-map"]', { timeout: 60_000 });
     if (process.env.CDF_POOL) expect(await page.textContent('[data-testid="details-map"]')).toContain("today's overview picture doesn't match");
+    if (process.env.CDF_POOL) {
+      await page.click('[role="tab"]:has-text("Heatmaps")');
+      await page.waitForSelector('[data-testid="details-heatmap"]');
+      expect(await page.locator('.heat-floor').count()).toBe(1);
+      expect(await page.textContent('[data-testid="details-heatmap"]')).toContain('drawn from the map file');
+      await shot('11b heatmaps mfaTside (map drawn from the file)');
+    }
     await shot('11 details mfaTside (old map)');
     await page.click('nav button:has-text("Library")');
     await page.waitForSelector('[data-testid="demo-table"]');
