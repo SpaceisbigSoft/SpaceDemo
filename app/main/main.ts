@@ -12,6 +12,7 @@ import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
 import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
+import { PlayersService } from './players-service.js';
 import { loadSettings, saveSettings, settingsFile, type Settings } from './settings.js';
 import { workerReader } from './worker-reader.js';
 
@@ -33,6 +34,7 @@ let library: LibraryService;
 let watcher: WatchService;
 let fixer: FixService;
 let fixedStore: FixedStore;
+let players: PlayersService;
 
 /** Test-only switches: a stand-in game folder, and "pretend to start Steam" (writes what it would run to a log). */
 const TEST_GAME_DIR = process.env.SPACEDEMO_GAME_DIR;
@@ -178,6 +180,29 @@ function registerIpc(): void {
   });
   ipcMain.handle(IPC.libraryRescan, () => { void library.refresh(); return library.state(); });
   ipcMain.handle(IPC.demoDetails, (_e, key: unknown) => (typeof key === 'string' ? library.details(key) : { error: 'No demo given.' }));
+  ipcMain.handle(IPC.playersGet, () => players.view());
+  ipcMain.handle(IPC.playersMerge, (_e, alias: unknown, into: unknown) => {
+    if (typeof alias === 'string' && typeof into === 'string' && alias && into && alias !== into) {
+      // Anything merged into the alias goes to the new name too.
+      const merges: Record<string, string> = {};
+      for (const [k, v] of Object.entries(settings.playerMerges)) merges[k] = v === alias ? into : v;
+      merges[alias] = into;
+      delete merges[into];
+      saveAndApply({ ...settings, playerMerges: merges });
+    }
+    return players.refresh();
+  });
+  ipcMain.handle(IPC.playersUnmerge, (_e, alias: unknown) => {
+    if (typeof alias === 'string') { const merges = { ...settings.playerMerges }; delete merges[alias]; saveAndApply({ ...settings, playerMerges: merges }); }
+    return players.refresh();
+  });
+  ipcMain.handle(IPC.playersReject, (_e, a: unknown, b: unknown) => {
+    if (typeof a === 'string' && typeof b === 'string') {
+      const pair = [a, b].sort().join('|');
+      if (!settings.playerRejected.includes(pair)) saveAndApply({ ...settings, playerRejected: [...settings.playerRejected, pair] });
+    }
+    return players.refresh();
+  });
   ipcMain.handle(IPC.demoReplay, (_e, key: unknown, round: unknown) => (typeof key === 'string' && Number.isInteger(round) ? library.replay(key, round as number) : { error: 'No demo or round given.' }));
   ipcMain.handle(IPC.watchInfo, (_e, key: unknown) => (typeof key === 'string' ? watcher.info(key) : { error: 'No demo given.' }));
   ipcMain.handle(IPC.watchStart, (_e, key: unknown, options: unknown) => {
@@ -277,6 +302,11 @@ if (!app.requestSingleInstanceLock()) {
       mapFolders: () => settings.mapFolders,
       gameDir: () => game?.gameDir,
       onChange: (state) => win?.webContents.send(IPC.libraryChanged, state),
+    });
+    players = new PlayersService({
+      library, reader, cacheFile: join(app.getPath('userData'), 'players-cache.json'),
+      merges: () => settings.playerMerges, rejected: () => settings.playerRejected,
+      onChange: (view) => win?.webContents.send(IPC.playersChanged, view),
     });
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
     fixer = new FixService({

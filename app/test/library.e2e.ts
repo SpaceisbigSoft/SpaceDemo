@@ -282,6 +282,24 @@ describe.skipIf(!zips)('library screen', () => {
     await page.waitForSelector('[data-testid="demo-table"]');
   });
 
+  it('adds up players over the whole library, with rename suggestions (5.p)', async () => {
+    await page.click('nav button:has-text("Players")');
+    await page.waitForSelector('[data-testid="players-page"]');
+    await page.waitForFunction(() => !document.querySelector('[data-testid="players-progress"]') && document.querySelectorAll('[data-testid="player-row"]').length > 50, undefined, { timeout: 240_000 });
+    expect(await page.textContent('[data-testid="players-summary"]')).toContain('4 more recordings of the same match halves counted once');
+    expect(await page.locator('[data-testid="player-row"]').first().textContent()).toContain(':i69:Endbringer');
+    const before = await page.locator('[data-testid="player-row"]').count();
+    const sugg = await page.locator('[data-testid="suggestion"]').count();
+    expect(sugg).toBeGreaterThanOrEqual(5);
+    await shot('13 players');
+    await page.locator('[data-testid="suggestion"]').first().locator('button').first().click();
+    await page.waitForFunction((n) => document.querySelectorAll('[data-testid="suggestion"]').length === n - 1, sugg);
+    expect(await page.locator('[data-testid="player-row"]').count()).toBe(before - 1);
+    expect(JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).playerMerges).not.toEqual({});
+    await page.click('nav button:has-text("Library")');
+    await page.waitForSelector('[data-testid="demo-table"]');
+  }, 300_000);
+
   it('watches a demo: fix first, then start the game (4.5)', async () => {
     if (!process.env.SPACEDEMO_GAME_DIR) return;
     await page.click('button[aria-label="Watch modTside"]');

@@ -532,6 +532,15 @@ export interface SpaceDemoApi {
   /** 5.j: one round of a library demo for the radar replay. Reads the demo (kept from the details page); changes nothing. */
   getReplay(key: string, round: number): Promise<ReplayData | { error: string }>;
 
+  /** 5.p Players page: totals over the library (reads new demos in the background; updates come through onPlayersChanged). */
+  getPlayers(): Promise<PlayersView>;
+  onPlayersChanged(listener: (view: PlayersView) => void): () => void;
+  /** Count `alias` as `into` from now on (saved in the settings). */
+  mergePlayers(alias: string, into: string): Promise<PlayersView>;
+  unmergePlayer(alias: string): Promise<PlayersView>;
+  /** The owner says these two are different people: don't suggest them again. */
+  rejectPlayerSuggestion(a: string, b: string): Promise<PlayersView>;
+
   /** Watch (plan 4.5): what will happen, then fix if needed and start the game. Progress comes through onWatchProgress. */
   getWatchInfo(key: string): Promise<WatchInfo | { error: string }>;
   watch(key: string, options: { speed?: number; keepCopy?: boolean }): Promise<WatchProgress>;
@@ -574,6 +583,11 @@ export const IPC = {
   showInFolder: 'shell:show-in-folder',
   demoDetails: 'library:details',
   demoReplay: 'library:replay',
+  playersGet: 'players:get',
+  playersChanged: 'players:changed',
+  playersMerge: 'players:merge',
+  playersUnmerge: 'players:unmerge',
+  playersReject: 'players:reject',
   watchInfo: 'watch:info',
   watchStart: 'watch:start',
   watchProgress: 'watch:progress',
@@ -596,4 +610,65 @@ declare global {
   interface Window {
     spacedemo: SpaceDemoApi;
   }
+}
+
+/** 5.p: a player's userinfo fingerprint. Secret values are hashes only. */
+export interface PlayerFingerprint {
+  /** Public ids the server added ("*tracker", "*sid"…). */
+  ids: Record<string, string>;
+  /** Hashes of private settings (setinfo passwords): compared, never shown. */
+  secrets: string[];
+  /** The list of his userinfo keys (settings he set), sorted. */
+  keys: string;
+  /** Personal settings worth comparing: colours, rates… */
+  settings: Record<string, string>;
+}
+
+/** 5.p: one demo's players (kept in the players cache). */
+export interface DemoPlayers {
+  key: string;
+  name: string;
+  date: number;
+  map: string;
+  recording: 'POV' | 'HLTV';
+  rounds: number;
+  /** Same text = the same match half recorded twice. */
+  signature: string;
+  players: {
+    name: string; team: 'T' | 'CT'; recorder: boolean; tag?: string;
+    kills: number; deaths: number; headshots: number; teamKills: number; suicides: number;
+    firstKills: number; multi3: number; clutches: number;
+    fp: PlayerFingerprint;
+    otherNames: string[];
+  }[];
+}
+
+export interface PlayerTotals {
+  name: string;
+  /** Other names merged into this one. */
+  aliases: string[];
+  tags: string[];
+  demos: number;
+  rounds: number;
+  kills: number; deaths: number; headshots: number; teamKills: number;
+  firstKills: number; multi3: number; clutches: number;
+  demoKeys: string[];
+}
+
+export interface RenameSuggestion {
+  a: string;
+  b: string;
+  score: number;
+  reasons: string[];
+}
+
+/** 5.p: the Players page. */
+export interface PlayersView {
+  players: PlayerTotals[];
+  suggestions: RenameSuggestion[];
+  /** Demos read; countedAs = the key of the recording of the same match half that is counted instead. */
+  demos: { key: string; name: string; date: number; map: string; recording: 'POV' | 'HLTV'; countedAs?: string }[];
+  merges: Record<string, string>;
+  /** While demos are being read. */
+  progress?: { done: number; total: number };
 }

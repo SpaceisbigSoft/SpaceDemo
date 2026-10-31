@@ -46,10 +46,10 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'clearGameFolder', 'findGame', 'fixDemos', 'fixFiles', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getReplay',
-      'getSettings', 'getTheme', 'getWatchInfo', 'info', 'onFixBatch', 'onLibraryChanged', 'onThemeChanged', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder',
-      'stopFixing', 'watch',
+      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'clearGameFolder', 'findGame', 'fixDemos', 'fixFiles', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay',
+      'getSettings', 'getTheme', 'getWatchInfo', 'info', 'mergePlayers', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onThemeChanged', 'onWatchProgress',
+      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder',
+      'stopFixing', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);

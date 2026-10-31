@@ -17,10 +17,14 @@ export interface Settings {
   gameDir?: string;
   /** Voice cleanup when fixing (owner's default: on). */
   voiceCleanup: boolean;
+  /** 5.p: player names merged by the owner (alias → the name it belongs to). */
+  playerMerges: Record<string, string>;
+  /** 5.p: suggested merges the owner said no to ("a|b", sorted). */
+  playerRejected: string[];
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [] };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
@@ -35,7 +39,7 @@ function cleanPaths(v: unknown): string[] {
 
 /** Keeps only known keys with valid values; anything else becomes the default. */
 export function cleanSettings(raw: unknown): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, libraryFolders: [], mapFolders: [] };
+  const out: Settings = { ...DEFAULT_SETTINGS, libraryFolders: [], mapFolders: [], playerMerges: {}, playerRejected: [] };
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
     if (typeof r.theme === 'string' && (THEME_CHOICES as readonly string[]).includes(r.theme)) out.theme = r.theme as ThemeChoice;
@@ -44,6 +48,10 @@ export function cleanSettings(raw: unknown): Settings {
     if (typeof r.outputFolder === 'string' && r.outputFolder.trim()) out.outputFolder = r.outputFolder;
     if (typeof r.gameDir === 'string' && r.gameDir.trim()) out.gameDir = r.gameDir;
     if (typeof r.voiceCleanup === 'boolean') out.voiceCleanup = r.voiceCleanup;
+    if (r.playerMerges && typeof r.playerMerges === 'object') {
+      for (const [k, v] of Object.entries(r.playerMerges as Record<string, unknown>)) if (typeof v === 'string' && k && v && k !== v) out.playerMerges[k] = v;
+    }
+    out.playerRejected = cleanPaths(r.playerRejected);
   }
   return out;
 }

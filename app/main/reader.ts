@@ -4,7 +4,10 @@ import { readFileSync } from 'node:fs';
 import { inspectDemo } from '../../engine/src/inspect.js';
 import { indexMaps, type MapFile } from '../../engine/src/map-index.js';
 import { readZipEntry } from '../../engine/src/zip.js';
-import type { DemoDetails, DemoSummary, ReplayData } from '../shared/api.js';
+import type { DemoDetails, DemoPlayers, DemoSummary, ReplayData } from '../shared/api.js';
+import { readDemo } from '../../engine/src/container/read.js';
+import { extractMatch } from '../../engine/src/match/extract.js';
+import { demoPlayers } from './players.js';
 import { readDetails, readReplay, type DetailsJob } from './details.js';
 import { runFix, type FixJob, type FixResult } from './fixer.js';
 import { summarize, type Candidate } from './library.js';
@@ -16,6 +19,7 @@ export interface LibraryReader {
   demo(c: Pick<Candidate, 'file' | 'zipEntry'>): Promise<DemoResult>;
   details(job: DetailsJob): Promise<DemoDetails | { error: string }>;
   replay(job: DetailsJob, round: number): Promise<ReplayData | { error: string }>;
+  players(job: PlayersJob): Promise<DemoPlayers | { error: string }>;
   fix(job: FixJob): Promise<FixResult>;
   close(): void;
 }
@@ -36,6 +40,18 @@ function plainError(err: unknown): string {
   return msg;
 }
 
+export interface PlayersJob { key: string; file: string; zipEntry?: string; name: string; date: number; map: string }
+
+/** 5.p: one demo's players for the totals. */
+export function readPlayersNow(job: PlayersJob): DemoPlayers | { error: string } {
+  try {
+    const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
+    return demoPlayers(extractMatch(readDemo(bytes)), job);
+  } catch (err) {
+    return { error: plainError(err) };
+  }
+}
+
 /** Reads in this thread. Used by tests and as a fallback. */
 export function directReader(): LibraryReader {
   return {
@@ -43,6 +59,7 @@ export function directReader(): LibraryReader {
     demo: async (c) => readDemoNow(c),
     details: async (job) => readDetails(job),
     replay: async (job, round) => readReplay(job, round),
+    players: async (job) => readPlayersNow(job),
     fix: async (job) => runFix(job),
     close: () => {},
   };

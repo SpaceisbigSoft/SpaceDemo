@@ -583,3 +583,16 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .highlight-list .hl-title { font-weight: 600; }
 .tabs { overflow-x: auto; scrollbar-width: thin; }
 .tab { white-space: nowrap; flex: 0 0 auto; padding: 0 12px; }
+
+/* ---------- Players (5.p) ---------- */
+.players-page { display: flex; flex-direction: column; gap: 18px; }
+.players-page .page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.players-table { min-width: 900px; margin: 0; }
+.players-table td.pname { white-space: nowrap; }
+.player-more-body { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 8px; font-size: 13px; }
+.merge-into { display: flex; align-items: center; gap: 8px; }
+.sugg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sugg-list li { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--border); }
+.sugg-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.sugg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.tag.sure { background: var(--accent-soft); color: var(--accent-text); }

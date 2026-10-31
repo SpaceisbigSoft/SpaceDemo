@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type FixBatchState, type LibraryState, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
+import { IPC, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -25,6 +25,15 @@ const api: SpaceDemoApi = {
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
   getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
   getReplay: (key: string, round: number) => ipcRenderer.invoke(IPC.demoReplay, key, round),
+  getPlayers: () => ipcRenderer.invoke(IPC.playersGet),
+  onPlayersChanged: (listener: (view: PlayersView) => void) => {
+    const handler = (_event: unknown, view: PlayersView) => listener(view);
+    ipcRenderer.on(IPC.playersChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.playersChanged, handler); };
+  },
+  mergePlayers: (alias: string, into: string) => ipcRenderer.invoke(IPC.playersMerge, alias, into),
+  unmergePlayer: (alias: string) => ipcRenderer.invoke(IPC.playersUnmerge, alias),
+  rejectPlayerSuggestion: (a: string, b: string) => ipcRenderer.invoke(IPC.playersReject, a, b),
   getWatchInfo: (key: string) => ipcRenderer.invoke(IPC.watchInfo, key),
   watch: (key: string, options: { speed?: number; keepCopy?: boolean }) => ipcRenderer.invoke(IPC.watchStart, key, options),
   onWatchProgress: (listener: (p: WatchProgress) => void) => {

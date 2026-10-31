@@ -24,6 +24,8 @@ export interface MatchPlayer {
   deaths?: number;
   /** Shots fired per weapon (weapon-fire events; the recorder's own shots come from the demo's event frames). */
   shots: Record<string, number>;
+  /** The player's last userinfo as the server sent it (model, colours, rates, setinfo keys…). */
+  userinfo?: Record<string, string>;
 }
 
 export type RoundEndReason = 'eliminated' | 'bomb exploded' | 'bomb defused' | 'time ran out' | 'draw' | 'hostages rescued' | 'VIP escaped' | 'VIP killed' | 'other';

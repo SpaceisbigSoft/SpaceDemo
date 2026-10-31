@@ -213,6 +213,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
               if (p.names[p.names.length - 1] !== name) p.names.push(name);
             }
             if (b.info['*hltv'] !== undefined) p.isHltv = true;
+            p.userinfo = { ...b.info };
             break;
           }
           case 'director':
