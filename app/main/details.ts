@@ -12,6 +12,8 @@ import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
 import { heatmapAndProjection } from './heatmap.js';
 import { replayData, type EstimateInput } from './replay.js';
+import { sightingsData } from './sightings.js';
+import { readSight } from '../../engine/src/map/sight.js';
 import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
 import type { HeatKill, ReplayData } from '../shared/api.js';
@@ -152,6 +154,12 @@ function heatmap(job: DetailsJob, m: MatchData, mapName: string, checksum: numbe
   return heatmapAndProjection({ m, mapName, checksum, bsp, overview });
 }
 
+/** Line of sight through this demo's map version (5.q), when the map file is known. */
+function sightFor(mapFile?: string) {
+  if (!mapFile) return undefined;
+  try { return readSight(new Uint8Array(readFileSync(mapFile))); } catch { return undefined; }
+}
+
 /** The last demo read for the details page, kept for the radar replay (5.j) so a round opens without reading again. */
 let lastRead: { key: string; m: MatchData; project: Projection; kills: HeatKill[]; mapFile?: string; est?: EstimateInput } | undefined;
 
@@ -209,6 +217,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       voice: voiceTimeline(m),
       seconds: ps[ps.length - 1].end,
       heatmap: heat.data,
+      sightings: sightingsData(m, heat.project, heat.data.sites, sightFor(job.mapFile)),
     };
   } catch (err) {
     return { error: (err as Error).message };

@@ -176,6 +176,47 @@ export interface DemoDetails {
   seconds: number;
   /** 5.k heatmaps. */
   heatmap: HeatmapData;
+  /** 5.q enemy sightings (POV demos only). */
+  sightings?: SightingsData;
+}
+
+export type SoundKind = 'step' | 'hit' | 'death' | 'weapon' | 'other';
+
+/** 5.q: what the recorder could know about the other team, per round. Times are demo seconds; positions picture pixels. */
+export interface SightingsData {
+  recorder: string;
+  team: 'T' | 'CT';
+  /** 'sight' = in his field of view with a clear line (map file used); 'view-area' = the server sent the enemy's
+   *  position (without the map file: walls inside that area can still hide him). */
+  method: 'sight' | 'view-area';
+  rounds: SightRound[];
+}
+
+export interface SightRound {
+  round: number;
+  start: number;
+  end: number;
+  freezeEnd?: number;
+  roundEnd?: number;
+  winner?: 'T' | 'CT' | 'draw';
+  /** When the recorder died (nothing after that counts: he was watching teammates). */
+  recorderDied?: number;
+  /** The first enemy seen or heard after freeze time. */
+  firstContact?: { time: number; name: string; how: 'seen' | 'heard'; x: number; y: number; weapon?: string; sound?: SoundKind; site?: string };
+  enemies: SightEnemy[];
+}
+
+export interface SightEnemy {
+  name: string;
+  team: 'T' | 'CT';
+  /** Each time he was in the recorder's view area: from, to, weapon mostly held, % of the time crouching, where first. */
+  seen: { from: number; to: number; weapon?: string; crouch: number; x: number; y: number }[];
+  /** Sounds he made while not in view: footsteps, getting hit, weapon handling… */
+  sounds: { time: number; x: number; y: number; kind: SoundKind }[];
+  /** Where he moved while in view: flat [time, x, y], with -1,-1,-1 between sightings. */
+  path: number[];
+  died?: number;
+  seenSeconds: number;
 }
 
 /** 5.j: one round for the radar replay. Times are demo seconds; positions are picture pixels (as the heatmaps). */

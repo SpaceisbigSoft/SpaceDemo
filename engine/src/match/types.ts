@@ -126,6 +126,8 @@ export interface TrackPoint {
   weapon?: string;
   /** False after the player died in this round (the body can stay visible). */
   alive: boolean;
+  /** Crouching (the entity's small hull), when seen. */
+  crouch?: boolean;
 }
 
 /** Where a player is known to be, by source (plan 2.13). POV demos: seen only within the recorder's view area. */

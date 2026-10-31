@@ -527,3 +527,24 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .gren.he .burst { stroke: #ff9b8f; }
 .gren.flash .burst { stroke: #ffffff; }
 .carrier { fill: #ff9b8f; stroke: #0e1012; stroke-width: 1.5; }
+
+/* ---------- Enemy sightings (5.q) ---------- */
+.sight .path { fill: none; stroke-width: 3; stroke-linecap: round; stroke: var(--muted); }
+.sight.t .path { stroke: #e3a24a; }
+.sight.ct .path { stroke: #5aa7f0; }
+.sight .first { stroke: #0e1012; stroke-width: 2; fill: var(--muted); }
+.sight.t .first { fill: #e3a24a; }
+.sight.ct .first { fill: #5aa7f0; }
+.sight .snd { fill: none; stroke-width: 1.5; stroke: #c9cdd2; opacity: 0.6; }
+.sight .snd.hit { stroke: #ff9b8f; }
+.sight .snd.weapon { stroke: #ffffff; }
+.first-star { fill: #ffffff; font-size: 26px; paint-order: stroke; stroke: #0e1012; stroke-width: 3px; }
+.sight-tick { position: absolute; top: 15px; width: 2px; height: 6px; background: var(--muted); }
+.sight-tick.hit { background: var(--bad-text); }
+.sight-tick.weapon { background: var(--text); }
+.sight-died { position: absolute; top: 1px; transform: translateX(-50%); font-size: 13px; color: var(--text-2); }
+.vt.compact .vt-row { grid-template-columns: 150px minmax(200px, 1fr); }
+.vt.compact .vt-name .side { font-size: 12px; }
+.vt.compact .vt-row { grid-template-columns: 150px minmax(200px, 1fr); }
+.vt.compact .vt-name .side { font-size: 12px; }
+.vt-name .note { white-space: nowrap; }

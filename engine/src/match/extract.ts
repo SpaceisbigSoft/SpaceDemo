@@ -276,6 +276,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
                 track(id).seen.push({
                   time: t, x: q8(es['origin[0]'] as number), y: q8(es['origin[1]'] as number), z: q8(es['origin[2]'] as number),
                   yaw: typeof yaw === 'number' ? Math.round(yaw) : undefined, weapon: weaponName(es['weaponmodel']), alive: true,
+                  ...(es.usehull === 1 ? { crouch: true } : {}),
                 });
               }
             }

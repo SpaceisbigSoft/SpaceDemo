@@ -229,6 +229,15 @@ describe.skipIf(!zips)('library screen', () => {
     }
     await page.locator('[data-testid="replay-svg"]').scrollIntoViewIfNeeded();
     await shot('10j details radar replay round 5');
+    // 5.q enemy sightings (POV).
+    await page.click('[role="tab"]:has-text("Sightings")');
+    await page.waitForSelector('[data-testid="details-sightings"]');
+    expect(await page.textContent('[data-testid="sight-first"]')).toContain('First contact');
+    expect(await page.locator('[data-testid="sight-row"]').count()).toBeGreaterThanOrEqual(4);
+    expect(await page.locator('[data-testid="sight-summary"] tbody tr').count()).toBe(5);
+    await page.click('[data-testid="details-sightings"] button.filter-chip:text-is("R3")');
+    expect(await page.textContent('[data-testid="sight-first"]')).toContain('heard');
+    await shot('10k details sightings round 3');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');
