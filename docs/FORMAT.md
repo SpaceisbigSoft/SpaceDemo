@@ -140,6 +140,20 @@ Game ("user") messages, CS 1.5 layouts as found in the demos (sizes: -1 = sized 
   known ±1 s for 85 % (both seen 72 %). Track position at a kill is within 50 units of the corpse for 84 % (median 3–9 units).
 - HLTV `svc_director` types seen: 1 start, 2 event (highlights: kills etc.), 5 time scale, 6 message, 8 status.
 
+## Match information in CS 1.6-era and CS 1.3 demos (2.18, checked on Set 3)
+- **Restarts:** league configs restart the game at half-time ("#Game_will_restart_in"), so a demo can hold a whole
+  half followed by restarts (and sometimes the next half). A restart after 5+ completed rounds keeps everything before
+  it; fewer = warm-up / live-on-three, dropped. Before this rule 10 Set 3 demos showed 0 rounds.
+- **Server scores:** a recording often runs past the last round into a restart that sets every ScoreInfo to 0 : 0
+  (sometimes even a second before the last round's end message). Final frags = each player's last ScoreInfo up to 6 s
+  after the last round of each kept half (a drop to 0 : 0 in the last round is ignored), added up over halves; the
+  team score (TeamScore) likewise restarts at 0 each half and is added up.
+- **Bomb points (CS 1.6):** the server adds 3 frags to the planter when the bomb explodes and to the defuser; the
+  ScoreInfo shows it when the next round starts (within ~6 s). Counted as `bonusFrags`. A few +1/+2 differences per
+  demo remain unexplained (Set 3) and are reported, not hidden.
+- **CS 1.3 (allvspp, protocol 45, 2001):** same round messages (RoundTime, #Terrorists_Win …, #Game_will_restart_in);
+  two halves with a short game between them in one demo.
+
 ## Maps for the radar (plan 2.14, checked on Set 1)
 - Overview images (`cstrike/overviews/<map>.bmp`, 1024×768, 8-bit) + `.txt` (ZOOM, ORIGIN, ROTATED): **pixel x = 512 + (x − originX)·zoom/8,
   pixel y = 384 − (y − originY)·zoom/8.** ROTATED does not change this mapping. Positions land on drawn floor: de_train 100 %,

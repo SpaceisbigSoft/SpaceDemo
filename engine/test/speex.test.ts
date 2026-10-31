@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { fixDemo } from '../src/fix/fix.js';
 import { inspectDemo } from '../src/inspect.js';
+import { readDemo } from '../src/container/read.js';
+import { checkMatch, extractMatch } from '../src/match/extract.js';
 import { decodeSpeexPackets, frameBytesFromPackets, speexFrameBytes } from '../src/voice/speex.js';
 
 describe('2.17 Speex voice', () => {
@@ -29,10 +31,10 @@ describe('2.17 Speex voice', () => {
 });
 
 const set3 = process.env.CDF_SET3;
-describe.skipIf(!set3)('2.7 + 2.17 on Set 3 protocol-47 demos (CDF_SET3)', () => {
+describe.skipIf(!set3)('2.7 + 2.17 + 2.18 on Set 3 demos (CDF_SET3)', () => {
   const files = set3 ? readdirSync(set3).filter((f) => /\.dem$/i.test(f)).map((f) => join(set3, f)) : [];
   for (const f of files) {
-    it(`${f.split('/').pop()}: converts to 48 and its voice comes back`, () => {
+    it(`${f.split('/').pop()}: converts to 48, its voice comes back, rounds are found`, () => {
       const src = new Uint8Array(readFileSync(f));
       const before = inspectDemo(src);
       const { bytes, report } = fixDemo(src);
@@ -44,6 +46,11 @@ describe.skipIf(!set3)('2.7 + 2.17 on Set 3 protocol-47 demos (CDF_SET3)', () =>
         expect(after.voiceCodec ?? '').toBe('');
         expect(report.notes.join(' ')).not.toMatch(/damaged/);
       }
+      // 2.18: rounds are found (league configs restart at half-time; CS 1.3 too) and agree with the server's score.
+      const m = extractMatch(readDemo(src));
+      const c = checkMatch(m);
+      if (m.recording === 'POV') expect(m.rounds.length).toBeGreaterThanOrEqual(1);
+      if (c.serverScore && m.recording === 'POV') expect(c.roundsMatch).toBe(true);
     }, 120_000);
   }
 });

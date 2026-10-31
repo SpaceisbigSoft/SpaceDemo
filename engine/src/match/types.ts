@@ -21,6 +21,8 @@ export interface MatchPlayer {
   leftAt?: number;
   /** Final frags/deaths as sent by the server (ScoreInfo). */
   frags?: number;
+  /** CS 1.6: bomb points in `frags` (3 per bomb that exploded after his plant, or that he defused). */
+  bonusFrags?: number;
   deaths?: number;
   /** Shots fired per weapon (weapon-fire events; the recorder's own shots come from the demo's event frames). */
   shots: Record<string, number>;

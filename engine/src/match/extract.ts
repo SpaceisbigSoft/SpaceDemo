@@ -19,6 +19,8 @@ export interface ExtractOptions {
 const BURST_GAP = 0.3;
 /** RoundTime values up to this many seconds are freeze time (a new round); longer values are the round length. */
 const MAX_FREEZE_SECONDS = 15;
+/** A restart after this many completed rounds ends a half (kept); fewer = warm-up or live-on-three (dropped). */
+const HALF_ROUNDS = 5;
 
 const ROUND_END: Record<string, [Round['winner'], RoundEndReason]> = {
   '#Terrorists_Win': ['T', 'eliminated'],
@@ -113,6 +115,12 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
   const rounds: Round[] = [];
   let cur: Round | undefined;
   let restartAt: number | undefined;
+  /** Data kept through later restarts (whole halves); see the restart handling. */
+  let kept = { rounds: 0, kills: 0, deaths: 0, bomb: 0 };
+  /** Times a kept half ended with a restart (the server resets the scores then). */
+  const scoreSegments: number[] = [];
+  /** Every ScoreInfo (player id, frags, deaths), to read the scores as they stood at the end of each half. */
+  const scoreLog: { time: number; id: number; frags: number; deaths: number }[] = [];
   let eventNames: string[] = [];
   const packet = new Set<number>(); // entity numbers in the current packet (events refer to positions in this list)
   const lastVoice = new Map<number, VoiceBurst>();
@@ -143,18 +151,30 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
       }
       if (f.type !== FrameType.NetMessages && f.type !== FrameType.NetMessagesLoading) continue;
 
-      // An announced restart has happened: everything before was warm-up.
+      // An announced restart has happened. After a real half (5+ completed rounds since the last kept point: league
+      // configs restart the game at half-time) everything is kept; otherwise what came before was warm-up (or a
+      // "live on three" restart) and is dropped (2.18).
       if (restartAt !== undefined && (f.time >= restartAt || f.time < restartAt - 60)) {
         restartAt = undefined;
-        m.restarts++;
-        m.liveStart = t;
-        rounds.length = 0;
-        cur = undefined;
-        m.kills.length = 0;
-        m.deaths.length = 0;
-        m.bomb.length = 0;
-        for (const p of players.values()) p.shots = {};
-        lastTeamScore = {};
+        const done = rounds.slice(kept.rounds).filter((r) => r.winner !== undefined).length;
+        if (done >= HALF_ROUNDS) {
+          // Keep the half; an unfinished round at the restart is dropped.
+          while (rounds.length > kept.rounds && rounds[rounds.length - 1].winner === undefined) rounds.pop();
+          kept = { rounds: rounds.length, kills: m.kills.length, deaths: m.deaths.length, bomb: m.bomb.length };
+          scoreSegments.push(t);
+          cur = undefined;
+          lastTeamScore = {};
+        } else {
+          m.restarts++;
+          if (kept.rounds === 0) m.liveStart = t;
+          rounds.length = kept.rounds;
+          cur = undefined;
+          m.kills.length = kept.kills;
+          m.deaths.length = kept.deaths;
+          m.bomb.length = kept.bomb;
+          if (kept.rounds === 0) for (const p of players.values()) p.shots = {};
+          lastTeamScore = {};
+        }
       }
 
       // POV: the recorder's own exact position from the frame's view info (simorg), plan 2.16.
@@ -466,6 +486,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         const pl = player(p.u8() - 1);
         pl.frags = p.i16();
         pl.deaths = p.i16();
+        scoreLog.push({ time: t, id: pl.id, frags: pl.frags, deaths: pl.deaths });
         break;
       }
       // Recorder-only messages (POV demos).
@@ -531,9 +552,60 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
   // Chat and radio from before the match started belong to no round (round numbers restart at 1 after a restart).
   if (m.liveStart !== undefined) for (const x of [...m.chat, ...m.radio]) if (x.time < m.liveStart) x.round = undefined;
   m.rounds = rounds.filter((r) => r.winner !== undefined);
-  const lastScored = [...m.rounds].reverse().find((r) => r.scoreT !== undefined || r.scoreCT !== undefined);
-  m.scoreT = lastScored?.scoreT;
-  m.scoreCT = lastScored?.scoreCT;
+  // Final scores as the server had them at the end of each kept part (a recording often runs on after the last round,
+  // into a restart that resets everyone to 0): per part, the last ScoreInfo up to 6 s after its last round, added up.
+  if (m.rounds.length && scoreLog.length) {
+    const bounds = [...scoreSegments, Infinity];
+    const finals = new Map<number, { frags: number; deaths: number }>();
+    let from = -Infinity;
+    for (const until of bounds) {
+      const last = [...m.rounds].reverse().find((r) => r.end !== undefined && r.end >= from && r.end < until);
+      if (last) {
+        const limit = Math.min(last.end! + 6, until);
+        const latest = new Map<number, { frags: number; deaths: number }>();
+        const reset = new Set<number>();
+        for (const e of scoreLog) {
+          if (e.time < from || e.time > limit || reset.has(e.id)) continue;
+          // A drop to 0 : 0 in the last round (the server resetting for the next half) ends this part for him.
+          const prev = latest.get(e.id);
+          if (prev && e.frags === 0 && e.deaths === 0 && prev.frags + prev.deaths >= 3 && e.time >= last.start) { reset.add(e.id); continue; }
+          latest.set(e.id, e);
+        }
+        for (const [id, e] of latest) { const f = finals.get(id) ?? { frags: 0, deaths: 0 }; finals.set(id, { frags: f.frags + e.frags, deaths: f.deaths + e.deaths }); }
+      }
+      from = until;
+    }
+    for (const [id, f] of finals) { const pl = players.get(id); if (pl) { pl.frags = f.frags; pl.deaths = f.deaths; } }
+  }
+  // CS 1.6 gives 3 points for a bomb that explodes (the planter) or is defused (the defuser): a jump of exactly 3 in a
+  // player's score within 6 s of that moment (it shows when the next round starts), with no kill of his then, is counted (2.18).
+  for (const b of m.bomb) {
+    if (b.kind !== 'exploded' && b.kind !== 'defused') continue;
+    const before = new Map<number, number>();
+    for (const e of scoreLog) {
+      if (e.time < b.time - 1) { before.set(e.id, e.frags); continue; }
+      if (e.time > b.time + 6) break;
+      const was = before.get(e.id);
+      if (was !== undefined && e.frags - was === 3 && !m.kills.some((k) => k.killer === e.id && Math.abs(k.time - b.time) <= 3)) {
+        const pl = players.get(e.id);
+        if (pl) pl.bonusFrags = (pl.bonusFrags ?? 0) + 3;
+        before.set(e.id, e.frags);
+        break;
+      }
+      before.set(e.id, e.frags);
+    }
+  }
+  // The server's team score, added up over the kept halves (it starts again at 0 after a half-time restart).
+  {
+    let from = -Infinity, any = false, T = 0, CT = 0;
+    for (const until of [...scoreSegments, Infinity]) {
+      const lastScored = [...m.rounds].reverse().find((r) => r.start >= from && r.start < until && (r.scoreT !== undefined || r.scoreCT !== undefined));
+      if (lastScored) { any = true; T += lastScored.scoreT ?? 0; CT += lastScored.scoreCT ?? 0; }
+      from = until;
+    }
+    m.scoreT = any ? T : undefined;
+    m.scoreCT = any ? CT : undefined;
+  }
   if (m.recording === 'POV' && m.recorderSlot !== undefined) {
     const r = player(m.recorderSlot);
     r.isRecorder = true;
@@ -579,6 +651,7 @@ export function checkMatch(m: MatchData): MatchCheck {
     if (k.killer === null) continue;
     counted.set(k.killer, (counted.get(k.killer) ?? 0) + (k.suicide || k.teamKill ? -1 : 1));
   }
+  for (const p of m.players) if (p.bonusFrags) counted.set(p.id, (counted.get(p.id) ?? 0) + p.bonusFrags);
   // Players who left before the match went live keep their warm-up score (the restart never reset it): skip them.
   const leftBeforeLive = (p: MatchPlayer) => p.leftAt !== undefined && m.liveStart !== undefined && p.leftAt < m.liveStart;
   const fragMismatches = m.players
