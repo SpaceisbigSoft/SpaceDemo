@@ -118,8 +118,9 @@ export function ReplayTab({ d, tagT, tagCT, start, combined, useCombined = true,
       setData(x);
       // Switching recordings keeps the moment; a new round starts at its start (or at a highlight).
       if (!('error' in x)) {
-        setT((old) => (startAt.current !== undefined ? Math.max(x.start, Math.min(x.end, startAt.current)) : keep && old >= x.start && old <= x.end ? old : x.start));
+        const at = startAt.current;
         startAt.current = undefined;
+        setT((old) => (at !== undefined ? Math.max(x.start, Math.min(x.end, at)) : keep && old >= x.start && old <= x.end ? old : x.start));
       }
     });
     return () => { live = false; };
