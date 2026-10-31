@@ -80,7 +80,10 @@ describe('status and map', () => {
     expect(demoStatus(undefined, 'bad')).toBe('unreadable');
     expect(demoStatus(undefined, undefined)).toBe('waiting');
     expect(demoStatus(info(), undefined)).toBe('needs-fix');
-    expect(demoStatus(info({ networkProtocol: 48 }), undefined)).toBe('plays');
+    expect(demoStatus(info({ networkProtocol: 48, voiceCodec: '', talkBursts: 5 }), undefined)).toBe('plays');
+    // 2.17: today's protocol but Speex voice (2004+ CS 1.6) → the voice must be put back first.
+    expect(demoStatus(info({ networkProtocol: 48, voiceCodec: 'voice_speex', talkBursts: 4 }), undefined)).toBe('needs-fix');
+    expect(demoStatus(info({ networkProtocol: 48, voiceCodec: 'voice_speex', talkBursts: 0 }), undefined)).toBe('plays');
     expect(demoStatus(info({ networkProtocol: 48, directoryOk: false }), undefined)).toBe('damaged');
     expect(demoStatus(info({ gameDir: 'valve' }), undefined)).toBe('not-cs');
   });

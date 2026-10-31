@@ -1,6 +1,7 @@
 // One step from an old demo to one that plays in today's CS 1.6 with its original voice (plans 2.6, 2.7, 2.8):
 // recover a crashed recording, convert to protocol 48 (dropping sprites/models today's game doesn't have), and put the
 // old voice back as Steam voice. The original file is never changed; the caller writes the result to a new file.
+import { speexDecoder } from '../voice/speex.js';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DemoFile } from '../container/types.js';
@@ -77,6 +78,16 @@ export function voiceCodecOf(demo: DemoFile): string | undefined {
   return undefined;
 }
 
+/** The voice quality a demo announces (svc_voiceinit, protocol 47+), if any. */
+export function voiceQualityOf(demo: DemoFile): number | undefined {
+  const s = createState(demo.header.networkProtocol, demo.header.gameDir);
+  for (const sec of demo.sections) for (const f of sec.frames) {
+    if (f.type !== FrameType.NetMessages && f.type !== FrameType.NetMessagesLoading) continue;
+    for (const m of decodeMessages(f.messages, s)) if (m.body?.kind === 'voiceInit') return m.body.quality;
+  }
+  return undefined;
+}
+
 export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: Uint8Array; report: FixReport } {
   const demo = readDemo(input);
   const report: FixReport = { recovered: !!demo.recovered, problems: [...demo.problems], sourceProtocol: demo.header.networkProtocol, converted: false, conversion: {}, notes: [] };
@@ -99,10 +110,18 @@ export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: U
       cur = r.demo;
       report.voice = { ...r.report, decoder: options.voiceDecoder.name };
     }
+  } else if (old && report.voiceCodec === 'voice_speex') {
+    // 2.17: Speex is decoded by our built-in decoder (no game file needed).
+    const dec = speexDecoder(voiceQualityOf(demo) ?? 5);
+    const pcm = dec.decodeAll(packets);
+    const r = restoreVoice(cur, pcm, { filter: options.voiceFilter });
+    cur = r.demo;
+    report.voice = { ...r.report, decoder: dec.name };
+    if (dec.stats.corrupt) report.notes.push(`${dec.stats.corrupt} of ${dec.stats.frames} Speex voice frames were damaged and were filled in.`);
   } else if (!packets.some((p) => p.data.length > 0)) {
     report.notes.push('This demo has no voice recorded in it.');
   } else if (old) {
-    report.notes.push(`Voice codec "${report.voiceCodec}" is not supported yet (only voice_miles); voice left as is.`);
+    report.notes.push(`Voice codec "${report.voiceCodec}" is not supported yet (only voice_miles and voice_speex); voice left as is.`);
   }
   return { bytes: writeDemo(cur, { rebuildDirectory: true }), report };
 }

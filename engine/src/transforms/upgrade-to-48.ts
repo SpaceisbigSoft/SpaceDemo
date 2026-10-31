@@ -1,4 +1,6 @@
-// Upgrades a CS 1.x demo recorded with network protocol 44-46 so today's CS 1.6 (protocol 48) can play it.
+// Upgrades a CS 1.x demo recorded with network protocol 44-47 so today's CS 1.6 (protocol 48) can play it.
+// Protocol 47 demos (2003-2007 Steam CS 1.6) already have CS 1.6's messages and layouts: only the protocol number and
+// the server info's extra block change; the CS 1.5 -> 1.6 rules apply to protocol 44-46 only.
 // Each change is a small named rule; the report counts how often each one was applied.
 // Format differences are documented in docs/FORMAT.md ("Protocol 46 vs 48").
 import { FrameType, type DemoFile, type Frame, type NetFrame, type Section } from '../container/types.js';
@@ -42,14 +44,19 @@ class Upgrade {
   readonly warnings: string[] = [];
   sawDirector = false;
 
-  constructor(private readonly state: ProtocolState, private readonly opts: UpgradeOptions) {}
+  /** True for demos from before CS 1.6 (protocol 44-46): the CS 1.5 -> 1.6 layout rules apply. */
+  private readonly old: boolean;
+
+  constructor(private readonly state: ProtocolState, private readonly opts: UpgradeOptions) {
+    this.old = state.protocol < 47 && !state.betaSteam;
+  }
 
   private count(rule: string): void {
     this.applied[rule] = (this.applied[rule] ?? 0) + 1;
   }
 
   private fixSequences(descriptorName: string, record: DeltaRecord): DeltaRecord | undefined {
-    if (descriptorName !== 'entity_state_player_t') return undefined;
+    if (!this.old || descriptorName !== 'entity_state_player_t') return undefined;
     const d = this.state.deltas.get(descriptorName) as DeltaDescriptor;
     let out = record;
     for (const field of ['sequence', 'gaitsequence']) {
@@ -71,9 +78,11 @@ class Upgrade {
         this.count('server info: protocol 48');
         return [{ ...m, bytes: encodeServerInfo(b, { protocol: TARGET_PROTOCOL, extra: Uint8Array.of(0) }) }];
       case 'voiceInit':
+        if (b.quality !== undefined) return [m];
         this.count('voice init: add quality byte');
         return [{ ...m, bytes: encodeVoiceInit(b.codec, this.opts.voiceQuality ?? 5) }];
       case 'clientData':
+        if (s.weaponIndexBits === 6) return [m];
         this.count('client data: 6-bit weapon index');
         return [{ ...m, bytes: encodeClientData(b, s.deltas, 6) }];
       case 'entities': {
@@ -126,7 +135,8 @@ class Upgrade {
             this.count('remove Cheating-Death messages');
             return [];
           case 'SendAudio': {
-            // CS 1.6 appends a pitch (short); 100 = normal.
+            // CS 1.6 appends a pitch (short); 100 = normal. Protocol 47 demos already have it.
+            if (!this.old) return [m];
             this.count('radio audio: add pitch');
             const payload = new Uint8Array(b.payload.length + 2);
             payload.set(b.payload);
@@ -134,6 +144,7 @@ class Upgrade {
             return [{ ...m, bytes: encodeUserMessage(m.id, payload, b.sized) }];
           }
           case 'ClCorpse': {
+            if (!this.old) return [m];
             // Layout: model name (string), origin (3 x i32), angles (3 x i16), delay (i32), sequence (byte), ...
             const end = b.payload.indexOf(0);
             const at = end + 1 + 22;
@@ -171,7 +182,7 @@ function lastMapStart(section: Section, state: ProtocolState): number {
 export function upgradeTo48(demo: DemoFile, options: UpgradeOptions = {}): { demo: DemoFile; report: UpgradeReport } {
   const P = demo.header.networkProtocol;
   if (P === TARGET_PROTOCOL) throw new UnsupportedDemoError('This demo already uses protocol 48.');
-  if (P < 44 || P > 46) throw new UnsupportedDemoError(`Network protocol ${P} is not supported yet (supported: 44-46).`);
+  if (P < 44 || P > 47) throw new UnsupportedDemoError(`Network protocol ${P} is not supported yet (supported: 44-47).`);
   if (demo.header.gameDir !== 'cstrike') throw new UnsupportedDemoError(`Only Counter-Strike demos are supported (this one is "${demo.header.gameDir}").`);
   if (demo.sections.length < 2) throw new UnsupportedDemoError('The demo has no playback section.');
 

@@ -124,6 +124,8 @@ export function demoStatus(info: DemoSummary | undefined, error: string | undefi
   if (info.gameDir.toLowerCase() !== 'cstrike') return 'not-cs';
   if (!info.directoryOk) return 'damaged';
   if (info.networkProtocol < CURRENT_PROTOCOL) return 'needs-fix';
+  // Old-format voice (Miles, Speex) isn't heard in today's game until it's put back as Steam voice (2.8, 2.17).
+  if (info.voiceCodec && info.talkBursts > 0) return 'needs-fix';
   return 'plays';
 }
 

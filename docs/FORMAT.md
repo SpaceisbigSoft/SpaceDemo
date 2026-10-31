@@ -48,6 +48,22 @@ What the upgrade changes, and why:
 | Old HLTV demos: add director "start" + "first person" | Spectator HUD otherwise not initialised | COL behaviour (reference) |
 | Keep only the last map load in the loading section | Fixes demos that load the wrong map | SK Player/COL notes; measured (MoD train: 114 frames of an earlier map) |
 
+## Protocol 47 (2003–2007 Steam CS 1.6) vs 48 (checked on Set 3, 2026-10-31)
+Protocol 47 demos (server builds 2827–3651 in Set 3) are already CS 1.6: they register the same 82 game messages as
+today's 48 (CS 1.5 had 57), `SendAudio` already carries a pitch, `svc_voiceinit` already has its quality byte, the
+weapon index in `svc_clientdata` is already 6 bits and the player model already has the shield animations. The upgrade
+only writes protocol 48 into the header and `svc_serverinfo`, replaces the server info's extra block (flag 1 + 21
+bytes, as in 46) with a single 0, and drops the resource consistency list (plus files the game no longer has).
+Kills, rounds and chat read the same before and after on all 12 tried (POV + HLTV, builds 2827–4352).
+
+## Speex voice (`voice_speex`, CS 1.6 era)
+Narrowband Speex, 8 kHz, 20 ms frames of 160 samples. GoldSrc writes whole frames back to back in each voice packet
+(no header), all the same size, set by the voice quality in `svc_voiceinit`: Valve's encoder uses Speex quality 2, 3,
+4, 6, 8 for voice quality 1–5 → frames of 15, 15, 20, 28, 38 bytes. Measured on Set 3: quality 5 → 38-byte frames,
+quality 3 (fta-talent_playoffs_t) → 20-byte frames; packets hold 1–4 frames; no damaged frames when decoded per player
+slot in demo order. SpaceDemo decodes it with the official Xiph decoder built to WebAssembly (`helpers/speex/`) and puts
+it back as Steam voice like the old Miles voice.
+
 ## Map checksum
 CRC-32 of all BSP lumps except entities (bshift: except lump 1), in lump order, **without** the final inversion.
 *Source: ReHLDS `crc.cpp` (algorithm); measured against the owner's maps.*
