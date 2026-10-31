@@ -6,13 +6,15 @@ import { createState, decodeMessages, type EventsBody } from '../protocol/messag
 import { Svc } from '../protocol/ids.js';
 import { EntityTracker, incomingSequence } from './entities.js';
 import { PayloadReader } from './payload.js';
-import type { NetData, Grenade, BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
+import type { AimData, NetData, Grenade, BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
 
 export interface ExtractOptions {
   /** Also build position tracks (plan 2.13). Costs time and memory on long demos. */
   tracks?: boolean;
   /** Maximum seen-positions per second per player (default 10). */
   samplesPerSecond?: number;
+  /** 5.u Also keep the recorder's view every frame, his exact shot times and every packet's player positions (POV). */
+  aim?: boolean;
 }
 
 /** Voice packets further apart than this start a new talk burst. */
@@ -51,6 +53,9 @@ const round1 = (n: number) => Math.round(n * 100) / 100;
 export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): MatchData {
   const s = createState(demo.header.networkProtocol, demo.header.gameDir);
   const wantTracks = options.tracks === true;
+  const wantAim = options.aim === true;
+  const aim: AimData = { view: [], shots: [], players: [] };
+  const aimPoints = new Map<number, number[]>();
   const sampleStep = 1 / (options.samplesPerSecond ?? 10);
   const tracker = new EntityTracker(s);
   const tracks = new Map<number, PlayerTrack>();
@@ -144,6 +149,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         const index = f.payload.length >= 8 ? new DataView(f.payload.buffer, f.payload.byteOffset).getInt32(4, true) : -1;
         rec.shots++;
         if (m.recorderSlot !== undefined && eventNames[index]) addShot(m.recorderSlot, eventNames[index]);
+        if (wantAim) aim.shots.push({ time: ms(f.time), weapon: eventNames[index] ?? `event${index}` });
         continue;
       } else if (f.type === FrameType.ConsoleCommand) {
         if (/^[+-]/.test(f.command)) rec.keys.push({ time: t, command: f.command.trim() });
@@ -185,6 +191,16 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
           lastSample.set(id, t);
           track(id).seen.push({ time: t, x: q8(v.origin[0]), y: q8(v.origin[1]), z: q8(v.origin[2]), yaw: Math.round(((v.yaw % 360) + 360) % 360), alive: true });
         }
+      }
+
+      // 5.u the recorder's own view every frame.
+      if (wantAim && playback && m.recording !== 'HLTV') {
+        const v = viewInfo(f.info);
+        if (v) aim.view.push({
+          time: ms(f.time), pitch: r2(v.pitch), yaw: r2(v.yaw), eye: [q8(v.eye[0]), q8(v.eye[1]), q8(v.eye[2])],
+          speed: Math.round(Math.hypot(v.velocity[0], v.velocity[1]) * 10) / 10, onGround: v.onGround,
+          duck: v.viewHeight > 0 && v.viewHeight < 15, attack: (v.buttons & 1) !== 0, alive: v.health > 0 && v.viewHeight > 0,
+        });
       }
 
       // 5.z packets that never arrived: a jump in the incoming packet number (big jumps = a new connection).
@@ -298,7 +314,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
                 break;
               }
             }
-            if (wantTracks && playback) {
+            if ((wantTracks || wantAim) && playback) {
               for (const [n, es] of states) {
                 if (n <= 32 || typeof es.modelindex !== 'number' || typeof es['origin[0]'] !== 'number') continue;
                 const kind = grenadeKind(models[es.modelindex]);
@@ -320,6 +336,10 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
               for (const [n, es] of states) {
                 if (n < 1 || n > 32 || typeof es['origin[0]'] !== 'number' || typeof es['origin[1]'] !== 'number' || typeof es['origin[2]'] !== 'number') continue;
                 const id = idOf(n - 1);
+                if (wantAim) {
+                  const list = aimPoints.get(id) ?? (aimPoints.set(id, []).get(id)!);
+                  list.push(ms(f.time), q8(es['origin[0]'] as number), q8(es['origin[1]'] as number), q8(es['origin[2]'] as number), es.usehull === 1 ? 1 : 0);
+                }
                 if (t - (lastSample.get(id) ?? -1) < sampleStep) continue;
                 lastSample.set(id, t);
                 const yaw = es['angles[1]'];
@@ -549,6 +569,10 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
     m.tracks = [...tracks.values()].filter((tr) => players.get(tr.player)?.name).sort((a, b) => a.player - b.player);
   }
   if (s.hltv) m.recording = 'HLTV';
+  if (wantAim && m.recording === 'POV') {
+    aim.players = [...aimPoints].filter(([id]) => players.get(id)?.name).map(([player, points]) => ({ player, points })).sort((a, b) => a.player - b.player);
+    m.aim = aim;
+  }
   // Chat and radio from before the match started belong to no round (round numbers restart at 1 after a restart).
   if (m.liveStart !== undefined) for (const x of [...m.chat, ...m.radio]) if (x.time < m.liveStart) x.round = undefined;
   m.rounds = rounds.filter((r) => r.winner !== undefined);
@@ -670,17 +694,24 @@ export function checkMatch(m: MatchData): MatchCheck {
 
 /** Positions keep the demo's own precision (1/8 unit). */
 const q8 = (v: number) => Math.round(v * 8) / 8;
+const ms = (v: number) => Math.round(v * 1000) / 1000;
+const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /**
- * The recorder's view info at the start of a network frame (protocol 44+; checked on Set 1 POV demos 2026-10-26):
- * simorg (origin) at byte 104, onground i32 at 84, viewheight z at 124 (17 standing, 12 crouching, 0 dead),
- * health i32 at 144, viewangles at 16 (yaw at 20).
+ * The recorder's view info at the start of a network frame (protocol 44+; checked on Set 1 POV demos 2026-10-26 and,
+ * for 5.u, 2026-10-31): timestamp f32 at 0, then ref_params: vieworg (eye) at 4, viewangles at 16 (pitch 16, yaw 20;
+ * pitch + = looking down), onground i32 at 84, simvel at 92, simorg (origin) at 104, viewheight z at 124 (17 standing,
+ * 12 crouching, 0 dead), health i32 at 144; then the user command at 236 (buttons u16 at 266: 1 = fire, 8 = forward,
+ * 512 = move left — matched against +attack/+moveleft console frames).
  */
-export function viewInfo(info: Uint8Array): { origin: [number, number, number]; onGround: boolean; viewHeight: number; health: number; yaw: number } | undefined {
-  if (info.length < 148) return undefined;
+export function viewInfo(info: Uint8Array): { origin: [number, number, number]; eye: [number, number, number]; velocity: [number, number, number]; onGround: boolean; viewHeight: number; health: number; pitch: number; yaw: number; buttons: number } | undefined {
+  if (info.length < 268) return undefined;
   const v = new DataView(info.buffer, info.byteOffset, info.byteLength);
   const f = (o: number) => v.getFloat32(o, true);
-  return { origin: [f(104), f(108), f(112)], onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), yaw: f(20) };
+  return {
+    origin: [f(104), f(108), f(112)], eye: [f(4), f(8), f(12)], velocity: [f(92), f(96), f(100)],
+    onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), pitch: f(16), yaw: f(20), buttons: v.getUint16(266, true),
+  };
 }
 
 /** Grenade kind from a world model name (models/w_hegrenade.mdl, w_flashbang.mdl, w_smokegrenade.mdl). */

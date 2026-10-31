@@ -186,6 +186,8 @@ export interface DemoDetails {
   recorder?: RecorderPanel;
   /** 5.o moments worth watching. */
   highlights: Highlight[];
+  /** 5.u the recorder's aim: reaction time, crosshair placement, shooting while moving (POV demos only). */
+  aim?: AimPanel;
 }
 
 /** 5.r: another recording of the same match, found in the library. */
@@ -256,6 +258,51 @@ export interface RecorderPanel {
     damage: { time: number; amount: number }[];
     topSpeed?: number; avgSpeed?: number;
   }[];
+}
+
+/** 5.u summary numbers for a set of moments and shots. */
+export interface AimSummaryData {
+  /** Times an enemy appeared on his screen. */
+  engagements: number;
+  /** Appearances he answered with a shot (not counting the anticipated ones). */
+  reactions: number;
+  /** Median seconds from an enemy being drawn to the first shot at him (≈ ± margin). */
+  medianReaction?: number;
+  /** Shots faster than a human can react: he expected the enemy (pre-aim, pre-fire). */
+  anticipated: number;
+  alreadyFiring: number;
+  /** Median degrees between his crosshair and the enemy's head when the enemy appeared; and its parts (+ = right/up). */
+  medianCrosshair?: number;
+  medianCrossH?: number;
+  medianCrossV?: number;
+  /** Appearances with the crosshair within 5° of the head. */
+  within5: number;
+  shots: number;
+  accurate: number;
+  moving: number;
+  air: number;
+}
+
+/** 5.u the recorder's aim. Times are demo seconds; `clock` = seconds after freeze time. */
+export interface AimPanel {
+  name: string;
+  team: 'T' | 'CT';
+  /** 'sight' = on screen with a clear line through the map; 'view' = on screen only (no map file: walls not checked). */
+  method: 'sight' | 'view';
+  /** How often other players' positions arrived (s, median), the ± margin shown on reaction times, and how late the
+   *  game drew a player after his position arrived. */
+  updateInterval: number;
+  margin: number;
+  drawDelay: number;
+  summary: AimSummaryData;
+  engagements: {
+    round: number; time: number; clock: number; enemy: string; distance: number;
+    crosshair: number; crossH: number; crossV: number;
+    reaction?: number; anticipated?: boolean; alreadyFiring?: boolean; weapon?: string; outcome?: 'won' | 'lost';
+  }[];
+  /** Shots per weapon: accurate, too fast (moving), in the air; limit = accurate-speed limit (null = none on the ground). */
+  weapons: { weapon: string; limit: number | null; shots: number; accurate: number; moving: number; air: number; medianMovingSpeed?: number }[];
+  rounds: ({ round: number } & AimSummaryData)[];
 }
 
 export type SoundKind = 'step' | 'hit' | 'death' | 'weapon' | 'other';

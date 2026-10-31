@@ -14,6 +14,7 @@ import { heatmapAndProjection } from './heatmap.js';
 import { replayData, type EstimateInput } from './replay.js';
 import { sightingsData } from './sightings.js';
 import { recorderPanel } from './recorder.js';
+import { aimPanel } from './aim.js';
 import { highlights } from './highlights.js';
 import { lagData } from './lag.js';
 import { readSight } from '../../engine/src/map/sight.js';
@@ -292,7 +293,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
     const demo = readDemo(bytes);
     const report = inspectParsed(demo, bytes.length);
-    const m = extractMatch(demo, { tracks: true });
+    const m = extractMatch(demo, { tracks: true, aim: true });
     const talk = new Map<string, number>();
     if (report.players.some((p) => p.voiceSeconds !== undefined)) {
       // Miles voice: measured from the voice data (same numbers as the library).
@@ -307,6 +308,9 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     const ps = periods(m, report.seconds);
     const map = detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum);
     const heat = heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image);
+    const sight = sightFor(job.mapFile);
+    const aim = aimPanel(m, sight);
+    delete m.aim; // full-rate data, only needed for the Aim tab (keeps the remembered demo small)
     lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills, mapFile: job.mapFile, mapName: report.maps[0] ?? report.mapName, checksum: report.mapChecksum, pictureShown: !!map.image, job };
     return {
       ...buildDetails(m, talk, job, map),
@@ -321,7 +325,8 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       recorder: recorderPanel(m),
       highlights: highlights(m),
       lag: lagData(m, ps[ps.length - 1].end),
-      sightings: sightingsData(m, heat.project, heat.data.sites, sightFor(job.mapFile)),
+      sightings: sightingsData(m, heat.project, heat.data.sites, sight),
+      aim,
     };
   } catch (err) {
     return { error: (err as Error).message };

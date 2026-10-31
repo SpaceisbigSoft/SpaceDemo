@@ -163,6 +163,35 @@ export interface NetData {
   lost: { time: number; packets: number }[];
 }
 
+/** 5.u The recorder's own view at one demo frame (POV; every frame, ~20–30 per second). */
+export interface ViewSample {
+  /** Demo seconds (to the millisecond). */
+  time: number;
+  /** View angles in degrees: pitch (+ = looking down, client convention), yaw (0 = +x, counter-clockwise). */
+  pitch: number;
+  yaw: number;
+  /** Eye position (view origin). */
+  eye: Vec3;
+  /** Horizontal speed (units/s) from the client's own movement prediction (simvel). */
+  speed: number;
+  onGround: boolean;
+  duck: boolean;
+  /** Fire button held in this frame's user command (IN_ATTACK). */
+  attack: boolean;
+  /** Alive (health > 0 and a view height: not dead or spectating). */
+  alive: boolean;
+}
+
+/** 5.u Data for recorder aim coaching (only with `extractMatch(demo, { aim: true })`, POV demos). */
+export interface AimData {
+  view: ViewSample[];
+  /** The recorder's own weapon events (exact shot times) and the event's name ("ak47", "usp", "knife", …). */
+  shots: { time: number; weapon: string }[];
+  /** Every packet's position of every other player while the server sends him (not thinned like `tracks`). Flat
+   *  list per player: time, x, y, z, crouch (1/0) repeated. */
+  players: { player: number; points: number[] }[];
+}
+
 export interface MatchData {
   map: string;
   recording: 'POV' | 'HLTV';
@@ -194,6 +223,8 @@ export interface MatchData {
   /** Thrown grenades while visible (only with tracks): kind and positions; the last point is where it went off (HE,
    *  flash) or where the smoke grenade lay while smoking. POV demos only see grenades in the recorder's view area. */
   grenades?: Grenade[];
+  /** 5.u recorder view, shots and full-rate player positions (only with `extractMatch(demo, { aim: true })`). */
+  aim?: AimData;
 }
 
 export interface MatchCheck {

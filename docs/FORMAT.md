@@ -18,6 +18,14 @@ real demos (CS 1.5, protocol 46, 25 demos) or on the owner's CS 1.6 build 10210.
   8 sound (24 + name length, the length is the second i32); 9 demo buffer (4 + length).
   *Source: talent notes, cross-checked against COL's reader; measured.*
 - Network message info block: 464 bytes for protocol 44+ (436 view info + 28 sequence info). *Measured.*
+  - View info (protocol 44+) = timestamp f32 + the client's `ref_params` + user command + movevars + view + viewmodel.
+    Offsets used: eye (vieworg) 4, viewangles 16 (pitch 16 — + = looking down —, yaw 20), onground i32 84, simvel 92
+    (the recorder's own velocity), simorg 104, viewheight 116 (z at 124: 17 standing, 12 crouching, 0 dead), health i32
+    144, user command at 236 with buttons u16 at 266 (1 = fire, 8 = forward, 512 = move left). *Measured 2026-10-31 on
+    Set 1:* buttons match the +attack/+moveleft console frames; the recorder's kill shots point at the victim's head
+    (median 1–3°) only with this pitch sign. Frames come about 20 per second (one per packet received).
+  - Event frames (type 6) in a POV demo are the recorder's own weapon events: exact shot times (event name = weapon,
+    e.g. `ak47`, `mp5n`, `elite_left`).
   Protocol ≤ 43 is believed to use 560 bytes (from COL; not yet verified).
 
 ## Network messages

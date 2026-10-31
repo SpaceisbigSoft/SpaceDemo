@@ -22,6 +22,7 @@
   --warn-bg: #3a2c14;
   --warn-text: #f5c77a;
   --bad-text: #ff9b8f;
+  --ok-text: #7ee0a1;
   --focus: #7cbcff;
   --titlebar: #1b1e22;
   --font: 'Inter', system-ui, 'Segoe UI', sans-serif;
@@ -48,6 +49,7 @@
   --warn-bg: #fdf1dc;
   --warn-text: #7a4a00;
   --bad-text: #a8261a;
+  --ok-text: #1d7a3e;
   --focus: #1a6fd1;
   --titlebar: #ffffff;
 }
@@ -642,3 +644,23 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .gren-key.he { background: #e5534b; }
 .gren-key.flash { background: #f5f0c8; }
 .gren-key.smoke { background: #9aa4ad; }
+
+/* 5.u Aim tab */
+.aim-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.aim-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.aim-summary > div { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.aim-tips { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.aim-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 16px; }
+@media (max-width: 900px) { .aim-grid { grid-template-columns: minmax(0, 1fr); } }
+.aim-picture { width: 100%; max-width: 320px; align-self: center; background: var(--surface-2); border-radius: 8px; }
+.aim-picture .ring { fill: none; stroke: var(--border-strong); stroke-width: 1; }
+.aim-picture .cross { stroke: var(--text-2); stroke-width: 1.5; }
+.aim-picture .axis { fill: var(--muted); font-size: 10px; }
+.aim-picture .dot { cursor: pointer; fill-opacity: 0.85; stroke: var(--surface); stroke-width: 1; }
+.aim-picture .dot.won { fill: var(--ok-text); } .aim-picture .dot.lost { fill: var(--bad-text); } .aim-picture .dot.other { fill: var(--muted); }
+.aim-picture .dot.picked { stroke: var(--text); stroke-width: 2; }
+.swatch.won { background: var(--ok-text); height: 8px; width: 8px; border-radius: 50%; } .swatch.lost { background: var(--bad-text); height: 8px; width: 8px; border-radius: 50%; } .swatch.other { background: var(--muted); height: 8px; width: 8px; border-radius: 50%; }
+.ok-text { color: var(--ok-text); } .bad-text { color: var(--bad-text); }
+.team-table tr.picked-row td { background: var(--accent-soft); }
+[data-testid="aim-moments"] tbody tr { cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

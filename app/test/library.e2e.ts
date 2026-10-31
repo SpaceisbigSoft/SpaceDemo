@@ -286,6 +286,19 @@ describe.skipIf(!zips)('library screen', () => {
     await shot('10l details recorder');
     await page.locator('[data-testid="rec-round-detail"]').scrollIntoViewIfNeeded();
     await shot('10m details recorder round 3');
+    // 5.u aim coaching: summary, crosshair picture, shots by weapon, moments → the Radar replay.
+    await page.click('[role="tab"]:has-text("Aim")');
+    await page.waitForSelector('[data-testid="details-aim"]');
+    expect(await page.textContent('[data-testid="aim-summary"]')).toContain('Reaction');
+    expect(await page.locator('[data-testid="aim-moment"]').count()).toBeGreaterThan(30);
+    expect(await page.locator('[data-testid="aim-picture"] circle.dot').count()).toBeGreaterThan(30);
+    expect(await page.locator('[data-testid="aim-weapon"]').first().textContent()).toContain('ak47');
+    await shot('10u details aim (5.u)');
+    await page.selectOption('[data-testid="aim-round"]', '3');
+    expect(await page.locator('[data-testid="aim-moment"]').count()).toBeGreaterThan(0);
+    expect(await page.locator('[data-testid="aim-moment"]').count()).toBeLessThan(10);
+    await page.locator('[data-testid="aim-moments"]').scrollIntoViewIfNeeded();
+    await shot('10v details aim round 3');
     // The keys also show live on the radar replay.
     await page.click('[role="tab"]:has-text("Radar replay")');
     await page.waitForSelector('[data-testid="replay-keys"]');

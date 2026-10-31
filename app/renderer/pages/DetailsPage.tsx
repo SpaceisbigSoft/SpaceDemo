@@ -8,6 +8,7 @@ import { HeatmapTab } from './DetailsHeatmap.js';
 import { ReplayTab } from './DetailsReplay.js';
 import { SightingsTab } from './DetailsSightings.js';
 import { RecorderTab } from './DetailsRecorder.js';
+import { AimTab } from './DetailsAim.js';
 import { HighlightsTab } from './DetailsHighlights.js';
 import { LagTab } from './DetailsLag.js';
 import { ChatTab, VoiceTab } from './DetailsLog.js';
@@ -19,7 +20,7 @@ const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb explode
 export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void; onOpen?: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice' | 'heatmap' | 'replay' | 'sightings' | 'recorder' | 'highlights' | 'lag'>('overview');
+  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice' | 'heatmap' | 'replay' | 'sightings' | 'recorder' | 'aim' | 'highlights' | 'lag'>('overview');
   // A highlight to open in the Radar replay (round, time); a new object each time so the replay starts fresh.
   const [replayStart, setReplayStart] = useState<{ round: number; time: number } | undefined>();
   // 5.r other recordings of the same match (read after the details), and whether the replay/heatmaps use them.
@@ -91,7 +92,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
 
       {d && (
         <div role="tablist" aria-label="Details" className="tabs">
-          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard'], ['chat', `Chat & radio (${d.log.length})`], ['voice', 'Voice'], ['heatmap', 'Heatmaps'], ['replay', 'Radar replay'], ['sightings', 'Sightings'], ['recorder', 'Recorder'], ['highlights', `Highlights (${d.highlights.length})`], ['lag', 'Lag']] as const).map(([id, label]) => (
+          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard'], ['chat', `Chat & radio (${d.log.length})`], ['voice', 'Voice'], ['heatmap', 'Heatmaps'], ['replay', 'Radar replay'], ['sightings', 'Sightings'], ['recorder', 'Recorder'], ['aim', 'Aim'], ['highlights', `Highlights (${d.highlights.length})`], ['lag', 'Lag']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} className="tab" onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -102,6 +103,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
       {d && tab === 'highlights' && <div role="tabpanel" id="panel-highlights" aria-labelledby="tab-highlights"><HighlightsTab d={d} onWatch={(h) => { setReplayStart({ round: h.round, time: h.time - 3 }); setTab('replay'); }} /></div>}
       {d && tab === 'lag' && <div role="tabpanel" id="panel-lag" aria-labelledby="tab-lag"><LagTab d={d} onWatch={(round, time) => { setReplayStart({ round, time }); setTab('replay'); }} /></div>}
       {d && tab === 'recorder' && <div role="tabpanel" id="panel-recorder" aria-labelledby="tab-recorder"><RecorderTab d={d} /></div>}
+      {d && tab === 'aim' && <div role="tabpanel" id="panel-aim" aria-labelledby="tab-aim"><AimTab d={d} onWatch={(round, time) => { setReplayStart({ round, time }); setTab('replay'); }} /></div>}
       {d && tab === 'sightings' && <div role="tabpanel" id="panel-sightings" aria-labelledby="tab-sightings"><SightingsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'replay' && <div role="tabpanel" id="panel-replay" aria-labelledby="tab-replay"><ReplayTab key={replayStart ? `${replayStart.round}-${replayStart.time}` : 'replay'} d={d} tagT={tag('T')} tagCT={tag('CT')} start={replayStart} combined={combined} useCombined={useCombined} onUseCombined={setUseCombined} /></div>}
       {d && tab === 'heatmap' && <div role="tabpanel" id="panel-heatmap" aria-labelledby="tab-heatmap"><HeatmapTab d={d} tagT={tag('T')} tagCT={tag('CT')} combined={combined} useCombined={useCombined} onUseCombined={setUseCombined} /></div>}
