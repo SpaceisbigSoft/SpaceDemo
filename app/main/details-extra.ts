@@ -4,7 +4,7 @@
 // reconnected has two server user ids: his numbers are added up by name.
 import type { InspectReport } from '../../engine/src/inspect.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
-import type { ChatChannel, LogEntry, NetworkRow, OverviewInfo, Period, RadioKind, RadioSummary, RoundDetail, StatRow, VoiceRow } from '../shared/api.js';
+import type { ChatChannel, LogEntry, NetworkRow, OverviewInfo, Period, RadioKind, RadioSummary, RoundDetail, StatRow, VoiceRow, Momentum } from '../shared/api.js';
 
 const side = (t: Team | undefined): 'T' | 'CT' | undefined => (t === 'T' || t === 'CT' ? t : undefined);
 
@@ -75,9 +75,76 @@ export function overviewInfo(r: InspectReport, m: MatchData): OverviewInfo {
   };
 }
 
-/** 5.c: per round — length, kills on a timeline, bomb plant/defuse/explosion and the bomb timer. */
+/**
+ * 5.t: who is in a round, per side. A player (by name; reconnects add up) is in it when not all his connections had
+ * left before it started and the demo knows him by then (a position, kill or death up to the round's end). His side is
+ * the one his kills/deaths in this round say, else his usual side.
+ */
+function aliveIn(m: MatchData, r: MatchData['rounds'][number], sides: ReturnType<typeof playersByName>) {
+  const t0 = r.freezeEnd ?? r.start, end = r.end ?? t0;
+  const firstSeen = new Map<number, number>();
+  const seen = (id: number, t: number) => { if (t < (firstSeen.get(id) ?? Infinity)) firstSeen.set(id, t); };
+  for (const t of m.tracks ?? []) for (const pts of [t.seen, t.radar, t.heard]) if (pts.length) seen(t.player, pts[0].time);
+  for (const k of m.kills) { if (k.killer !== null) seen(k.killer, k.time); seen(k.victim, k.time); }
+  for (const c of m.chat) if (c.sender !== undefined) seen(c.sender, c.time);
+  const ks = m.kills.filter((k) => k.round === r.number);
+  const roster: { name: string; side: 'T' | 'CT'; ids: number[]; leftAt?: number }[] = [];
+  for (const [name, e] of sides) {
+    if (!e.team) continue;
+    const conns = m.players.filter((p) => e.ids.includes(p.id));
+    if (conns.every((p) => p.leftAt !== undefined && p.leftAt < r.start)) continue;
+    if (!conns.some((p) => (firstSeen.get(p.id) ?? Infinity) <= end)) continue;
+    let s = e.team;
+    for (const k of ks) {
+      if (e.ids.includes(k.victim) && side(k.victimTeam)) s = side(k.victimTeam)!;
+      else if (k.killer !== null && e.ids.includes(k.killer) && !k.suicide && side(k.killerTeam)) s = side(k.killerTeam)!;
+    }
+    // Left during the round (a reconnect doesn't bring him back into it).
+    const leftAt = conns.map((p) => p.leftAt).filter((x): x is number => x !== undefined && x >= r.start && x <= end).sort((a, b) => a - b)[0];
+    roster.push({ name, side: s, ids: e.ids, leftAt });
+  }
+  const count = { T: roster.filter((p) => p.side === 'T').length, CT: roster.filter((p) => p.side === 'CT').length };
+  const start = { ...count };
+  const dead = new Set<string>();
+  const events: { time: number; name: string; left: boolean }[] = [];
+  for (const k of ks) { const p = roster.find((x) => x.ids.includes(k.victim)); if (p) events.push({ time: k.time, name: p.name, left: false }); }
+  for (const p of roster) if (p.leftAt !== undefined) events.push({ time: p.leftAt, name: p.name, left: true });
+  events.sort((a, b) => a.time - b.time);
+  const steps: RoundDetail['alive']['steps'] = [];
+  for (const e of events) {
+    if (dead.has(e.name)) continue;
+    dead.add(e.name);
+    const p = roster.find((x) => x.name === e.name)!;
+    count[p.side] = Math.max(0, count[p.side] - 1);
+    steps.push({ at: Math.round((e.time - t0) * 10) / 10, T: count.T, CT: count.CT, who: e.name, ...(e.left ? { left: true } : {}) });
+  }
+  return { ...start, steps };
+}
+
+/** 5.t: opening kills, comebacks and man-advantage rounds from the players-alive counts. */
+export function momentum(rounds: RoundDetail[]): Momentum {
+  const out: Momentum = { openings: 0, openingWins: 0, comebacks: [] };
+  for (const r of rounds) {
+    if (r.winner !== 'T' && r.winner !== 'CT') continue;
+    const first = r.alive.steps.find((s) => !s.left);
+    if (first) {
+      out.openings++;
+      // The side with more players after the first death got the opening kill.
+      const up = first.T > first.CT ? 'T' : first.CT > first.T ? 'CT' : undefined;
+      if (up === r.winner) out.openingWins++;
+    }
+    const other = r.winner === 'T' ? 'CT' : 'T';
+    let worst = 0;
+    for (const s of r.alive.steps) worst = Math.max(worst, s[other] - s[r.winner]);
+    if (worst >= 2) out.comebacks.push({ round: r.number, side: r.winner, down: worst });
+  }
+  return out;
+}
+
+/** 5.c: per round — length, kills on a timeline, bomb plant/defuse/explosion and the bomb timer; 5.t players alive. */
 export function roundDetails(m: MatchData): RoundDetail[] {
   const nameOf = (id: number | null) => (id === null ? 'the world' : m.players.find((p) => p.id === id)?.name ?? '?');
+  const sides = playersByName(m);
   return m.rounds.map((r) => {
     const t0 = r.freezeEnd ?? r.start;
     const end = r.end ?? t0;
@@ -105,6 +172,7 @@ export function roundDetails(m: MatchData): RoundDetail[] {
       plantedAt: planted ? planted.time - t0 : undefined,
       bombEnd: after ? { kind: after.kind as 'defused' | 'exploded', at: after.time - t0 } : undefined,
       bombTimer: planted && after ? after.time - planted.time : undefined,
+      alive: aliveIn(m, r, sides),
     };
   });
 }

@@ -162,6 +162,8 @@ export interface DemoDetails {
   overview: OverviewInfo;
   /** 5.c rounds with their timeline. */
   roundDetails: RoundDetail[];
+  /** 5.t momentum from the players-alive counts. */
+  momentum: Momentum;
   /** 5.d scoreboard and stats. */
   stats: StatRow[];
   /** Parts of the demo used by 5.l and 5.m: warm-up, each round, after the match. */
@@ -474,6 +476,18 @@ export interface RoundDetail {
   bombEnd?: { kind: 'defused' | 'exploded'; at: number };
   /** Seconds from plant to defuse/explosion. */
   bombTimer?: number;
+  /** 5.t players alive: at the start of the round (after freeze time) and after each change, `at` = seconds after
+   *  freeze time ended; a change is a death or a player leaving the server. */
+  alive: { T: number; CT: number; steps: { at: number; T: number; CT: number; who: string; left?: boolean }[] };
+}
+
+/** 5.t momentum over the demo, from the players-alive counts. */
+export interface Momentum {
+  /** Rounds with an opening kill, and how many the side that got it won. */
+  openings: number;
+  openingWins: number;
+  /** Rounds won by a side that was down by 2+ players at some point (round, side, worst gap). */
+  comebacks: { round: number; side: 'T' | 'CT'; down: number }[];
 }
 
 export interface StatRow {

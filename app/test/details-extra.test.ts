@@ -6,8 +6,31 @@ import { readDemo } from '../../engine/src/container/read.js';
 import { inspectParsed } from '../../engine/src/inspect.js';
 import { extractMatch } from '../../engine/src/match/extract.js';
 import { readZipEntry } from '../../engine/src/zip.js';
-import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from '../main/details-extra.js';
+import type { MatchData } from '../../engine/src/match/types.js';
+import { chatRadioLog, momentum, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from '../main/details-extra.js';
 import { findCandidates } from '../main/library.js';
+
+describe('5.t players alive', () => {
+  const pl = (id: number, name: string, team: 'T' | 'CT', leftAt?: number) => ({ id, slot: id, name, names: [name], team, isHltv: false, isRecorder: false, shots: {}, leftAt });
+  const kill = (time: number, killer: number, victim: number, kt: 'T' | 'CT', vt: 'T' | 'CT') => ({ time, round: 1, killer, victim, headshot: false, weapon: 'ak47', killerTeam: kt, victimTeam: vt, teamKill: kt === vt, suicide: false });
+  const m: MatchData = {
+    map: 'de_test', recording: 'HLTV', restarts: 0, chat: [], radio: [], bomb: [], voice: [], director: [], deaths: [],
+    players: [pl(1, 't1', 'T'), pl(2, 't2', 'T'), pl(3, 't3', 'T', 40), pl(4, 't3', 'T'), pl(5, 'c1', 'CT'), pl(6, 'c2', 'CT'), pl(7, 'c3', 'CT')],
+    rounds: [{ number: 1, start: 0, freezeEnd: 10, end: 90, winner: 'T', reason: 'eliminated' }],
+    // c1 dies (3v2), t3 leaves at 40 and reconnects (2v2), t1 dies (1v2), then t2 wins it alone (1v1, 1v0).
+    kills: [kill(20, 2, 5, 'T', 'CT'), kill(45, 6, 1, 'CT', 'T'), kill(60, 2, 6, 'T', 'CT'), kill(70, 2, 7, 'T', 'CT')],
+    tracks: [1, 2, 3, 5, 6, 7].map((id) => ({ player: id, seen: [{ time: 5, x: 0, y: 0, z: 0, alive: true }], radar: [], heard: [] })),
+  };
+  it('counts each side from the start, down at each death and when a player leaves (a reconnect doesn\'t come back)', () => {
+    const [r] = roundDetails(m);
+    expect([r.alive.T, r.alive.CT]).toEqual([3, 3]);
+    expect(r.alive.steps.map((s) => `${s.at}:${s.T}v${s.CT}${s.left ? 'L' : ''}`)).toEqual(['10:3v2', '30:2v2L', '35:1v2', '50:1v1', '60:1v0']);
+  });
+  it('sums up opening kills and comebacks', () => {
+    const r = roundDetails(m);
+    expect(momentum(r)).toEqual({ openings: 1, openingWins: 1, comebacks: [] });
+  });
+});
 
 const zips = process.env.CDF_ZIPS;
 describe.skipIf(!zips)('details extras on Set 1', () => {
@@ -34,6 +57,22 @@ describe.skipIf(!zips)('details extras on Set 1', () => {
       }
     }
     expect(checked).toBeGreaterThan(200);
+    expect(off).toEqual([]);
+  }, 600_000);
+
+  it('players alive add up in every round (5.t): rounds won by elimination end with the losers at 0', () => {
+    let rounds = 0;
+    const off: string[] = [];
+    for (const c of demos()) {
+      const m = extractMatch(readDemo(readZipEntry(c.file, c.zipEntry!)), { tracks: true });
+      for (const r of roundDetails(m)) {
+        rounds++;
+        const end = r.alive.steps.at(-1) ?? r.alive;
+        if (r.reason === 'eliminated' && end[r.winner === 'T' ? 'CT' : 'T'] !== 0) off.push(`${c.name} round ${r.number}`);
+        if (r.alive.steps.some((s) => s.T < 0 || s.CT < 0)) off.push(`${c.name} round ${r.number} below 0`);
+      }
+    }
+    expect(rounds).toBeGreaterThan(300);
     expect(off).toEqual([]);
   }, 600_000);
 

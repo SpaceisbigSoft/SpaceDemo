@@ -20,7 +20,7 @@ import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
 import type { CombinedData, CombinedRecording, HeatKill, ReplayData } from '../shared/api.js';
 import { alignMatches, mergeMatches, otherHalf, positionCoverage, sameRounds } from '../../engine/src/match/combine.js';
-import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
+import { chatRadioLog, momentum, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
 
 export interface DetailsJob {
   key: string;
@@ -60,7 +60,7 @@ export function chatMessage(text: string, who: string | undefined): string {
   return t.trim();
 }
 
-export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds' | 'heatmap' | 'highlights'> {
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'momentum' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds' | 'heatmap' | 'highlights'> {
   // Players per side from the stats (sides from the kill events; reconnects added up by name).
   const stats = statRows(m);
   const team = (t: 'T' | 'CT'): TeamDetails => {
@@ -310,7 +310,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     return {
       ...buildDetails(m, talk, job, map),
       overview: overviewInfo(report, m),
-      roundDetails: roundDetails(m),
+      ...(() => { const rd = roundDetails(m); return { roundDetails: rd, momentum: momentum(rd) }; })(),
       stats: statRows(m),
       periods: ps,
       ...chatRadioLog(m, ps, report.hostName),

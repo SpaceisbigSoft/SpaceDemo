@@ -147,6 +147,12 @@ describe.skipIf(!zips)('library screen', () => {
     await page.click('[role="tab"]:has-text("Rounds")');
     expect(await page.locator('[data-testid="round-line"]').count()).toBe(12);
     expect(await page.locator('[data-testid="round-line"]').first().textContent()).toContain('bomb defused');
+    // 5.t players alive: a chart per round, start → end counts, opening kills and comebacks.
+    expect(await page.locator('[data-testid="alive-chart"]').count()).toBe(12);
+    expect(await page.locator('[data-testid="alive-ends"]').first().textContent()).toBe('5v5 → 0v4');
+    const mom = await page.textContent('[data-testid="momentum"]');
+    expect(mom).toContain('Opening kill won the round: 9 of 12');
+    expect(mom).toContain('Round 4:');
     await shot('10b details rounds');
     await page.click('[role="tab"]:has-text("Scoreboard")');
     expect(await page.locator('[data-testid="stat-row"]').count()).toBe(10);

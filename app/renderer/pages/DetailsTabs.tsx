@@ -70,7 +70,8 @@ export function RoundsTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
   return (
     <section className="card" aria-labelledby="rounds-h" data-testid="details-rounds">
       <h2 id="rounds-h">Rounds</h2>
-      <p className="note">Each bar runs from the end of freeze time to the end of the round. Ticks are kills (colour = the killer's side), ▲ the bomb plant, ◆ the defuse or explosion. Hover for details.</p>
+      <MomentumSummary d={d} tagT={tagT} tagCT={tagCT} />
+      <p className="note">Each bar runs from the end of freeze time to the end of the round. Ticks are kills (colour = the killer's side), ▲ the bomb plant, ◆ the defuse or explosion. Under it, players alive per side (orange T, blue CT; 5 at the top). Hover for details.</p>
       <ol className="round-list">
         {d.roundDetails.map((r) => <RoundLine key={r.number} r={r} longest={longest} tagT={tagT} tagCT={tagCT} />)}
       </ol>
@@ -88,6 +89,7 @@ function RoundLine({ r, longest, tagT, tagCT }: { r: RoundDetail; longest: numbe
         <span className={`round-badge ${r.winner === 'T' ? 't' : r.winner === 'CT' ? 'ct' : 'draw'}`}>{r.number}</span>
         <span><strong>{winner}</strong>{r.reason ? ` · ${REASON[r.reason] ?? r.reason}` : ''}</span>
         <span className="note">{secs(r.seconds)}{r.bombTimer !== undefined ? ` · bomb ${Math.round(r.bombTimer)} s after plant` : ''}</span>
+        <span className="note mono" data-testid="alive-ends" title={`Players alive (${tagT} v ${tagCT}): at the start → at the end of the round`}>{r.alive.T}v{r.alive.CT} → {(r.alive.steps.at(-1) ?? r.alive).T}v{(r.alive.steps.at(-1) ?? r.alive).CT}</span>
         {r.scoreT !== undefined && <span className="mono score-after">{r.scoreT} : {r.scoreCT}</span>}
       </div>
       <div className="timeline" role="img" aria-label={`Round ${r.number}: ${r.kills.length} kills${r.plantedAt !== undefined ? ', bomb planted' : ''}`}>
@@ -99,7 +101,55 @@ function RoundLine({ r, longest, tagT, tagCT }: { r: RoundDetail; longest: numbe
         {r.plantedAt !== undefined && <span className="bomb plant" style={{ left: pct(r.plantedAt) }} title={`Bomb planted at ${secs(r.plantedAt)}`}>▲</span>}
         {r.bombEnd && <span className="bomb end" style={{ left: pct(r.bombEnd.at) }} title={`Bomb ${r.bombEnd.kind} at ${secs(r.bombEnd.at)}`}>◆</span>}
       </div>
+      <AliveChart r={r} longest={longest} tagT={tagT} tagCT={tagCT} />
     </li>
+  );
+}
+
+/** 5.t: players alive per side over the round, as two step lines (T orange, CT blue), with the count after each change. */
+function AliveChart({ r, longest, tagT, tagCT }: { r: RoundDetail; longest: number; tagT: string; tagCT: string }) {
+  const a = r.alive;
+  const top = Math.max(5, a.T, a.CT);
+  const H = 40;
+  const y = (n: number) => 2 + ((top - n) / top) * (H - 4);
+  const line = (side: 'T' | 'CT') => {
+    let d = `M0 ${y(a[side])}`;
+    let prev = a[side];
+    for (const s of a.steps) {
+      if (s[side] !== prev) { d += `H${Math.max(0, s.at)}V${y(s[side])}`; prev = s[side]; }
+    }
+    return `${d}H${Math.max(r.seconds, 0.1)}`;
+  };
+  const label = `Players alive: ${a.T} v ${a.CT} at the start${a.steps.map((s) => `, ${s.T} v ${s.CT} at ${secs(s.at)}`).join('')}`;
+  return (
+    <div className="alive-row" data-testid="alive-chart">
+      <svg className="alive-chart" viewBox={`0 0 ${longest} ${H}`} preserveAspectRatio="none" role="img" aria-label={label} style={{ width: '100%' }}>
+        <path d={line('T')} className="alive-line t" />
+        <path d={line('CT')} className="alive-line ct" />
+        {a.steps.map((s, i) => (
+          <rect key={i} x={Math.max(0, s.at) - longest / 300} y={0} width={longest / 150} height={H} className="alive-hit">
+            <title>{`${secs(s.at)}: ${s.who} ${s.left ? 'left the server' : 'died'} → ${tagT} ${s.T} v ${s.CT} ${tagCT}`}</title>
+          </rect>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/** 5.t: opening kills and comebacks over the demo. */
+function MomentumSummary({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; tagCT: string }) {
+  const m = d.momentum;
+  if (!m.openings) return null;
+  const tag = (s: 'T' | 'CT') => (s === 'T' ? tagT : tagCT);
+  return (
+    <div className="chip-row" data-testid="momentum">
+      <span className="tag" title="The side that got the round's first kill went on to win it">Opening kill won the round: <strong>{m.openingWins} of {m.openings}</strong></span>
+      {m.comebacks.length === 0
+        ? <span className="tag">No comebacks from 2+ players down</span>
+        : m.comebacks.map((c) => (
+          <span key={c.round} className="tag" title={`${tag(c.side)} were ${c.down} players down at one point and still won`}>Round {c.round}: {tag(c.side)} won from {c.down} down</span>
+        ))}
+    </div>
   );
 }
 

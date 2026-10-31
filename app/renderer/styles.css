@@ -601,3 +601,11 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .combined-list li { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .combined-list li > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .combined-list .link-btn { min-height: 32px; font-weight: 600; }
+/* 5.t players alive per round */
+.alive-row { display: block; }
+.alive-chart { height: 40px; display: block; flex: 1 1 auto; min-width: 0; }
+.alive-line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.alive-line.t { stroke: #e3a24a; }
+.alive-line.ct { stroke: #5aa7f0; stroke-dasharray: 5 3; }
+.alive-hit { fill: transparent; }
+.alive-hit:hover { fill: var(--surface-3); }
