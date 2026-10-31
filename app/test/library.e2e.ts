@@ -216,6 +216,9 @@ describe.skipIf(!zips)('library screen', () => {
     await page.waitForFunction(() => document.querySelector('[data-testid="replay-clock"]')?.textContent?.includes('freeze time'));
     await page.fill('[data-testid="replay-slider"]', String(await page.$eval('[data-testid="replay-slider"]', (e) => (Number((e as HTMLInputElement).min) + 70))));
     expect(await page.locator('[data-testid="replay-bomb"]').count()).toBeLessThanOrEqual(1);
+    // The bomb carrier (Virus23 has the C4 until he plants at 12:37).
+    expect(await page.locator('[data-testid="replay-carrier"]').count()).toBe(1);
+    expect(await page.textContent('[data-testid="replay-players"]')).toContain('has the bomb');
     if (process.env.SPACEDEMO_GAME_DIR) {
       // Estimated positions (2.16): the enemies the recorder can't see are drawn as estimates; switch off → none.
       expect(await page.locator('[data-testid="replay-dot"][data-source="estimated"]').count()).toBeGreaterThanOrEqual(1);

@@ -137,6 +137,30 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
   };
 
   const now = useMemo(() => (r ? r.players.map((p) => playerAt(p, t, r.kills, showEst && r.estimates)) : []), [r, t, showEst]);
+  // Grenades at this moment: in flight (with its trail), going off (HE, flash: a short burst), or smoking.
+  const grenNow = useMemo(() => {
+    if (!r) return [];
+    const out: { kind: 'he' | 'flash' | 'smoke'; x: number; y: number; trail: string; state: 'flying' | 'burst' | 'smoke'; burst: number; title: string; team?: 'T' | 'CT' }[] = [];
+    for (const g of r.grenades) {
+      const p = g.points, n = p.length / 3;
+      const t0 = p[0], t1 = p[(n - 1) * 3];
+      const name = g.kind === 'he' ? 'HE grenade' : g.kind === 'flash' ? 'Flashbang' : 'Smoke grenade';
+      const title = `${name}${g.thrower ? ` thrown by ${g.thrower}` : ''}`;
+      if (t < t0 || t > t1 + (g.kind === 'smoke' ? 0 : 0.6)) continue;
+      // Where it stopped moving (a smoke grenade lies still while smoking).
+      let land = n - 1;
+      while (land > 0 && Math.hypot(p[land * 3 + 1] - p[(land - 1) * 3 + 1], p[land * 3 + 2] - p[(land - 1) * 3 + 2]) < 1.5) land--;
+      const k = Math.max(0, lastAt(p, 3, t));
+      const pts: string[] = [];
+      for (let i = 0; i <= k; i++) pts.push(`${p[i * 3 + 1]},${p[i * 3 + 2]}`);
+      const trail = pts.join(' ');
+      if (t > t1) out.push({ kind: g.kind, x: p[(n - 1) * 3 + 1], y: p[(n - 1) * 3 + 2], trail: '', state: 'burst', burst: (t - t1) / 0.6, title, team: g.team });
+      else if (g.kind === 'smoke' && t >= p[land * 3]) out.push({ kind: 'smoke', x: p[land * 3 + 1], y: p[land * 3 + 2], trail: '', state: 'smoke', burst: 0, title, team: g.team });
+      else out.push({ kind: g.kind, x: p[k * 3 + 1], y: p[k * 3 + 2], trail, state: 'flying', burst: 0, title, team: g.team });
+    }
+    return out;
+  }, [r, t]);
+  const carrierNow = r?.carrier.find(([a, b]) => t >= a && t <= b)?.[2];
   const bomb = useMemo(() => {
     if (!r) return undefined;
     const ev = r.bomb.filter((b) => b.time <= t);
@@ -191,6 +215,15 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
                 {h.sites.map((s) => (
                   <g key={s.letter + s.x} className="heat-site"><circle cx={s.x} cy={s.y} r={30} /><text x={s.x} y={s.y + 12} textAnchor="middle">{s.letter}</text></g>
                 ))}
+                {grenNow.map((g, i) => (
+                  <g key={`g${i}`} className={`gren ${g.kind} ${g.state}`} data-testid="replay-grenade">
+                    <title>{g.title}</title>
+                    {g.state === 'flying' && g.trail && <polyline points={g.trail} className="trail" />}
+                    {g.state === 'flying' && <circle cx={g.x} cy={g.y} r={5} className="g" />}
+                    {g.state === 'smoke' && <circle cx={g.x} cy={g.y} r={26} className="cloud" />}
+                    {g.state === 'burst' && <circle cx={g.x} cy={g.y} r={8 + 30 * g.burst} className="burst" style={{ opacity: 1 - g.burst }} />}
+                  </g>
+                ))}
                 {bomb && (
                   <g className={`replay-bomb ${bomb.kind}`} data-testid="replay-bomb">
                     <title>{`Bomb ${bomb.kind}`}</title>
@@ -215,6 +248,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
                         {n.source === 'heard' && <circle cx={n.x} cy={n.y} r={19} className="ring" />}
                         {n.dir !== undefined && <line x1={n.x} y1={n.y} x2={n.x! + 26 * Math.cos((n.dir * Math.PI) / 180)} y2={n.y! + 26 * Math.sin((n.dir * Math.PI) / 180)} className="view" />}
                         <circle cx={n.x} cy={n.y} r={n.source === 'radar' ? 8 : 11} className="body" />
+                        {carrierNow === n.p.name && <rect x={n.x! + 7} y={n.y! + 5} width={12} height={8} rx={1.5} className="carrier" data-testid="replay-carrier"><title>has the bomb</title></rect>}
                       </>
                     )}
                     {names && n.source !== 'dead' && <text x={n.x} y={n.y! - 17} textAnchor="middle" className="label">{n.source === 'estimated' ? '~ ' : ''}{n.p.name}{n.source === 'last' ? ` (${Math.round(n.age ?? 0)} s)` : n.source === 'estimated' ? ` ${n.confidence} %` : ''}</text>}
@@ -248,6 +282,8 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
               {showEst && r.estimates ? (
                 <span><svg width="22" height="22" aria-hidden="true"><circle cx="11" cy="11" r="10" className="lg-unc" /><circle cx="11" cy="11" r="5" className="lg-est" /></svg> estimated (faded, with the area he's probably in and his likely route; % = confidence)</span>
               ) : <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" className="lg-last" /></svg> last seen (fades)</span>}
+              <span><svg width="16" height="12" aria-hidden="true"><rect x="2" y="2" width="12" height="8" rx="1.5" className="carrier" /></svg> has the bomb</span>
+              <span><svg width="44" height="16" aria-hidden="true"><circle cx="7" cy="8" r="4" className="lg-he" /><circle cx="22" cy="8" r="4" className="lg-flash" /><circle cx="37" cy="8" r="6" className="lg-smoke" /></svg> HE · flash · smoke grenade (smoke size approximate)</span>
               <span>✕ dead · <span className="side t">orange</span> {tagT} · <span className="side ct">blue</span> {tagCT}</span>
             </div>
             <span className="note">
@@ -266,7 +302,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
             {now.map((n) => (
               <li key={n.p.name} className={n.source === 'dead' ? 'dead' : ''}>
                 <span className={`side ${sideClass(n.p.team)}`}>{n.p.name}</span>
-                <span className="note">{STATUS[n.source]}{n.source === 'estimated' ? ` ${n.confidence} %` : ''}{n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}{n.weapon && n.source !== 'dead' ? ` · ${n.weapon}` : ''}</span>
+                <span className="note">{STATUS[n.source]}{n.source === 'estimated' ? ` ${n.confidence} %` : ''}{n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}{n.weapon && n.source !== 'dead' ? ` · ${n.weapon}` : ''}{carrierNow === n.p.name && n.source !== 'dead' ? ' · has the bomb' : ''}</span>
               </li>
             ))}
           </ul>

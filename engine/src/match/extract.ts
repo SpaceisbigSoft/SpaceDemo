@@ -5,7 +5,7 @@ import { FrameType, type DemoFile } from '../container/types.js';
 import { createState, decodeMessages, type EventsBody } from '../protocol/messages.js';
 import { EntityTracker, incomingSequence } from './entities.js';
 import { PayloadReader } from './payload.js';
-import type { BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
+import type { Grenade, BombEvent, ChatLine, Death, Kill, MatchCheck, MatchData, MatchPlayer, PlayerTrack, RecorderData, Round, RoundEndReason, Team, TrackPoint, VoiceBurst } from './types.js';
 
 export interface ExtractOptions {
   /** Also build position tracks (plan 2.13). Costs time and memory on long demos. */
@@ -51,6 +51,9 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
   const sampleStep = 1 / (options.samplesPerSecond ?? 10);
   const tracker = new EntityTracker(s);
   const tracks = new Map<number, PlayerTrack>();
+  // Grenades in flight (entity number → the grenade being followed); a gap or another model starts a new one.
+  const grenades: Grenade[] = [];
+  const liveGrenade = new Map<number, { g: Grenade; last: number }>();
   const lastSample = new Map<number, number>();
   let models: string[] = [];
   let sounds: string[] = [];
@@ -246,6 +249,24 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
               }
             }
             if (wantTracks && playback) {
+              for (const [n, es] of states) {
+                if (n <= 32 || typeof es.modelindex !== 'number' || typeof es['origin[0]'] !== 'number') continue;
+                const kind = grenadeKind(models[es.modelindex]);
+                if (!kind) continue;
+                const pt = { time: t, x: q8(es['origin[0]'] as number), y: q8(es['origin[1]'] as number), z: q8(es['origin[2]'] as number) };
+                const cur = liveGrenade.get(n);
+                if (cur && cur.g.kind === kind && t - cur.last < 1) {
+                  const prev = cur.g.points[cur.g.points.length - 1];
+                  // In flight about 10 points a second; lying still (a smoke grenade) one a second.
+                  const moved = Math.hypot(pt.x - prev.x, pt.y - prev.y, pt.z - prev.z) > 2;
+                  if ((moved && t - prev.time >= 0.1) || t - prev.time >= 1) cur.g.points.push(pt);
+                  cur.last = t;
+                } else {
+                  const g: Grenade = { kind, points: [pt] };
+                  grenades.push(g);
+                  liveGrenade.set(n, { g, last: t });
+                }
+              }
               for (const [n, es] of states) {
                 if (n < 1 || n > 32 || typeof es['origin[0]'] !== 'number' || typeof es['origin[1]'] !== 'number' || typeof es['origin[2]'] !== 'number') continue;
                 const id = idOf(n - 1);
@@ -465,6 +486,7 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
       const dead = (t: number) => deaths.some((d) => d <= t && t < nextStart(d));
       for (const list of [tr.seen, tr.radar, tr.heard] as TrackPoint[][]) for (const pt of list) pt.alive = !dead(pt.time);
     }
+    m.grenades = grenades.filter((g) => (m.liveStart === undefined || g.points[0].time >= m.liveStart));
     m.tracks = [...tracks.values()].filter((tr) => players.get(tr.player)?.name).sort((a, b) => a.player - b.player);
   }
   if (s.hltv) m.recording = 'HLTV';
@@ -548,4 +570,13 @@ export function viewInfo(info: Uint8Array): { origin: [number, number, number]; 
   const v = new DataView(info.buffer, info.byteOffset, info.byteLength);
   const f = (o: number) => v.getFloat32(o, true);
   return { origin: [f(104), f(108), f(112)], onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), yaw: f(20) };
+}
+
+/** Grenade kind from a world model name (models/w_hegrenade.mdl, w_flashbang.mdl, w_smokegrenade.mdl). */
+function grenadeKind(model: string | undefined): Grenade['kind'] | undefined {
+  if (!model) return undefined;
+  if (/w_hegrenade\.mdl$/i.test(model)) return 'he';
+  if (/w_flashbang\.mdl$/i.test(model)) return 'flash';
+  if (/w_smokegrenade\.mdl$/i.test(model)) return 'smoke';
+  return undefined;
 }

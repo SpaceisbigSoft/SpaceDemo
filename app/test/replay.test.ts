@@ -23,8 +23,12 @@ const m: MatchData = {
   deaths: [{ time: 64, round: 1, victim: 1, match: 'timing', model: 'terror', position: [100, 0, 0] }],
   chat: [], radio: [], voice: [], director: [],
   bomb: [{ time: 50, round: 1, kind: 'planted', position: [0, 0, 0] }, { time: 150, round: 2, kind: 'planted', position: [0, 0, 0] }],
+  grenades: [
+    { kind: 'he', points: [{ time: 20, x: 0, y: 0, z: 0 }, { time: 21.5, x: 400, y: 0, z: 0 }] },
+    { kind: 'smoke', points: [{ time: 120, x: 0, y: 0, z: 0 }] },
+  ],
   tracks: [
-    { player: 1, seen: [pt(10, 0, 0, true, 90, 'ak47'), pt(10.5, 80, 0, true, 90, 'ak47'), pt(20, 0, 0, true, 0, 'knife'), pt(120, 0, 0)], radar: [], heard: [] },
+    { player: 1, seen: [pt(10, 0, 0, true, 90, 'ak47'), pt(10.5, 80, 0, true, 90, 'ak47'), pt(20, 0, 0, true, 0, 'knife'), pt(49.8, 0, 0, true, 0, 'c4'), pt(120, 0, 0)], radar: [], heard: [] },
     { player: 2, seen: [pt(30, 400, 0)], radar: [], heard: [{ ...pt(40, 500, 0), sound: 'step' }] },
     { player: 3, seen: [], radar: [pt(15, -200, 0)], heard: [] },
   ],
@@ -39,8 +43,11 @@ describe('5.j radar replay', () => {
   it('keeps one round, in picture pixels, with weapon changes and the view direction turned for the picture', () => {
     expect([r.start, r.end, r.freezeEnd]).toEqual([0, 105, 5]);
     const a = r.players.find((p) => p.name === 'Alpha')!;
-    expect(a.seen).toEqual([10, 512, 384, 270, 1, 10.5, 522, 384, 270, 1, 20, 512, 384, 0, 1]); // round 2's point is left out
-    expect(a.weapons).toEqual([[10, 'ak47'], [20, 'knife']]);
+    expect(a.seen).toEqual([10, 512, 384, 270, 1, 10.5, 522, 384, 270, 1, 20, 512, 384, 0, 1, 49.8, 512, 384, 0, 1]); // round 2's point is left out
+    expect(a.weapons).toEqual([[10, 'ak47'], [20, 'knife'], [49.8, 'c4']]);
+    // The HE grenade of round 1, thrown where Alpha stood; the bomb carried by Alpha (C4 in hand) until the plant.
+    expect(r.grenades).toEqual([{ kind: 'he', points: [20, 512, 384, 21.5, 562, 384], thrower: 'Alpha', team: 'T' }]);
+    expect(r.carrier).toEqual([[0, 50, 'Alpha']]);
     expect(r.players.map((p) => p.name)).toEqual(['Bravo', 'Alpha', 'Charlie']);
     expect(r.bomb).toEqual([{ time: 50, kind: 'planted', x: 512, y: 384 }]);
     expect(r.kills).toHaveLength(1);

@@ -139,6 +139,11 @@ export interface PlayerTrack {
   heard: (TrackPoint & { sound: string })[];
 }
 
+export interface Grenade {
+  kind: 'he' | 'flash' | 'smoke';
+  points: { time: number; x: number; y: number; z: number }[];
+}
+
 export interface MatchData {
   map: string;
   recording: 'POV' | 'HLTV';
@@ -165,6 +170,9 @@ export interface MatchData {
   director: { time: number; type: number }[];
   /** Position tracks per player (only with `extractMatch(demo, { tracks: true })`). */
   tracks?: PlayerTrack[];
+  /** Thrown grenades while visible (only with tracks): kind and positions; the last point is where it went off (HE,
+   *  flash) or where the smoke grenade lay while smoking. POV demos only see grenades in the recorder's view area. */
+  grenades?: Grenade[];
 }
 
 export interface MatchCheck {

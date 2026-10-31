@@ -194,6 +194,11 @@ export interface ReplayData {
   recording: 'POV' | 'HLTV';
   /** True when estimated positions were worked out (needs the map file). */
   estimates: boolean;
+  /** Grenades while visible: points flat [time, x, y]; the last point is where it went off (or lay smoking).
+   *  Thrower = the player standing where it was first seen, when there was one. */
+  grenades: { kind: 'he' | 'flash' | 'smoke'; points: number[]; thrower?: string; team?: 'T' | 'CT' }[];
+  /** Who had the bomb: [from, to, name] (worked out from drops, pick-ups and who held it). */
+  carrier: [number, number, string][];
   /** Picture pixels per game unit. */
   unitPx: number;
 }

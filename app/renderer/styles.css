@@ -516,3 +516,14 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .dot.estimated .label { font-style: italic; }
 .lg-unc { fill: rgba(201, 205, 210, 0.12); stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 3 2; }
 .lg-est { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 2 2; }
+.gren .trail { fill: none; stroke-width: 1.5; stroke-dasharray: 1 4; stroke-linecap: round; opacity: 0.8; }
+.gren .g { stroke: #0e1012; stroke-width: 1.5; }
+.gren.he .g, .lg-he { fill: #ff9b8f; } .gren.he .trail { stroke: #ff9b8f; }
+.gren.flash .g, .lg-flash { fill: #ffffff; } .gren.flash .trail { stroke: #ffffff; }
+.gren.smoke .g { fill: #a3a9b1; } .gren.smoke .trail { stroke: #a3a9b1; }
+.gren .cloud { fill: rgba(200, 204, 209, 0.55); stroke: rgba(240, 242, 244, 0.7); stroke-width: 1.5; }
+.lg-smoke { fill: rgba(200, 204, 209, 0.7); }
+.gren .burst { fill: none; stroke-width: 4; }
+.gren.he .burst { stroke: #ff9b8f; }
+.gren.flash .burst { stroke: #ffffff; }
+.carrier { fill: #ff9b8f; stroke: #0e1012; stroke-width: 1.5; }

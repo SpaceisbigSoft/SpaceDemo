@@ -92,6 +92,50 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
     for (let k = 0; k < row.est.length; k += 7) groups.push(row.est.slice(k, k + 7));
     row.est = groups.sort((a, b) => a[0] - b[0]).flat();
   }
+  // Grenades, with the player standing where each was first seen (within 120 units, 0.5 s).
+  const seenNear = (t: number, x: number, y: number, maxDist: number, team?: 'T' | 'CT') => {
+    let best: { name: string; team?: 'T' | 'CT'; d: number } | undefined;
+    for (const row of players) {
+      if (team && row.team !== team) continue;
+      const s = row.seen;
+      for (let k = 0; k < s.length; k += 5) {
+        if (s[k + 4] !== 1 || Math.abs(s[k] - t) > 0.5) continue;
+        const d = Math.hypot(s[k + 1] - x, s[k + 2] - y);
+        if (d <= maxDist && (!best || d < best.d)) best = { name: row.name, team: row.team, d };
+      }
+    }
+    return best;
+  };
+  const unitPx = Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]);
+  const grenades = (m.grenades ?? []).filter((g) => inRound(g.points[0].time)).map((g) => {
+    const points = g.points.flatMap((q) => { const [x, y] = px(q.x, q.y); return [r1(q.time), x, y]; });
+    const who = seenNear(points[0], points[1], points[2], 120 * unitPx);
+    return { kind: g.kind, points, ...(who ? { thrower: who.name, team: who.team } : {}) };
+  });
+  // Bomb carrier: who held the C4 in hand, who was standing at a drop when it was picked up, who planted it.
+  const carrier: [number, number, string][] = [];
+  const holderBy = (from: number, until: number): string | undefined => {
+    // Seen with the C4 in hand in this stretch.
+    for (const row of players) if (row.team === 'T' && row.weapons.some(([wt, w]) => w === 'c4' && wt >= from && wt <= until)) return row.name;
+    return undefined;
+  };
+  let cur: { from: number; who?: string } | undefined = { from: start };
+  let lastDrop: { x: number; y: number } | undefined;
+  for (const b of m.bomb.filter((x) => inRound(x.time)).sort((x, y) => x.time - y.time)) {
+    if (b.kind === 'dropped' || b.kind === 'planted') {
+      const [x, y] = b.position ? px(b.position[0], b.position[1]) : [NaN, NaN];
+      if (cur) {
+        const who = cur.who ?? holderBy(cur.from, b.time) ?? (Number.isFinite(x) ? seenNear(b.time, x, y, 150 * unitPx, 'T')?.name : undefined);
+        if (who) carrier.push([r1(cur.from), r1(b.time), who]);
+      }
+      lastDrop = Number.isFinite(x) ? { x, y } : undefined;
+      cur = undefined;
+      if (b.kind === 'planted') break;
+    } else if (b.kind === 'picked up') {
+      cur = { from: b.time, who: lastDrop ? seenNear(b.time, lastDrop.x, lastDrop.y, 150 * unitPx, 'T')?.name : undefined };
+    }
+  }
+  if (cur) { const who = cur.who ?? holderBy(cur.from, end); if (who) carrier.push([r1(cur.from), r1(end), who]); }
   const bomb = m.bomb.filter((b) => inRound(b.time)).map((b) => {
     const e: ReplayData['bomb'][number] = { time: r1(b.time), kind: b.kind };
     if (b.position) [e.x, e.y] = px(b.position[0], b.position[1]);
@@ -99,6 +143,6 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
   });
   return {
     round: roundNo, start: r1(start), end: r1(end), freezeEnd: r.freezeEnd, roundEnd: r.end, winner: r.winner, reason: r.reason,
-    players, kills: kills.filter((k) => k.round === roundNo), bomb, recording: m.recording, estimates, unitPx: r1(Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]) * 1000) / 1000,
+    players, kills: kills.filter((k) => k.round === roundNo), bomb, recording: m.recording, estimates, grenades, carrier, unitPx: r1(Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]) * 1000) / 1000,
   };
 }
