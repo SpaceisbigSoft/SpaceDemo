@@ -10,7 +10,10 @@ import { checkMatch, extractMatch } from '../../engine/src/match/extract.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
-import { heatmapData } from './heatmap.js';
+import { heatmapAndProjection } from './heatmap.js';
+import { replayData } from './replay.js';
+import type { Projection } from '../../engine/src/map/overview.js';
+import type { HeatKill, ReplayData } from '../shared/api.js';
 import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
 
 export interface DetailsJob {
@@ -145,7 +148,23 @@ function heatmap(job: DetailsJob, m: MatchData, mapName: string, checksum: numbe
   if (pictureShown && job.overviewTxt) {
     try { overview = { project: projection(parseOverview(readFileSync(job.overviewTxt, 'latin1'))) }; } catch { /* drawn from the map file */ }
   }
-  return heatmapData({ m, mapName, checksum, bsp, overview });
+  return heatmapAndProjection({ m, mapName, checksum, bsp, overview });
+}
+
+/** The last demo read for the details page, kept for the radar replay (5.j) so a round opens without reading again. */
+let lastRead: { key: string; m: MatchData; project: Projection; kills: HeatKill[] } | undefined;
+
+/** 5.j: one round for the radar replay (reads the demo first if it isn't the last one read). */
+export function readReplay(job: DetailsJob, round: number): ReplayData | { error: string } {
+  if (lastRead?.key !== job.key) {
+    const d = readDetails(job);
+    if ('error' in d) return d;
+  }
+  try {
+    return replayData(lastRead!.m, lastRead!.project, lastRead!.kills, round);
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
 }
 
 /** Reads the demo and builds its details (runs in the background thread). */
@@ -168,6 +187,8 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     }
     const ps = periods(m, report.seconds);
     const map = detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum);
+    const heat = heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image);
+    lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills };
     return {
       ...buildDetails(m, talk, job, map),
       overview: overviewInfo(report, m),
@@ -177,7 +198,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
       ...chatRadioLog(m, ps, report.hostName),
       voice: voiceTimeline(m),
       seconds: ps[ps.length - 1].end,
-      heatmap: heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image),
+      heatmap: heat.data,
     };
   } catch (err) {
     return { error: (err as Error).message };

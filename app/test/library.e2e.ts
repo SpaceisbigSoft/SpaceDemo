@@ -197,6 +197,27 @@ describe.skipIf(!zips)('library screen', () => {
     await page.locator('[data-testid="heat-kill"]').first().click({ force: true });
     expect(await page.textContent('[data-testid="heat-picked"]')).toContain(':i69:Endbringer →');
     await shot('10h details heatmaps round 1 Endbringer');
+    // 5.j radar replay.
+    await page.click('[role="tab"]:has-text("Radar replay")');
+    await page.waitForSelector('[data-testid="replay-svg"]', { timeout: 30_000 });
+    expect(await page.textContent('[data-testid="replay-clock"]')).toContain('freeze time');
+    expect(await page.locator('[data-testid="replay-players"] li').count()).toBe(10);
+    // Go to just before the first kill of round 1 through the events list, then play a little.
+    await page.locator('[data-testid="replay-events"] button.log-time').first().click();
+    expect(await page.locator('[data-testid="replay-dot"][data-source="seen"]').count()).toBeGreaterThanOrEqual(3);
+    await page.click('[data-testid="replay-play"]');
+    await page.waitForTimeout(3500);
+    await page.click('[data-testid="replay-play"]');
+    expect(await page.locator('[data-testid="replay-dot"][data-source="dead"]').count()).toBeGreaterThanOrEqual(1);
+    expect(await page.locator('[data-testid="replay-feed"] li').count()).toBeGreaterThanOrEqual(1);
+    await page.locator('[data-testid="replay-svg"]').scrollIntoViewIfNeeded();
+    await shot('10i details radar replay');
+    await page.selectOption('[data-testid="details-replay"] select[aria-label="Round"]', '5');
+    await page.waitForFunction(() => document.querySelector('[data-testid="replay-clock"]')?.textContent?.includes('freeze time'));
+    await page.fill('[data-testid="replay-slider"]', String(await page.$eval('[data-testid="replay-slider"]', (e) => (Number((e as HTMLInputElement).min) + 70))));
+    expect(await page.locator('[data-testid="replay-bomb"]').count()).toBeLessThanOrEqual(1);
+    await page.locator('[data-testid="replay-svg"]').scrollIntoViewIfNeeded();
+    await shot('10j details radar replay round 5');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');

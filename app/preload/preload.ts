@@ -24,6 +24,7 @@ const api: SpaceDemoApi = {
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
   getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
+  getReplay: (key: string, round: number) => ipcRenderer.invoke(IPC.demoReplay, key, round),
   getWatchInfo: (key: string) => ipcRenderer.invoke(IPC.watchInfo, key),
   watch: (key: string, options: { speed?: number; keepCopy?: boolean }) => ipcRenderer.invoke(IPC.watchStart, key, options),
   onWatchProgress: (listener: (p: WatchProgress) => void) => {

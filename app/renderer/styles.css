@@ -158,7 +158,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .btn:hover:not(:disabled) { background: var(--surface-3); }
 .btn.primary { border: 0; background: var(--accent); color: var(--on-accent); font-weight: 700; }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.06); }
+.btn.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.06); }
 .btn:disabled { cursor: not-allowed; opacity: 0.55; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -463,3 +463,44 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .dist-bars .bar { height: 10px; background: var(--surface-3); border-radius: 2px; overflow: hidden; }
 .dist-bars .bar span { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
 .dist-bars .n { text-align: right; }
+
+/* ---------- Radar replay (5.j) ---------- */
+.replay-time { display: flex; align-items: baseline; gap: 12px; }
+.replay-time .big { font-size: 22px; font-weight: 700; }
+.replay-scrub { display: flex; flex-direction: column; gap: 2px; }
+.replay-scrub input[type='range'] { width: 100%; accent-color: var(--accent); min-height: 28px; }
+.replay-marks { height: 18px; margin: 0 8px; }
+.replay-marks .freeze { position: absolute; top: 7px; left: 0; height: 4px; background: var(--surface-3); border-radius: 2px; }
+.replay-map { position: relative; }
+.dot .body { stroke: #0e1012; stroke-width: 2; fill: var(--muted); }
+.dot.t .body { fill: #e3a24a; }
+.dot.ct .body { fill: #5aa7f0; }
+.dot.rec .body { stroke: #ffffff; stroke-width: 2.5; }
+.dot .view { stroke: #ffffff; stroke-width: 3.5; stroke-linecap: round; opacity: 0.9; }
+.dot .ring { fill: none; stroke-width: 2; stroke: var(--muted); }
+.dot.t .ring { stroke: #e3a24a; }
+.dot.ct .ring { stroke: #5aa7f0; }
+.dot.last .body { fill: none; stroke-width: 2.5; stroke-dasharray: 4 3; stroke: var(--muted); }
+.dot.last.t .body { stroke: #e3a24a; }
+.dot.last.ct .body { stroke: #5aa7f0; }
+.dot .x { stroke-width: 3; stroke-linecap: round; stroke: var(--muted); opacity: 0.7; }
+.dot.t .x { stroke: #e3a24a; }
+.dot.ct .x { stroke: #5aa7f0; }
+.dot .label { fill: #ffffff; font-size: 17px; font-family: var(--font); paint-order: stroke; stroke: #0e1012; stroke-width: 3px; }
+.replay-bomb rect { fill: #ff9b8f; stroke: #0e1012; stroke-width: 2; }
+.replay-bomb.dropped rect { fill: #c9cdd2; }
+.replay-bomb .pulse { fill: none; stroke: #ff9b8f; stroke-width: 2; animation: bomb-pulse 1s ease-out infinite; }
+@keyframes bomb-pulse { from { opacity: 0.9; r: 8px; } to { opacity: 0; r: 26px; } }
+@media (prefers-reduced-motion: reduce) { .replay-bomb .pulse { animation: none; } }
+.killfeed { position: absolute; top: 8px; right: 8px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.killfeed li { background: rgba(14, 16, 18, 0.85); color: #e8eaed; padding: 3px 8px; border-radius: 4px; }
+.killfeed .side { font-size: 12px; }
+.lg-solid { fill: var(--text-2); stroke: var(--surface); stroke-width: 1.5; }
+.lg-view { stroke: var(--text-2); stroke-width: 2; }
+.lg-ring { fill: none; stroke: var(--text-2); stroke-width: 1.5; }
+.lg-last { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 3 2; }
+.replay-players, .replay-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.replay-players li { display: flex; justify-content: space-between; gap: 8px; }
+.replay-players li.dead { opacity: 0.55; }
+.replay-events li { display: flex; gap: 6px; align-items: baseline; }
+.replay-events li.past { opacity: 0.6; }

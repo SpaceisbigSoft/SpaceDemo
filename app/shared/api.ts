@@ -178,6 +178,36 @@ export interface DemoDetails {
   heatmap: HeatmapData;
 }
 
+/** 5.j: one round for the radar replay. Times are demo seconds; positions are picture pixels (as the heatmaps). */
+export interface ReplayData {
+  round: number;
+  /** From the round's start (freeze time) to the next round's start. */
+  start: number;
+  end: number;
+  freezeEnd?: number;
+  roundEnd?: number;
+  winner?: 'T' | 'CT' | 'draw';
+  reason?: string;
+  players: ReplayPlayer[];
+  kills: HeatKill[];
+  bomb: { time: number; kind: string; x?: number; y?: number }[];
+  recording: 'POV' | 'HLTV';
+}
+
+export interface ReplayPlayer {
+  name: string;
+  team?: 'T' | 'CT';
+  recorder: boolean;
+  /** Seen exactly: flat [time, x, y, view direction in picture degrees (0 = right, clockwise; -1 = unknown), alive 1/0] … */
+  seen: number[];
+  /** Teammate on the radar (POV): flat [time, x, y] … */
+  radar: number[];
+  /** A sound he made (footsteps, shots…): flat [time, x, y] … */
+  heard: number[];
+  /** Weapon in hand from this time on. */
+  weapons: [number, string][];
+}
+
 /** 5.k: what the Heatmaps tab draws, in picture pixels (width x height). */
 export interface HeatmapData {
   width: number;
@@ -406,6 +436,8 @@ export interface SpaceDemoApi {
 
   /** Details of a library demo (plan 4.4), by its library key. Reads the demo; changes nothing. */
   getDemoDetails(key: string): Promise<DemoDetails | { error: string }>;
+  /** 5.j: one round of a library demo for the radar replay. Reads the demo (kept from the details page); changes nothing. */
+  getReplay(key: string, round: number): Promise<ReplayData | { error: string }>;
 
   /** Watch (plan 4.5): what will happen, then fix if needed and start the game. Progress comes through onWatchProgress. */
   getWatchInfo(key: string): Promise<WatchInfo | { error: string }>;
@@ -448,6 +480,7 @@ export const IPC = {
   libraryChanged: 'library:changed',
   showInFolder: 'shell:show-in-folder',
   demoDetails: 'library:details',
+  demoReplay: 'library:replay',
   watchInfo: 'watch:info',
   watchStart: 'watch:start',
   watchProgress: 'watch:progress',

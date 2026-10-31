@@ -4,7 +4,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { matchMap, type MapFile } from '../../engine/src/map-index.js';
-import type { DemoDetails, LibraryDemo, LibraryState } from '../shared/api.js';
+import type { DemoDetails, LibraryDemo, LibraryState, ReplayData } from '../shared/api.js';
+import type { DetailsJob } from './details.js';
 import {
   cached, demoStatus, findCandidates, loadCache, mapStatus, mergeDuplicates, saveCache,
   type CacheEntry, type Candidate,
@@ -135,6 +136,17 @@ export class LibraryService {
 
   /** Details of one library demo (plan 4.4). Only demos listed in the library can be asked for. */
   async details(key: string): Promise<DemoDetails | { error: string }> {
+    const job = this.detailsJob(key);
+    return 'error' in job ? job : this.o.reader.details(job);
+  }
+
+  /** 5.j: one round for the radar replay. */
+  async replay(key: string, round: number): Promise<ReplayData | { error: string }> {
+    const job = this.detailsJob(key);
+    return 'error' in job ? job : this.o.reader.replay(job, round);
+  }
+
+  private detailsJob(key: string): DetailsJob | { error: string } {
     const row = this.rows.find((r) => r.demo.key === key);
     if (!row) return { error: "This demo isn't in the library any more." };
     const info = row.demo.info;
@@ -145,7 +157,7 @@ export class LibraryService {
     const mapFile = m && (m.status === 'ok' || m.status === 'renamed') ? m.file.path : undefined;
     const mapIsInstalled = !!mapFile && m!.status === 'ok' && gameMaps.some((d) => mapFile.toLowerCase().startsWith(d));
     const overviewTxt = gameDir ? join(gameDir, 'cstrike', 'overviews', `${info.map}.txt`) : undefined;
-    return this.o.reader.details({ key, file: row.candidate.file, zipEntry: row.candidate.zipEntry, mapFile, overviewTxt, mapIsInstalled });
+    return { key, file: row.candidate.file, zipEntry: row.candidate.zipEntry, mapFile, overviewTxt, mapIsInstalled };
   }
 
   close(): void {

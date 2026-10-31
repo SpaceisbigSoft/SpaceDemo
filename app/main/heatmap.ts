@@ -57,7 +57,7 @@ function near<T extends { time: number }>(pts: T[], t: number, maxGap: number): 
 }
 
 /** Where a player was at time t: seen (exact) first, then the radar, then a sound he made. */
-function positionAt(track: PlayerTrack | undefined, t: number): { pos: Vec3; source: 'seen' | 'radar' | 'heard' } | undefined {
+export function positionAt(track: PlayerTrack | undefined, t: number): { pos: Vec3; source: 'seen' | 'radar' | 'heard' } | undefined {
   if (!track) return undefined;
   const alive = (p: TrackPoint) => p.alive;
   const s = near(track.seen.filter(alive), t, 0.6);
@@ -80,7 +80,12 @@ export interface HeatmapInput {
 }
 
 /** 5.k: everything the Heatmaps tab draws. `m` must be extracted with tracks. */
-export function heatmapData({ m, mapName, checksum, bsp, overview }: HeatmapInput): HeatmapData {
+export function heatmapData(input: HeatmapInput): HeatmapData {
+  return heatmapAndProjection(input).data;
+}
+
+/** The heatmap data plus the world → picture projection it used (kept for the radar replay, 5.j). */
+export function heatmapAndProjection({ m, mapName, checksum, bsp, overview }: HeatmapInput): { data: HeatmapData; project: Projection } {
   const tracks = new Map((m.tracks ?? []).map((t) => [t.player, t]));
   const byId = new Map(m.players.map((p) => [p.id, p]));
   const sides = playersByName(m);
@@ -100,9 +105,11 @@ export function heatmapData({ m, mapName, checksum, bsp, overview }: HeatmapInpu
       ({ path: floorPath, project } = floor);
       note = "Today's overview picture doesn't match this map version, so the map is drawn from the map file itself.";
     } else {
-      const pts = [...(m.tracks ?? []).flatMap((t) => t.seen), ...m.deaths.map((d) => ({ x: d.position[0], y: d.position[1] }))];
-      const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-      project = xs.length ? fitProjection(Math.min(...xs) - 200, Math.min(...ys) - 200, Math.max(...xs) + 200, Math.max(...ys) + 200) : fitProjection(-2048, -2048, 2048, 2048);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      const add = (x: number, y: number) => { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); };
+      for (const t of m.tracks ?? []) for (const p of t.seen) add(p.x, p.y);
+      for (const d of m.deaths) add(d.position[0], d.position[1]);
+      project = Number.isFinite(minX) ? fitProjection(minX - 200, minY - 200, maxX + 200, maxY + 200) : fitProjection(-2048, -2048, 2048, 2048);
       note = "This demo's map version wasn't found, so there's no map underneath; the points are still in the right places relative to each other.";
     }
   }
@@ -175,10 +182,11 @@ export function heatmapData({ m, mapName, checksum, bsp, overview }: HeatmapInpu
     heat[name] = row;
   }
 
-  return {
+  const data: HeatmapData = {
     width: OVERVIEW_WIDTH, height: OVERVIEW_HEIGHT, cell: HEAT_CELL, step: HEAT_STEP,
     useMapPicture: !!overview, floorPath, note,
     sites: sites.map((s) => { const [x, y] = project((s.mins[0] + s.maxs[0]) / 2, (s.mins[1] + s.maxs[1]) / 2); return { letter: s.letter, x: Math.round(x), y: Math.round(y) }; }),
     kills, plants, heat, recording: m.recording,
   };
+  return { data, project };
 }

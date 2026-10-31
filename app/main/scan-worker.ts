@@ -3,13 +3,14 @@
 import { parentPort } from 'node:worker_threads';
 import { indexMaps } from '../../engine/src/map-index.js';
 import { readDemoNow } from './reader.js';
-import { readDetails, type DetailsJob } from './details.js';
+import { readDetails, readReplay, type DetailsJob } from './details.js';
 import { runFix, type FixJob } from './fixer.js';
 
 type Job =
   | { id: number; kind: 'maps'; folders: string[] }
   | { id: number; kind: 'demo'; file: string; zipEntry?: string }
   | ({ id: number; kind: 'details' } & DetailsJob)
+  | ({ id: number; kind: 'replay'; round: number } & DetailsJob)
   | ({ id: number; kind: 'fix' } & FixJob);
 
 parentPort!.on('message', (job: Job) => {
@@ -19,6 +20,8 @@ parentPort!.on('message', (job: Job) => {
     parentPort!.postMessage({ id: job.id, maps });
   } else if (job.kind === 'fix') {
     parentPort!.postMessage({ id: job.id, fix: runFix(job) });
+  } else if (job.kind === 'replay') {
+    parentPort!.postMessage({ id: job.id, replay: readReplay(job, job.round) });
   } else if (job.kind === 'details') {
     parentPort!.postMessage({ id: job.id, details: readDetails(job) });
   } else {
