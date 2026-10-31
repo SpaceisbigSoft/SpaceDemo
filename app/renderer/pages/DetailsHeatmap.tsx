@@ -2,16 +2,19 @@
 // spent, over the game's overview picture (or the floor drawn from the map file), with fight distances.
 // Team colours follow the rest of the app (T orange, CT blue); shape is the second cue (T = square, CT = circle).
 import { useEffect, useMemo, useState } from 'react';
-import type { CombinedData, DemoDetails, HeatKill } from '../../shared/api.js';
+import type { CombinedData, DemoDetails, HeatKill, HeatmapData } from '../../shared/api.js';
 import { CombineSwitch } from './DetailsCombined.js';
 import { formatLength } from '../format.js';
 
-type Layer = 'kills' | 'deaths' | 'time' | 'plants';
+type Layer = 'kills' | 'deaths' | 'time' | 'plants' | 'grenades';
+type GKind = 'he' | 'flash' | 'smoke';
+const GNAME: Record<GKind, string> = { he: 'HE', flash: 'Flash', smoke: 'Smoke' };
 const LAYERS: { id: Layer; label: string; title: string }[] = [
   { id: 'kills', label: 'Kills', title: 'A line from where the killer stood to where the victim died (killer position known for most kills)' },
   { id: 'deaths', label: 'Deaths', title: 'Where players died (their bodies)' },
   { id: 'time', label: 'Time spent', title: 'Where players spent their time alive (only where the demo knows their position)' },
   { id: 'plants', label: 'Bomb plants', title: 'Where the bomb was planted' },
+  { id: 'grenades', label: 'Grenades', title: 'Where each grenade was thrown from (small dot, thrower\'s side colour) and where it went off or landed' },
 ];
 const BUCKETS = [
   { max: 500, label: 'Under 500' },
@@ -40,6 +43,8 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
   const [player, setPlayer] = useState('');
   const [round, setRound] = useState('');
   const [picked, setPicked] = useState<HeatKill | undefined>();
+  const [gkinds, setGkinds] = useState<Set<GKind>>(new Set(['he', 'flash', 'smoke']));
+  const toggleKind = (k: GKind) => setGkinds((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const toggle = (l: Layer) => setLayers((s) => { const n = new Set(s); if (n.has(l)) n.delete(l); else n.add(l); return n; });
 
   const players = useMemo(() => {
@@ -54,6 +59,8 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
   const kills = h.kills.filter((k) => !k.suicide && k.killer !== 'the world' && roundOk(k.round) && teamOk(k.killerTeam) && (!player || k.killer === player));
   const deaths = h.kills.filter((k) => roundOk(k.round) && teamOk(k.victimTeam) && (!player || k.victim === player));
   const plants = h.plants.filter((p) => roundOk(p.round));
+  // 5.w grenades by the thrower (team, player); unknown throwers only when no team/player is chosen.
+  const grens = (h.grenades ?? []).filter((g) => gkinds.has(g.kind) && roundOk(g.round) && (g.thrower ? teamOk(g.team) && (!player || g.thrower === player) : team === 'both' && !player));
   const withDistance = kills.filter((k) => k.distance !== undefined && !k.teamKill);
 
   // Time spent: add up the chosen players' cells; draw them on a small canvas, smoothed when scaled up.
@@ -111,6 +118,15 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
           ))}
           <CombineSwitch c={combined} on={useCombined} onChange={(on) => onUseCombined?.(on)} />
         </div>
+        {layers.has('grenades') && (
+          <div className="chip-row" role="group" aria-label="Grenade kinds">
+            {(['he', 'flash', 'smoke'] as const).map((k) => (
+              <button key={k} type="button" className="filter-chip" aria-pressed={gkinds.has(k)} onClick={() => toggleKind(k)} data-testid={`gren-kind-${k}`}>
+                <span className={`gren-key ${k}`} aria-hidden="true">{GNAME[k][0]}</span> {GNAME[k]} <span className="count">{(h.grenades ?? []).filter((g) => g.kind === k && roundOk(g.round)).length}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="log-tools">
           <div className="chips" role="group" aria-label="Team">
             {(['both', 'T', 'CT'] as const).map((t) => (
@@ -155,6 +171,15 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
                 {k.kx !== undefined && <line x1={k.kx} y1={k.ky} x2={k.vx} y2={k.vy} className="hit" />}
               </g>
             ))}
+            {layers.has('grenades') && grens.map((g, i) => (
+              <g key={`g${i}`} className={`heat-gren ${g.kind}`} data-testid="heat-grenade">
+                <title>{`${GNAME[g.kind]}${g.thrower ? ` thrown by ${g.thrower}` : ' (thrower not known)'}${g.round !== undefined ? ` · round ${g.round}` : ''} · ${formatLength(g.time)} · ${g.kind === 'smoke' ? 'landed' : 'went off'} after ${g.flight} s`}</title>
+                <line x1={g.fx} y1={g.fy} x2={g.tx} y2={g.ty} className="path" />
+                <circle cx={g.fx} cy={g.fy} r={3.5} className={`from ${g.team === 'T' ? 't' : g.team === 'CT' ? 'ct' : ''}`} />
+                <circle cx={g.tx} cy={g.ty} r={g.kind === 'smoke' ? 14 : 8} className="burst" />
+                <text x={g.tx} y={g.ty + 4} textAnchor="middle" className="letter">{GNAME[g.kind][0]}</text>
+              </g>
+            ))}
             {layers.has('plants') && plants.map((p, i) => (
               <g key={`p${i}`} className="heat-plant" data-testid="heat-plant">
                 <title>{`Bomb planted${p.site ? ` on ${p.site}` : ''}${p.round !== undefined ? ` · round ${p.round}` : ''} · ${formatLength(p.time)}`}</title>
@@ -169,6 +194,7 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
           <span>square / circle = killer · ✕ = where the victim died</span>
           <span><svg width="14" height="14" aria-hidden="true"><path d="M7 1L13 12H1Z" className="plant-icon" /></svg> bomb plant</span>
           {layers.has('time') && <span><span className="heat-ramp" aria-hidden="true" /> time spent: little → a lot</span>}
+          {layers.has('grenades') && <span>grenade: dot = thrown from (thrower's side colour) · circle with H / F / S = where it went off (smoke: where it lay)</span>}
         </div>
         {picked && (
           <p className="picked" role="status" data-testid="heat-picked">{killTitle(picked)}. Jumping there in the game comes after a test in your game.</p>
@@ -214,6 +240,7 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
           )}
           <span className="note">Distance from the killer to where the victim's body lies, in game units (1 unit ≈ 1 inch).</span>
         </section>
+        {layers.has('grenades') && <GrenadeCard grens={grens} />}
         <section className="card" aria-labelledby="plants-h" data-testid="heat-plants">
           <h2 id="plants-h">Bomb plants</h2>
           {plants.length === 0 ? <p className="note">No bomb plants{round ? ' in this round' : ''}.</p> : (
@@ -222,5 +249,36 @@ export function HeatmapTab({ d, tagT, tagCT, combined, useCombined = true, onUse
         </section>
       </div>
     </div>
+  );
+}
+
+/** 5.w grenades thrown per player for the current choice. */
+function GrenadeCard({ grens }: { grens: HeatmapData['grenades'] }) {
+  const rows = new Map<string, { team?: 'T' | 'CT'; he: number; flash: number; smoke: number }>();
+  for (const g of grens) {
+    const k = g.thrower ?? '';
+    const r = rows.get(k) ?? { team: g.team, he: 0, flash: 0, smoke: 0 };
+    r[g.kind]++;
+    rows.set(k, r);
+  }
+  const list = [...rows].sort((a, b) => (a[0] === '' ? 1 : b[0] === '' ? -1 : 0) || (b[1].he + b[1].flash + b[1].smoke) - (a[1].he + a[1].flash + a[1].smoke));
+  return (
+    <section className="card" aria-labelledby="gren-h" data-testid="heat-grenades">
+      <h2 id="gren-h">Grenades · {grens.length}</h2>
+      {list.length === 0 ? <p className="note">No grenades for this choice.</p> : (
+        <table className="team-table radio-table">
+          <thead><tr><th scope="col">Thrown by</th><th scope="col" className="num">HE</th><th scope="col" className="num">Flash</th><th scope="col" className="num">Smoke</th></tr></thead>
+          <tbody>
+            {list.map(([name, r]) => (
+              <tr key={name || 'unknown'}>
+                <td>{name ? <span className={`side ${r.team ? r.team.toLowerCase() : ''}`}>{name}</span> : <span className="note">thrower not known</span>}</td>
+                <td className="num mono">{r.he}</td><td className="num mono">{r.flash}</td><td className="num mono">{r.smoke}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <span className="note">The thrower is the player standing where the grenade was first seen, preferring the one who had it in hand. A player's demo only sees grenades in the recorder's view area; an HLTV demo (or combined recordings) sees them all.</span>
+    </section>
   );
 }

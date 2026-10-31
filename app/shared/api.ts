@@ -351,6 +351,8 @@ export interface HeatmapData {
   note?: string;
   sites: { letter: string; x: number; y: number }[];
   kills: HeatKill[];
+  /** 5.w grenades: thrown from (fx, fy) → went off / landed (tx, ty); flight in seconds. */
+  grenades: { kind: 'he' | 'flash' | 'smoke'; time: number; round?: number; fx: number; fy: number; tx: number; ty: number; flight: number; thrower?: string; team?: 'T' | 'CT' }[];
   plants: { x: number; y: number; round?: number; time: number; site?: string }[];
   /** Time spent per player: [cell index, count, round] (round 0 = outside the rounds); cell index = row * (width / cell)
    *  + column; one count = `step` seconds. */

@@ -7,6 +7,7 @@ import { estimateLife, livesOf } from '../../engine/src/match/estimate.js';
 import type { WalkMap } from '../../engine/src/map/walk.js';
 import type { HeatKill, ReplayData, ReplayPlayer } from '../shared/api.js';
 import { playersByName } from './details-extra.js';
+import { grenadeThrows } from '../../engine/src/match/grenades.js';
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const side = (t: string | undefined): 'T' | 'CT' | undefined => (t === 'T' || t === 'CT' ? t : undefined);
@@ -92,7 +93,7 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
     for (let k = 0; k < row.est.length; k += 7) groups.push(row.est.slice(k, k + 7));
     row.est = groups.sort((a, b) => a[0] - b[0]).flat();
   }
-  // Grenades, with the player standing where each was first seen (within 120 units, 0.5 s).
+  // The player standing near a point at a moment (for the bomb carrier).
   const seenNear = (t: number, x: number, y: number, maxDist: number, team?: 'T' | 'CT') => {
     let best: { name: string; team?: 'T' | 'CT'; d: number } | undefined;
     for (const row of players) {
@@ -107,10 +108,13 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
     return best;
   };
   const unitPx = Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]);
-  const grenades = (m.grenades ?? []).filter((g) => inRound(g.points[0].time)).map((g) => {
+  // Grenades, with the thrower found the same way as on the Heatmaps tab (5.w).
+  const throwers = new Map(grenadeThrows(m).map((g) => [g.index, g.thrower]));
+  const grenades = (m.grenades ?? []).map((g, index) => ({ g, index })).filter(({ g }) => inRound(g.points[0].time)).map(({ g, index }) => {
     const points = g.points.flatMap((q) => { const [x, y] = px(q.x, q.y); return [r1(q.time), x, y]; });
-    const who = seenNear(points[0], points[1], points[2], 120 * unitPx);
-    return { kind: g.kind, points, ...(who ? { thrower: who.name, team: who.team } : {}) };
+    const id = throwers.get(index);
+    const name = id === undefined ? undefined : m.players.find((p) => p.id === id)?.name;
+    return { kind: g.kind, points, ...(name ? { thrower: name, team: sides.get(name)?.team ?? side(m.players.find((p) => p.id === id)?.team) } : {}) };
   });
   // Bomb carrier: who held the C4 in hand, who was standing at a drop when it was picked up, who planted it.
   const carrier: [number, number, string][] = [];

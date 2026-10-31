@@ -6,6 +6,7 @@ import { applySiteLetters, floorRangeFromPositions, readFloorPolygons, readMapFa
 import { OVERVIEW_HEIGHT, OVERVIEW_WIDTH, type Projection } from '../../engine/src/map/overview.js';
 import type { MatchData, PlayerTrack, TrackPoint, Vec3 } from '../../engine/src/match/types.js';
 import type { HeatKill, HeatmapData } from '../shared/api.js';
+import { grenadeThrows } from '../../engine/src/match/grenades.js';
 import { playersByName } from './details-extra.js';
 
 /** Size of one heat cell in picture pixels. */
@@ -156,6 +157,13 @@ export function heatmapAndProjection({ m, mapName, checksum, bsp, overview }: He
     return { x, y, round: b.round, time: b.time, site: s ? sites.find((x) => x.index === s)?.letter : undefined };
   });
 
+  // 5.w grenades: where thrown from and where they went off, with the thrower when known.
+  const grenades: HeatmapData['grenades'] = grenadeThrows(m).map((g) => {
+    const [fx, fy] = px(g.from), [tx, ty] = px(g.to);
+    const thrower = nameOf(g.thrower);
+    return { kind: g.kind, time: Math.round(g.time * 10) / 10, round: g.round, fx, fy, tx, ty, flight: g.flight, ...(thrower ? { thrower, team: sides.get(thrower)?.team ?? side(byId.get(g.thrower!)?.team) } : {}) };
+  });
+
   // Time spent: one count per HEAT_STEP seconds alive at a known position (seen, or the radar), per player.
   const heat: HeatmapData['heat'] = {};
   const roundAt = (t: number) => m.rounds.find((r) => t >= r.start && t <= (r.end ?? r.start))?.number ?? 0;
@@ -186,7 +194,7 @@ export function heatmapAndProjection({ m, mapName, checksum, bsp, overview }: He
     width: OVERVIEW_WIDTH, height: OVERVIEW_HEIGHT, cell: HEAT_CELL, step: HEAT_STEP,
     useMapPicture: !!overview, floorPath, note,
     sites: sites.map((s) => { const [x, y] = project((s.mins[0] + s.maxs[0]) / 2, (s.mins[1] + s.maxs[1]) / 2); return { letter: s.letter, x: Math.round(x), y: Math.round(y) }; }),
-    kills, plants, heat, recording: m.recording,
+    kills, plants, grenades, heat, recording: m.recording,
   };
   return { data, project };
 }

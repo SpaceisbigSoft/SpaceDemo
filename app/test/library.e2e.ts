@@ -207,6 +207,16 @@ describe.skipIf(!zips)('library screen', () => {
     expect(await page.locator('[data-testid="heat-plant"]').count()).toBe(10);
     if (process.env.SPACEDEMO_GAME_DIR) expect(await page.textContent('[data-testid="heat-plants"]')).toContain('Site A: 4 · Site B: 6');
     expect(await page.textContent('[data-testid="heat-distances"]')).toContain('median');
+    // 5.w grenades: where thrown from → where they went off, with throwers; kinds can be switched off.
+    await page.click('button.filter-chip:has-text("Grenades")');
+    const grenCount = await page.locator('[data-testid="heat-grenade"]').count();
+    expect(grenCount).toBe(62);
+    expect(await page.textContent('[data-testid="heat-grenades"]')).toContain(':i69:Virus23');
+    await shot('10r details heatmaps grenades (5.w)');
+    await page.click('[data-testid="gren-kind-he"]');
+    expect(await page.locator('[data-testid="heat-grenade"]').count()).toBe(62 - 22);
+    await page.click('[data-testid="gren-kind-he"]');
+    await page.click('button.filter-chip:has-text("Grenades")');
     await page.click('button.filter-chip:has-text("Time spent")');
     await page.waitForSelector('[data-testid="heat-time"]');
     await shot('10g details heatmaps');
