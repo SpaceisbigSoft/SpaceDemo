@@ -11,8 +11,15 @@ const SPEEDS = [0.5, 1, 2, 4];
 const LAST_SEEN_FOR = 15;
 const sideClass = (t?: 'T' | 'CT') => (t === 'T' ? 't' : t === 'CT' ? 'ct' : '');
 
-type Source = 'seen' | 'radar' | 'heard' | 'last' | 'dead' | 'unknown';
-interface PlayerNow { p: ReplayPlayer; source: Source; x?: number; y?: number; dir?: number; age?: number; weapon?: string; kill?: HeatKill }
+type Source = 'seen' | 'radar' | 'heard' | 'estimated' | 'last' | 'dead' | 'unknown';
+interface PlayerNow {
+  p: ReplayPlayer; source: Source; x?: number; y?: number; dir?: number; age?: number; weapon?: string; kill?: HeatKill;
+  /** Estimated (2.16): uncertainty radius (pixels), confidence %, after his last known position, couldn't be walked. */
+  radius?: number; confidence?: number; held?: boolean; impossible?: boolean;
+  /** Estimated: the route of this stretch (pixels), drawn dashed. */
+  route?: [number, number][];
+}
+const EST = 7;
 
 /** Index of the last entry (stride `w`) whose time is ≤ t, or -1. */
 function lastAt(flat: number[], w: number, t: number): number {
@@ -24,7 +31,7 @@ function lastAt(flat: number[], w: number, t: number): number {
   return best;
 }
 
-export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[]): PlayerNow {
+export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[], estimates = false): PlayerNow {
   const weapon = [...p.weapons].reverse().find(([wt]) => wt <= t)?.[1];
   const kill = kills.find((k) => k.victim === p.name && k.time <= t);
   if (kill) return { p, source: 'dead', x: kill.vx, y: kill.vy, kill, weapon };
@@ -45,6 +52,27 @@ export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[]): PlayerN
   if (r >= 0 && t - p.radar[r * 3] <= 1.2) return { p, source: 'radar', x: p.radar[r * 3 + 1], y: p.radar[r * 3 + 2], weapon };
   const h = lastAt(p.heard, 3, t);
   if (h >= 0 && t - p.heard[h * 3] <= 0.6) return { p, source: 'heard', x: p.heard[h * 3 + 1], y: p.heard[h * 3 + 2], weapon };
+  // Estimated position (2.16): between known positions, or held after the last one.
+  if (estimates && p.est) {
+    const e = p.est;
+    const k = lastAt(e, EST, t + 0.13);
+    if (k >= 0 && Math.abs(e[k * EST] - t) <= 0.26) {
+      let x = e[k * EST + 1], y = e[k * EST + 2];
+      const n = k + 1;
+      if (n * EST < e.length && e[n * EST] - e[k * EST] <= 0.3 && t > e[k * EST]) {
+        const f = (t - e[k * EST]) / (e[n * EST] - e[k * EST]);
+        x += (e[n * EST + 1] - x) * f;
+        y += (e[n * EST + 2] - y) * f;
+      }
+      // The stretch this point belongs to: consecutive points 0.25 s apart.
+      let a = k, b = k;
+      while (a > 0 && e[a * EST] - e[(a - 1) * EST] <= 0.3) a--;
+      while ((b + 1) * EST < e.length && e[(b + 1) * EST] - e[b * EST] <= 0.3) b++;
+      const route: [number, number][] = [];
+      for (let i = a; i <= b; i += 2) route.push([e[i * EST + 1], e[i * EST + 2]]);
+      return { p, source: 'estimated', x, y, weapon, radius: e[k * EST + 3], confidence: e[k * EST + 4], held: e[k * EST + 5] === 1, impossible: e[k * EST + 6] === 1, route };
+    }
+  }
   // Last known position from any source, fading.
   const cands: [number, number, number][] = [];
   if (i >= 0 && p.seen[i * 5 + 4] === 1) cands.push([p.seen[i * 5], p.seen[i * 5 + 1], p.seen[i * 5 + 2]]);
@@ -55,7 +83,7 @@ export function playerAt(p: ReplayPlayer, t: number, kills: HeatKill[]): PlayerN
   return { p, source: 'unknown', weapon };
 }
 
-const STATUS: Record<Source, string> = { seen: 'seen', radar: 'on the radar', heard: 'heard', last: 'last seen', dead: 'dead', unknown: 'not known' };
+const STATUS: Record<Source, string> = { seen: 'seen', radar: 'on the radar', heard: 'heard', estimated: 'estimated', last: 'last seen', dead: 'dead', unknown: 'not known' };
 
 export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; tagCT: string }) {
   const rounds = d.roundDetails.map((r) => r.number);
@@ -65,6 +93,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [names, setNames] = useState(true);
+  const [showEst, setShowEst] = useState(true);
   const h = d.heatmap;
 
   useEffect(() => {
@@ -107,7 +136,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
     if (e.key === 'ArrowRight' && (e.target as HTMLElement).tagName !== 'INPUT') { e.preventDefault(); jump(t + 5); }
   };
 
-  const now = useMemo(() => (r ? r.players.map((p) => playerAt(p, t, r.kills)) : []), [r, t]);
+  const now = useMemo(() => (r ? r.players.map((p) => playerAt(p, t, r.kills, showEst && r.estimates)) : []), [r, t, showEst]);
   const bomb = useMemo(() => {
     if (!r) return undefined;
     const ev = r.bomb.filter((b) => b.time <= t);
@@ -128,6 +157,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
     ...r.bomb.filter((b) => b.kind === 'planted' || b.kind === 'defused' || b.kind === 'exploded').map((b) => ({ time: b.time, text: `Bomb ${b.kind}`, sub: '', team: undefined as 'T' | 'CT' | undefined })),
   ].sort((a, b) => a.time - b.time) : [];
   const roundIdx = rounds.indexOf(round);
+  const unitPx = r?.unitPx ?? 1;
 
   return (
     <div className="heat-layout" onKeyDown={onKey}>
@@ -146,6 +176,8 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
             {SPEEDS.map((s) => <button key={s} type="button" className="filter-chip" aria-pressed={speed === s} onClick={() => setSpeed(s)}>{s}×</button>)}
           </div>
           <button type="button" className="filter-chip" aria-pressed={names} onClick={() => setNames(!names)}>Names</button>
+          <button type="button" className="filter-chip" aria-pressed={showEst} onClick={() => setShowEst(!showEst)} disabled={!!r && !r.estimates} data-testid="replay-est"
+            title="Where a player the demo can't see probably is, worked out from where he was seen before and after">Estimated positions</button>
         </div>
         {!data && <p className="note" role="status">Loading round {round}…</p>}
         {data && 'error' in data && <p className="problem" role="alert">{data.error}</p>}
@@ -166,10 +198,16 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
                     {bomb.kind === 'planted' && <circle cx={bomb.x} cy={bomb.y} r={16} className="pulse" />}
                   </g>
                 )}
+                {now.filter((n) => n.source === 'estimated').map((n) => (
+                  <g key={`e${n.p.name}`} className={`est-area ${sideClass(n.p.team)}`} aria-hidden="true">
+                    {n.route && n.route.length > 1 && <polyline points={n.route.map(([x, y]) => `${x},${y}`).join(' ')} className="route" />}
+                    <circle cx={n.x} cy={n.y} r={Math.max(12, n.radius ?? 0)} className="uncertainty" style={{ opacity: 0.35 + 0.4 * ((n.confidence ?? 50) / 100) }} />
+                  </g>
+                ))}
                 {now.filter((n) => n.x !== undefined).map((n) => (
                   <g key={n.p.name} className={`dot ${n.source} ${sideClass(n.p.team)}${n.p.recorder ? ' rec' : ''}`} data-testid="replay-dot" data-source={n.source}
-                    style={n.source === 'last' ? { opacity: Math.max(0.15, 1 - (n.age ?? 0) / LAST_SEEN_FOR) } : undefined}>
-                    <title>{`${n.p.name} · ${STATUS[n.source]}${n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}${n.weapon ? ` · ${n.weapon}` : ''}`}</title>
+                    style={n.source === 'last' ? { opacity: Math.max(0.15, 1 - (n.age ?? 0) / LAST_SEEN_FOR) } : n.source === 'estimated' ? { opacity: 0.45 + 0.45 * ((n.confidence ?? 50) / 100) } : undefined}>
+                    <title>{`${n.p.name} · ${STATUS[n.source]}${n.source === 'estimated' ? ` (confidence ${n.confidence} %, probably within ${Math.round(((n.radius ?? 0) / unitPx) * 0.0254)} m${n.held ? ', after he was last seen' : ''}${n.impossible ? ', the known positions are too far apart to walk' : ''})` : ''}${n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}${n.weapon ? ` · ${n.weapon}` : ''}`}</title>
                     {n.source === 'dead' ? (
                       <path d={`M${n.x! - 9} ${n.y! - 9}L${n.x! + 9} ${n.y! + 9}M${n.x! + 9} ${n.y! - 9}L${n.x! - 9} ${n.y! + 9}`} className="x" />
                     ) : (
@@ -179,7 +217,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
                         <circle cx={n.x} cy={n.y} r={n.source === 'radar' ? 8 : 11} className="body" />
                       </>
                     )}
-                    {names && n.source !== 'dead' && <text x={n.x} y={n.y! - 17} textAnchor="middle" className="label">{n.p.name}{n.source === 'last' ? ` (${Math.round(n.age ?? 0)} s)` : ''}</text>}
+                    {names && n.source !== 'dead' && <text x={n.x} y={n.y! - 17} textAnchor="middle" className="label">{n.source === 'estimated' ? '~ ' : ''}{n.p.name}{n.source === 'last' ? ` (${Math.round(n.age ?? 0)} s)` : n.source === 'estimated' ? ` ${n.confidence} %` : ''}</text>}
                   </g>
                 ))}
               </svg>
@@ -207,12 +245,15 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
               <span><svg width="22" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" className="lg-solid" /><line x1="8" y1="8" x2="20" y2="8" className="lg-view" /></svg> seen (exact, with view direction)</span>
               <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="4.5" className="lg-solid" /></svg> on the radar (teammate)</span>
               <span><svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="9" className="lg-ring" /><circle cx="10" cy="10" r="5" className="lg-solid" /></svg> heard (a sound he made)</span>
-              <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" className="lg-last" /></svg> last seen (fades)</span>
+              {showEst && r.estimates ? (
+                <span><svg width="22" height="22" aria-hidden="true"><circle cx="11" cy="11" r="10" className="lg-unc" /><circle cx="11" cy="11" r="5" className="lg-est" /></svg> estimated (faded, with the area he's probably in and his likely route; % = confidence)</span>
+              ) : <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" className="lg-last" /></svg> last seen (fades)</span>}
               <span>✕ dead · <span className="side t">orange</span> {tagT} · <span className="side ct">blue</span> {tagCT}</span>
             </div>
             <span className="note">
               {r.recording === 'POV' ? "A player's demo shows what the recorder knew: teammates on the radar, enemies only when he saw or heard them." : 'An HLTV demo sees every player.'}
-              {' '}Estimated positions (where an unseen player probably is) come next. Space = play/pause, ← → = 5 s.
+              {r.estimates ? ' Estimates follow the walkable routes of the map at the speed of the weapon in hand; tested on Set 1 they were within about 3 m half the time, and the shaded area holds the real position about 4 times in 5.' : " Estimated positions need this demo's map file."}
+              {' '}Space = play/pause, ← → = 5 s.
             </span>
           </>
         )}
@@ -225,7 +266,7 @@ export function ReplayTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string; ta
             {now.map((n) => (
               <li key={n.p.name} className={n.source === 'dead' ? 'dead' : ''}>
                 <span className={`side ${sideClass(n.p.team)}`}>{n.p.name}</span>
-                <span className="note">{STATUS[n.source]}{n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}{n.weapon && n.source !== 'dead' ? ` · ${n.weapon}` : ''}</span>
+                <span className="note">{STATUS[n.source]}{n.source === 'estimated' ? ` ${n.confidence} %` : ''}{n.age !== undefined ? ` ${Math.round(n.age)} s ago` : ''}{n.weapon && n.source !== 'dead' ? ` · ${n.weapon}` : ''}</span>
               </li>
             ))}
           </ul>

@@ -2,7 +2,9 @@
 // by source (seen = exact, radar = teammate on the radar, heard = a sound he made), weapon changes, kills and the bomb.
 // Positions are in picture pixels (same projection as the heatmaps). Estimated positions (2.16) come in the next step.
 import type { Projection } from '../../engine/src/map/overview.js';
-import type { MatchData } from '../../engine/src/match/types.js';
+import type { MatchData, Vec3 } from '../../engine/src/match/types.js';
+import { estimateLife, livesOf } from '../../engine/src/match/estimate.js';
+import type { WalkMap } from '../../engine/src/map/walk.js';
 import type { HeatKill, ReplayData, ReplayPlayer } from '../shared/api.js';
 import { playersByName } from './details-extra.js';
 
@@ -13,7 +15,10 @@ const side = (t: string | undefined): 'T' | 'CT' | undefined => (t === 'T' || t 
  * One round, from its start (freeze time) to the next round's start (or 5 s after its end). `kills` are the heatmap's
  * kills (killer and victim positions already in pixels).
  */
-export function replayData(m: MatchData, project: Projection, kills: HeatKill[], roundNo: number): ReplayData | { error: string } {
+/** What estimating needs: the walk map (2.15) and the teams' spawn points. Without a map file there are no estimates. */
+export interface EstimateInput { walk?: WalkMap; spawns: { T: Vec3[]; CT: Vec3[] } }
+
+export function replayData(m: MatchData, project: Projection, kills: HeatKill[], roundNo: number, est?: EstimateInput): ReplayData | { error: string } {
   const i = m.rounds.findIndex((r) => r.number === roundNo);
   if (i < 0) return { error: `There's no round ${roundNo} in this demo.` };
   const r = m.rounds[i];
@@ -59,6 +64,34 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
       if (team && name !== 'the world' && !players.some((p) => p.name === name)) players.push({ name, team, recorder: false, seen: [], radar: [], heard: [], weapons: [] });
     }
   }
+  // Estimated positions (2.16) for the moments without a known one: only 'estimated' (between two known positions)
+  // and 'held' (after the last one) points are sent; known points are already in seen/radar/heard.
+  let estimates = false;
+  if (est && (est.spawns.T.length || est.spawns.CT.length)) {
+    estimates = true;
+    const unit = Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]);
+    for (const p of m.players) {
+      const row = byName.get(p.name) ?? players.find((x) => x.name === p.name);
+      if (!row || p.isHltv || (p.team !== 'T' && p.team !== 'CT')) continue;
+      const track = m.tracks?.find((t) => t.player === p.id);
+      const team = row.team ?? side(p.team);
+      if (!team) continue;
+      const lives = livesOf(p.id, { rounds: [r], kills: m.kills.filter((k) => k.round === roundNo).map((k) => ({ time: k.time, victim: k.victim })), deaths: m.deaths, track, spawns: est.spawns[team], leftAt: p.leftAt });
+      for (const life of lives) {
+        for (const e of estimateLife(est.walk, life, { step: 0.25 })) {
+          if (e.source !== 'estimated' && e.source !== 'held') continue;
+          const [x, y] = px(e.x, e.y);
+          (row.est ??= []).push(r1(e.time), x, y, r1(e.radius * unit), Math.round(e.confidence * 100), e.source === 'held' ? 1 : 0, e.impossible ? 1 : 0);
+        }
+      }
+    }
+  }
+  for (const row of players) {
+    if (!row.est) continue;
+    const groups: number[][] = [];
+    for (let k = 0; k < row.est.length; k += 7) groups.push(row.est.slice(k, k + 7));
+    row.est = groups.sort((a, b) => a[0] - b[0]).flat();
+  }
   const bomb = m.bomb.filter((b) => inRound(b.time)).map((b) => {
     const e: ReplayData['bomb'][number] = { time: r1(b.time), kind: b.kind };
     if (b.position) [e.x, e.y] = px(b.position[0], b.position[1]);
@@ -66,6 +99,6 @@ export function replayData(m: MatchData, project: Projection, kills: HeatKill[],
   });
   return {
     round: roundNo, start: r1(start), end: r1(end), freezeEnd: r.freezeEnd, roundEnd: r.end, winner: r.winner, reason: r.reason,
-    players, kills: kills.filter((k) => k.round === roundNo), bomb, recording: m.recording,
+    players, kills: kills.filter((k) => k.round === roundNo), bomb, recording: m.recording, estimates, unitPx: r1(Math.hypot(project(1, 0)[0] - project(0, 0)[0], project(1, 0)[1] - project(0, 0)[1]) * 1000) / 1000,
   };
 }

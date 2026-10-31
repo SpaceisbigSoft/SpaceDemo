@@ -192,6 +192,10 @@ export interface ReplayData {
   kills: HeatKill[];
   bomb: { time: number; kind: string; x?: number; y?: number }[];
   recording: 'POV' | 'HLTV';
+  /** True when estimated positions were worked out (needs the map file). */
+  estimates: boolean;
+  /** Picture pixels per game unit. */
+  unitPx: number;
 }
 
 export interface ReplayPlayer {
@@ -206,6 +210,9 @@ export interface ReplayPlayer {
   heard: number[];
   /** Weapon in hand from this time on. */
   weapons: [number, string][];
+  /** Estimated positions (2.16) every 0.25 s where none is known: flat [time, x, y, uncertainty radius (pixels),
+   *  confidence %, held (1 = after his last known position), impossible (1 = couldn't be walked in the time)] … */
+  est?: number[];
 }
 
 /** 5.k: what the Heatmaps tab draws, in picture pixels (width x height). */

@@ -11,7 +11,8 @@ import type { MatchData, Team } from '../../engine/src/match/types.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
 import { heatmapAndProjection } from './heatmap.js';
-import { replayData } from './replay.js';
+import { replayData, type EstimateInput } from './replay.js';
+import { buildWalkMap, observationsFrom } from '../../engine/src/map/walk.js';
 import type { Projection } from '../../engine/src/map/overview.js';
 import type { HeatKill, ReplayData } from '../shared/api.js';
 import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
@@ -152,7 +153,7 @@ function heatmap(job: DetailsJob, m: MatchData, mapName: string, checksum: numbe
 }
 
 /** The last demo read for the details page, kept for the radar replay (5.j) so a round opens without reading again. */
-let lastRead: { key: string; m: MatchData; project: Projection; kills: HeatKill[] } | undefined;
+let lastRead: { key: string; m: MatchData; project: Projection; kills: HeatKill[]; mapFile?: string; est?: EstimateInput } | undefined;
 
 /** 5.j: one round for the radar replay (reads the demo first if it isn't the last one read). */
 export function readReplay(job: DetailsJob, round: number): ReplayData | { error: string } {
@@ -161,7 +162,16 @@ export function readReplay(job: DetailsJob, round: number): ReplayData | { error
     if ('error' in d) return d;
   }
   try {
-    return replayData(lastRead!.m, lastRead!.project, lastRead!.kills, round);
+    const lr = lastRead!;
+    // The walk map is built once per demo, the first time a round is opened (about 1–2 s).
+    if (!lr.est && lr.mapFile) {
+      try {
+        const bsp = new Uint8Array(readFileSync(lr.mapFile));
+        const facts = readMapFacts(bsp);
+        lr.est = { walk: buildWalkMap(bsp, { observations: observationsFrom(lr.m.tracks ?? []) }), spawns: { T: facts.spawnsT, CT: facts.spawnsCT } };
+      } catch { lr.est = { spawns: { T: [], CT: [] } }; }
+    }
+    return replayData(lr.m, lr.project, lr.kills, round, lr.est);
   } catch (err) {
     return { error: (err as Error).message };
   }
@@ -188,7 +198,7 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
     const ps = periods(m, report.seconds);
     const map = detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum);
     const heat = heatmap(job, m, report.maps[0] ?? report.mapName, report.mapChecksum, !!map.image);
-    lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills };
+    lastRead = { key: job.key, m, project: heat.project, kills: heat.data.kills, mapFile: job.mapFile };
     return {
       ...buildDetails(m, talk, job, map),
       overview: overviewInfo(report, m),

@@ -58,6 +58,41 @@ describe('5.j radar replay', () => {
   });
 });
 
+describe('5.j estimated positions', () => {
+  const { data: heat } = heatmapAndProjection({ m, mapName: 'de_test', checksum: 0, overview: { project } });
+  // No walk map: straight lines between known positions. Spawns: T at (0,0), CT at (800,0).
+  const r = replayData(m, project, heat.kills, 1, { spawns: { T: [[0, 0, 0]], CT: [[800, 0, 0]] } });
+  if ('error' in r) throw new Error(r.error);
+
+  it('fills the gaps between known positions, with a radius and a confidence', () => {
+    expect(r.estimates).toBe(true);
+    expect(r.unitPx).toBe(0.125);
+    const bravo = r.players.find((p) => p.name === 'Bravo')!;
+    const now = playerAt(bravo, 35, r.kills, true);
+    expect(now.source).toBe('estimated');
+    // Between seen at (400,0) at 30 s and heard at (500,0) at 40 s: somewhere on the way, in pixels 562..574.5.
+    expect(now.x!).toBeGreaterThan(562);
+    expect(now.x!).toBeLessThan(574.5);
+    expect(now.confidence!).toBeGreaterThan(40);
+    expect(now.radius!).toBeGreaterThan(2);
+    expect(now.route!.length).toBeGreaterThan(2);
+    // After his last known position (heard at 40 s), held there with a growing radius.
+    const later = playerAt(bravo, 60, r.kills, true);
+    expect(later).toMatchObject({ source: 'estimated', held: true });
+    expect(later.radius!).toBeGreaterThan(now.radius!);
+    // Without estimates the same moment is "last seen" / "not known".
+    expect(playerAt(bravo, 35, r.kills, false).source).toBe('last');
+  });
+
+  it('never estimates over a known position or after death', () => {
+    const alpha = r.players.find((p) => p.name === 'Alpha')!;
+    expect(playerAt(alpha, 10.25, r.kills, true).source).toBe('seen');
+    expect(playerAt(alpha, 61, r.kills, true).source).toBe('dead');
+    const est = alpha.est ?? [];
+    for (let i = 0; i < est.length; i += 7) expect(est[i]).toBeLessThanOrEqual(60);
+  });
+});
+
 const zips = process.env.CDF_ZIPS, maps = process.env.CDF_MAPS;
 describe.skipIf(!zips || !maps)('5.j on Set 1', () => {
   it('modTside round 1: all 10 players, the recorder seen throughout, the plant on B', () => {
@@ -77,5 +112,8 @@ describe.skipIf(!zips || !maps)('5.j on Set 1', () => {
     expect(Math.max(...times.slice(1).map((x, i) => x - times[i]))).toBeLessThan(1);
     expect(r.bomb.find((b) => b.kind === 'planted')).toBeDefined();
     expect(r.kills).toHaveLength(6);
+    // Estimated positions with the map: every enemy (not seen all the time) gets some.
+    expect(r.estimates).toBe(true);
+    expect(r.players.filter((p) => p.team === 'CT' && (p.est?.length ?? 0) > 0)).toHaveLength(5);
   }, 120_000);
 });

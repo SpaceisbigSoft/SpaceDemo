@@ -216,6 +216,14 @@ describe.skipIf(!zips)('library screen', () => {
     await page.waitForFunction(() => document.querySelector('[data-testid="replay-clock"]')?.textContent?.includes('freeze time'));
     await page.fill('[data-testid="replay-slider"]', String(await page.$eval('[data-testid="replay-slider"]', (e) => (Number((e as HTMLInputElement).min) + 70))));
     expect(await page.locator('[data-testid="replay-bomb"]').count()).toBeLessThanOrEqual(1);
+    if (process.env.SPACEDEMO_GAME_DIR) {
+      // Estimated positions (2.16): the enemies the recorder can't see are drawn as estimates; switch off → none.
+      expect(await page.locator('[data-testid="replay-dot"][data-source="estimated"]').count()).toBeGreaterThanOrEqual(1);
+      expect(await page.locator('.est-area .uncertainty').count()).toBeGreaterThanOrEqual(1);
+      await page.click('[data-testid="replay-est"]');
+      expect(await page.locator('[data-testid="replay-dot"][data-source="estimated"]').count()).toBe(0);
+      await page.click('[data-testid="replay-est"]');
+    }
     await page.locator('[data-testid="replay-svg"]').scrollIntoViewIfNeeded();
     await shot('10j details radar replay round 5');
     await page.click('[role="tab"]:has-text("Overview")');

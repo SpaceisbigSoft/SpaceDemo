@@ -504,3 +504,15 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .replay-players li.dead { opacity: 0.55; }
 .replay-events li { display: flex; gap: 6px; align-items: baseline; }
 .replay-events li.past { opacity: 0.6; }
+.est-area .uncertainty { fill: rgba(201, 205, 210, 0.10); stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.est-area.t .uncertainty { fill: rgba(227, 162, 74, 0.10); stroke: #e3a24a; }
+.est-area.ct .uncertainty { fill: rgba(90, 167, 240, 0.10); stroke: #5aa7f0; }
+.est-area .route { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 2 5; stroke-linecap: round; opacity: 0.7; }
+.est-area.t .route { stroke: #e3a24a; }
+.est-area.ct .route { stroke: #5aa7f0; }
+.dot.estimated .body { fill: rgba(14, 16, 18, 0.55); stroke-width: 3; stroke-dasharray: 3 3; stroke: var(--muted); }
+.dot.estimated.t .body { stroke: #e3a24a; }
+.dot.estimated.ct .body { stroke: #5aa7f0; }
+.dot.estimated .label { font-style: italic; }
+.lg-unc { fill: rgba(201, 205, 210, 0.12); stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 3 2; }
+.lg-est { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 2 2; }
