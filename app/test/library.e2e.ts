@@ -152,6 +152,35 @@ describe.skipIf(!zips)('library screen', () => {
     expect(await page.locator('[data-testid="stat-row"]').count()).toBe(10);
     expect(await page.locator('[data-testid="stat-row"]').first().textContent()).toContain(':i69:Endbringer');
     await shot('10c details scoreboard');
+    // 5.l chat and radio log.
+    await page.click('[role="tab"]:has-text("Chat & radio")');
+    await page.waitForSelector('[data-testid="details-log"]');
+    expect(await page.textContent('[data-testid="log-count"]')).toBe('45 of 143 shown');
+    expect(await page.locator('[data-testid="details-log"] h3').first().textContent()).toContain('Warm-up');
+    await page.click('button.filter-chip:has-text("Automatic radio")');
+    expect(await page.textContent('[data-testid="log-count"]')).toBe('143 of 143 shown');
+    await page.fill('input[aria-label="Search messages"]', 'gl hf');
+    expect(await page.locator('[data-testid="log-row"]').count()).toBeGreaterThanOrEqual(2);
+    await page.fill('input[aria-label="Search messages"]', '');
+    await page.click('button.filter-chip:has-text("Automatic radio")');
+    await page.selectOption('select[aria-label="Player"]', ':i69:Guido');
+    await page.click('[data-testid="log-row"] .log-time >> nth=0');
+    expect(await page.textContent('[data-testid="log-picked"]')).toContain('in the demo');
+    await page.selectOption('select[aria-label="Player"]', '');
+    expect(await page.locator('[data-testid="radio-row"]').first().textContent()).toContain(':i69:Guido');
+    await shot('10d details chat and radio');
+    // 5.m voice timeline.
+    await page.click('[role="tab"]:has-text("Voice")');
+    await page.waitForSelector('[data-testid="details-voice"]');
+    expect(await page.locator('[data-testid="voice-row"]').count()).toBe(4);
+    expect(await page.locator('[data-testid="voice-row"]').first().textContent()).toContain(':i69:Virus23');
+    expect(await page.locator('.vt-burst').count()).toBe(332);
+    await shot('10e details voice whole demo');
+    await page.click('[data-testid="details-voice"] button.filter-chip:text-is("R3")');
+    expect(await page.textContent('[data-testid="details-voice"]')).toContain('Round 3');
+    await page.locator('.vt-burst').first().click();
+    expect(await page.textContent('[data-testid="voice-picked"]')).toContain('round 3');
+    await shot('10f details voice round 3');
     await page.click('[role="tab"]:has-text("Overview")');
     await page.click('.back-link');
     await page.waitForSelector('[data-testid="demo-table"]');

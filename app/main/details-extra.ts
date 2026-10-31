@@ -1,9 +1,10 @@
-// Phase 5 extras on the details page (plan 5.h match overview, 5.c rounds and timeline, 5.d scoreboard and stats).
+// Phase 5 extras on the details page (plan 5.h match overview, 5.c rounds and timeline, 5.d scoreboard and stats,
+// 5.l chat and radio log, 5.m voice timeline).
 // Everything is counted from the engine's match data (2.12) and the inspector (1.1b); nothing is guessed. A player who
 // reconnected has two server user ids: his numbers are added up by name.
 import type { InspectReport } from '../../engine/src/inspect.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
-import type { NetworkRow, OverviewInfo, RoundDetail, StatRow } from '../shared/api.js';
+import type { ChatChannel, LogEntry, NetworkRow, OverviewInfo, Period, RadioKind, RadioSummary, RoundDetail, StatRow, VoiceRow } from '../shared/api.js';
 
 const side = (t: Team | undefined): 'T' | 'CT' | undefined => (t === 'T' || t === 'CT' ? t : undefined);
 
@@ -177,4 +178,122 @@ export function statRows(m: MatchData): StatRow[] {
     if (w && (alive[teamOf(w.player)].has(w.player) || r.reason === 'bomb exploded')) w.player.clutches.push({ round: r.number, vs: w.vs });
   }
   return [...rows.values()].sort((a, b) => (a.team === b.team ? b.kills - a.kills || a.deaths - b.deaths : a.team === 'T' ? -1 : 1));
+}
+
+// ---------- 5.l chat and radio log, 5.m voice timeline ----------
+
+/** Radio calls as the game says them (radio sound names in CS 1.5/1.6). Unknown names are shown as they are. */
+export const RADIO_TEXT: Record<string, string> = {
+  COVERME: 'Cover me!', TAKEPOINT: 'You take the point.', POSITION: 'Hold this position.', REGROUP: 'Regroup, team.',
+  FOLLOWME: 'Follow me.', HITASSIST: 'Taking fire, need assistance!', GO: 'Go, go, go!', FALLBACK: 'Team, fall back!',
+  STICKTOG: 'Stick together, team.', GETINPOS: 'Get in position and wait for my go.', STORMFRONT: 'Storm the front!',
+  REPORTIN: 'Report in, team.', AFFIRM: 'Affirmative.', ROGER: 'Roger that.', ENEMYSPOT: 'Enemy spotted.',
+  BACKUP: 'Need backup.', CLEAR: 'Sector clear.', INPOS: "I'm in position.", REPRTINGIN: 'Reporting in.',
+  BLOW: "Get out of there, it's gonna blow!", NEGATIVE: 'Negative.', ENEMYDOWN: 'Enemy down.',
+  MOVEOUT: "OK, let's move out.", LETSGO: "Let's go!", LOCKNLOAD: 'Lock and load.', FIREINHOLE: 'Fire in the hole!',
+  BOMBPL: 'The bomb has been planted.', BOMBDEF: 'The bomb has been defused.',
+  ctwin: 'Counter-Terrorists win.', terwin: 'Terrorists win.', rounddraw: 'Round draw.',
+  rescued: 'Hostages have been rescued.', escaped: 'The VIP has escaped.', vipdown: 'The VIP has been assassinated.',
+};
+/** Calls the game plays by itself at the end of freeze time (for a random teammate). None of them is in the radio menus,
+ *  except "Go, go, go!", which counts as round start only right at the end of freeze time. */
+const ROUND_START = new Set(['LETSGO', 'LOCKNLOAD', 'MOVEOUT']);
+
+/** Warm-up (before round 1), each round (to the next round's start), and after the last round (5 s after its end). */
+export function periods(m: MatchData, demoSeconds: number): Period[] {
+  const out: Period[] = [];
+  const rs = m.rounds;
+  const end = Math.max(demoSeconds, ...m.voice.map((v) => v.end), ...m.chat.map((c) => c.time));
+  if (rs.length === 0) return [{ id: 'all', label: 'Whole demo', start: 0, end }];
+  if (rs[0].start > 0) out.push({ id: 'warmup', label: 'Warm-up', start: 0, end: rs[0].start });
+  rs.forEach((r, n) => {
+    const next = rs[n + 1]?.start ?? Math.min(end, (r.end ?? r.start) + 5);
+    out.push({ id: `r${r.number}`, label: `Round ${r.number}`, round: r.number, start: r.start, end: next, freezeEnd: r.freezeEnd, roundEnd: r.end, winner: r.winner });
+  });
+  const last = out[out.length - 1].end;
+  if (end > last + 0.5) out.push({ id: 'after', label: 'After the match', start: last, end });
+  return out;
+}
+
+const periodAt = (ps: Period[], t: number) => (ps.find((p) => t >= p.start && t < p.end) ?? (t < ps[0].start ? ps[0] : ps[ps.length - 1])).id;
+
+/** 5.l: chat and radio in time order, each with its channel; plus radio calls per player. */
+export function chatRadioLog(m: MatchData, ps: Period[], hostName?: string): { log: LogEntry[]; radioByPlayer: RadioSummary[] } {
+  const sides = playersByName(m);
+  const byId = new Map(m.players.map((p) => [p.id, p]));
+  const teamOf = (id?: number) => {
+    const p = id === undefined ? undefined : byId.get(id);
+    return p ? sides.get(p.name)?.team ?? side(p.team) : undefined;
+  };
+  const log: LogEntry[] = [];
+  for (const c of m.chat) {
+    const p = c.sender === undefined ? undefined : byId.get(c.sender);
+    let channel: ChatChannel;
+    let who = p?.name;
+    let text: string;
+    if (!p) {
+      // No sender: the server's own lines, or (HLTV demos) chat from people watching through HLTV: "<name> text".
+      const mm = /^<([^>]*)>\s*(.*)$/s.exec(c.text);
+      const name = mm?.[1];
+      const isServer = name === undefined || /server/i.test(name) || name === hostName?.trim();
+      channel = isServer ? 'server' : 'hltv';
+      who = isServer ? undefined : name;
+      text = (mm ? mm[2] : c.text).trim().replace(/"$/, '');
+    } else {
+      const deadTeam = /^\*DEAD\*\s*\(/.test(c.text);
+      const spectator = /^(\*SPEC\*|\(Spectator\))/i.test(c.text) || p.team === 'SPECTATOR';
+      channel = spectator ? 'spectator' : c.dead ? (c.teamOnly || deadTeam ? 'dead-team' : 'dead') : c.teamOnly ? 'team' : 'all';
+      text = chatText(c.text, p.name);
+    }
+    if (!text) continue;
+    log.push({ time: c.time, period: periodAt(ps, c.time), kind: 'chat', channel, who, team: p ? teamOf(p.id) : undefined, text });
+  }
+  const summary = new Map<string, { team?: 'T' | 'CT'; calls: number; grenades: number; counts: Map<string, number> }>();
+  for (const r of m.radio) {
+    const p = r.sender === undefined ? undefined : byId.get(r.sender);
+    const text = RADIO_TEXT[r.message] ?? r.message;
+    const round = ps.find((x) => x.round !== undefined && r.time >= x.start && r.time < x.end);
+    let radio: RadioKind = 'player';
+    if (!p) radio = 'game';
+    else if (r.message === 'FIREINHOLE') radio = 'grenade';
+    else if (ROUND_START.has(r.message) || (r.message === 'GO' && round?.freezeEnd !== undefined && Math.abs(r.time - round.freezeEnd) < 1.5)) radio = 'round-start';
+    log.push({ time: r.time, period: periodAt(ps, r.time), kind: 'radio', radio, who: p?.name, team: p ? teamOf(p.id) : undefined, text });
+    if (p && (radio === 'player' || radio === 'grenade')) {
+      const s = summary.get(p.name) ?? { team: teamOf(p.id), calls: 0, grenades: 0, counts: new Map() };
+      if (radio === 'grenade') s.grenades++;
+      else { s.calls++; s.counts.set(text, (s.counts.get(text) ?? 0) + 1); }
+      summary.set(p.name, s);
+    }
+  }
+  log.sort((a, b) => a.time - b.time);
+  const radioByPlayer = [...summary].map(([name, s]) => ({
+    name, team: s.team, calls: s.calls, grenades: s.grenades,
+    top: [...s.counts].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([text, count]) => ({ text, count })),
+  })).sort((a, b) => b.calls - a.calls || b.grenades - a.grenades);
+  return { log, radioByPlayer };
+}
+
+/** Chat text as the game prints it ("*DEAD*(CT) name :   hi") → just the message ("hi"). */
+function chatText(text: string, who: string): string {
+  let t = text.replace(/^\*(DEAD|SPEC)\*\s*/, '').replace(/^\((Terrorist|Counter-Terrorist|Spectator|T|CT)\)\s*/i, '');
+  if (t.startsWith(who)) {
+    const mm = /^\s*:\s*/.exec(t.slice(who.length));
+    if (mm) t = t.slice(who.length + mm[0].length);
+  }
+  return t.trim();
+}
+
+/** 5.m: every talk burst per player (reconnects added up by name), most talk first. */
+export function voiceTimeline(m: MatchData): VoiceRow[] {
+  const sides = playersByName(m);
+  const rows = new Map<string, VoiceRow>();
+  for (const b of m.voice) {
+    const p = b.player === undefined ? undefined : m.players.find((x) => x.id === b.player);
+    const name = p?.name || `Player in slot ${b.slot + 1}`;
+    const row = rows.get(name) ?? { name, team: p ? sides.get(p.name)?.team ?? side(p.team) : undefined, bursts: [], seconds: 0 };
+    row.bursts.push([b.start, b.end]);
+    row.seconds += b.end - b.start;
+    rows.set(name, row);
+  }
+  return [...rows.values()].sort((a, b) => b.seconds - a.seconds);
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { DemoDetails, LibraryDemo, PlayerRow, TeamDetails } from '../../shared/api.js';
 import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } from '../format.js';
+import { ChatTab, VoiceTab } from './DetailsLog.js';
 import { RoundsTab, ScoreboardTab, ServerCard } from './DetailsTabs.js';
 
 const TEAM_NAME = { T: 'Terrorists', CT: 'Counter-Terrorists' } as const;
@@ -11,7 +12,7 @@ const REASON_TEXT: Record<string, string> = { K: 'team killed', B: 'bomb explode
 export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onBack: () => void; onWatch: (key: string) => void }) {
   const [details, setDetails] = useState<DemoDetails | { error: string } | undefined>();
   const [allChat, setAllChat] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard'>('overview');
+  const [tab, setTab] = useState<'overview' | 'rounds' | 'scoreboard' | 'chat' | 'voice'>('overview');
 
   useEffect(() => {
     setDetails(undefined);
@@ -65,12 +66,14 @@ export function DetailsPage({ demo, onBack, onWatch }: { demo?: LibraryDemo; onB
 
       {d && (
         <div role="tablist" aria-label="Details" className="tabs">
-          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard']] as const).map(([id, label]) => (
+          {([['overview', 'Overview'], ['rounds', `Rounds (${d.roundDetails.length})`], ['scoreboard', 'Scoreboard'], ['chat', `Chat & radio (${d.log.length})`], ['voice', 'Voice']] as const).map(([id, label]) => (
             <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} className="tab" onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
       )}
       {d && tab === 'rounds' && <div role="tabpanel" id="panel-rounds" aria-labelledby="tab-rounds"><RoundsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
+      {d && tab === 'chat' && <div role="tabpanel" id="panel-chat" aria-labelledby="tab-chat"><ChatTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
+      {d && tab === 'voice' && <div role="tabpanel" id="panel-voice" aria-labelledby="tab-voice"><VoiceTab d={d} tagT={tag('T')} tagCT={tag('CT')} recording={i?.recording} /></div>}
       {d && tab === 'scoreboard' && <div role="tabpanel" id="panel-scoreboard" aria-labelledby="tab-scoreboard"><ScoreboardTab d={d} /></div>}
       {d && tab === 'overview' && (
         <div className="details-grid" role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">

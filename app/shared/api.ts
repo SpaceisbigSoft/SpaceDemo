@@ -164,6 +164,68 @@ export interface DemoDetails {
   roundDetails: RoundDetail[];
   /** 5.d scoreboard and stats. */
   stats: StatRow[];
+  /** Parts of the demo used by 5.l and 5.m: warm-up, each round, after the match. */
+  periods: Period[];
+  /** 5.l chat and radio log, in time order. */
+  log: LogEntry[];
+  /** 5.l radio calls each player chose from the radio menu (automatic calls not counted). */
+  radioByPlayer: RadioSummary[];
+  /** 5.m voice timeline: every talk burst per player. */
+  voice: VoiceRow[];
+  /** Length of the demo in seconds. */
+  seconds: number;
+}
+
+/** A part of the demo: warm-up (before round 1), a round (its start to the next round's start), or after the match. */
+export interface Period {
+  id: string;
+  label: string;
+  /** Round number (rounds only). */
+  round?: number;
+  start: number;
+  end: number;
+  /** Rounds: end of freeze time and end of the round. */
+  freezeEnd?: number;
+  roundEnd?: number;
+  winner?: 'T' | 'CT' | 'draw';
+}
+
+/** Chat channel: everyone, team only, dead players (all or team), spectators, HLTV viewers, the server. */
+export type ChatChannel = 'all' | 'team' | 'dead' | 'dead-team' | 'spectator' | 'hltv' | 'server';
+/** Radio kind: chosen from the radio menu, automatic (grenade thrown, round start), or the game's own announcement. */
+export type RadioKind = 'player' | 'grenade' | 'round-start' | 'game';
+
+export interface LogEntry {
+  time: number;
+  /** Period id (see Period). */
+  period: string;
+  kind: 'chat' | 'radio';
+  channel?: ChatChannel;
+  radio?: RadioKind;
+  who?: string;
+  team?: 'T' | 'CT';
+  /** The message (chat), or the radio call as the game says it ("Roger that."). */
+  text: string;
+}
+
+export interface RadioSummary {
+  name: string;
+  team?: 'T' | 'CT';
+  /** Calls chosen from the radio menu. */
+  calls: number;
+  /** "Fire in the hole!" calls (one per grenade thrown). */
+  grenades: number;
+  /** Most used calls, most first. */
+  top: { text: string; count: number }[];
+}
+
+export interface VoiceRow {
+  name: string;
+  team?: 'T' | 'CT';
+  /** Talk bursts as [start, end] in demo seconds. */
+  bursts: [number, number][];
+  /** Sum of the bursts' lengths. */
+  seconds: number;
 }
 
 export interface OverviewInfo {

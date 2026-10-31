@@ -380,3 +380,49 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .timeline .tick.tk { outline: 1px dashed var(--bad-text); }
 .timeline .bomb { position: absolute; top: 1px; transform: translateX(-50%); font-size: 13px; color: var(--bad-text); line-height: 20px; }
 .scoreboard td.num, .scoreboard th.num { white-space: nowrap; }
+
+/* ---------- Chat and radio log (5.l), voice timeline (5.m) ---------- */
+.log-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); gap: 20px; align-items: start; }
+@media (max-width: 1100px) { .log-layout { grid-template-columns: minmax(0, 1fr); } }
+.filter-chip .count { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.filter-chip:disabled { opacity: 0.45; cursor: default; }
+.log-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.log-tools .search { flex: 1 1 200px; }
+.log { display: flex; flex-direction: column; gap: 14px; }
+.log-period { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.log-list li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.45; padding: 1px 0; border-radius: 4px; }
+.log-list li.radio .log-text { color: var(--text-2); font-style: italic; }
+.log-list li.picked-row { background: var(--accent-soft); }
+.log-time { flex: 0 0 auto; min-width: 52px; min-height: 28px; padding: 0 6px; border: 0; background: none; color: var(--muted); cursor: pointer; text-align: left; border-radius: 4px; }
+.log-time:hover { color: var(--text); background: var(--surface-3); }
+.log-body { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; min-width: 0; }
+.log-body .who { font-weight: 600; }
+.log-body .who.t { color: var(--warn-text); }
+.log-body .who.ct { color: var(--info-text); }
+.log-text { overflow-wrap: anywhere; }
+.log-tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--surface-3); color: var(--text-2); white-space: nowrap; }
+.log-tag.ch-team, .log-tag.ch-dead-team { background: var(--info-bg); color: var(--info-text); }
+.log-tag.ch-hltv, .log-tag.ch-spectator { background: var(--accent-soft); color: var(--accent-text); }
+.picked { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; }
+.vt { display: flex; flex-direction: column; gap: 4px; overflow-x: auto; }
+.vt-row { display: grid; grid-template-columns: 220px minmax(400px, 1fr); gap: 10px; align-items: center; min-height: 28px; }
+.vt-name { display: flex; justify-content: space-between; gap: 8px; min-width: 0; font-size: 13px; }
+.vt-name .side { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vt-track { position: relative; height: 22px; background: var(--surface-2); border-radius: 4px; }
+.vt-axis .vt-track { background: none; height: 18px; }
+.vt-mark { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.vt-mark.strong { color: var(--text-2); }
+.vt-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border-strong); }
+.vt-freeze { position: absolute; top: 0; bottom: 0; background: var(--surface-3); border-radius: 4px 0 0 4px; }
+.vt-end { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--muted); }
+.vt-burst { position: absolute; top: 4px; height: 14px; border-radius: 2px; background: var(--muted); cursor: pointer; }
+.vt-burst.t { background: #e3a24a; }
+.vt-burst.ct { background: #5aa7f0; }
+.vt-burst:hover, .vt-burst.sel { outline: 2px solid var(--text); outline-offset: 1px; z-index: 1; }
+.radio-table .most-used { color: var(--text-2); font-size: 13px; white-space: normal; min-width: 110px; }
+.radio-table { width: 100%; min-width: 0; margin-bottom: 0; }
+.radio-table td, .radio-table th { padding-left: 6px; padding-right: 6px; }
+.radio-table .most-used span { white-space: nowrap; }
+.log-layout > * { min-width: 0; }

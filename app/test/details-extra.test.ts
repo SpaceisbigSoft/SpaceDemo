@@ -6,7 +6,7 @@ import { readDemo } from '../../engine/src/container/read.js';
 import { inspectParsed } from '../../engine/src/inspect.js';
 import { extractMatch } from '../../engine/src/match/extract.js';
 import { readZipEntry } from '../../engine/src/zip.js';
-import { overviewInfo, playersByName, roundDetails, statRows } from '../main/details-extra.js';
+import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from '../main/details-extra.js';
 import { findCandidates } from '../main/library.js';
 
 const zips = process.env.CDF_ZIPS;
@@ -62,5 +62,34 @@ describe.skipIf(!zips)('details extras on Set 1', () => {
     const sides = playersByName(m);
     expect(sides.get(':i69:Dr.StrangeLove')?.team).toBe('CT');
     expect(statRows(m).filter((s) => s.team === 'CT')).toHaveLength(5);
+  }, 120_000);
+
+  it('modTside and an HLTV demo: chat and radio log (5.l), voice timeline (5.m)', () => {
+    const read = (name: string) => {
+      const c = demos().find((x) => x.name === name)!;
+      const bytes = readZipEntry(c.file, c.zipEntry!);
+      const demo = readDemo(bytes);
+      return { m: extractMatch(demo), r: inspectParsed(demo, bytes.length) };
+    };
+    const { m, r } = read('modTside');
+    const ps = periods(m, r.seconds);
+    expect(ps.map((p) => p.id)).toEqual(['warmup', ...Array.from({ length: 12 }, (_, n) => `r${n + 1}`), 'after']);
+    const { log, radioByPlayer } = chatRadioLog(m, ps, r.hostName);
+    expect(log.filter((e) => e.kind === 'chat')).toHaveLength(36);
+    expect(log.filter((e) => e.kind === 'radio')).toHaveLength(107);
+    expect(log.filter((e) => e.channel === 'team')).toHaveLength(4);
+    expect(log.find((e) => e.channel === 'server')?.text).toBe('CAL config file has been executed');
+    expect(log.filter((e) => e.radio === 'round-start')).toHaveLength(15);
+    expect(radioByPlayer[0]).toMatchObject({ name: ':i69:Guido', calls: 7, grenades: 14 });
+    const v = voiceTimeline(m);
+    expect(v.map((x) => x.name)).toEqual([':i69:Virus23', ':i69:Urinal', ':i69:Guido', ':i69:Dr.StrangeLove']);
+    expect(v.reduce((a, x) => a + x.bursts.length, 0)).toBe(m.voice.length);
+    // The recorder's own voice isn't in his demo; everyone heard is on his team.
+    expect(v.every((x) => x.team === 'T')).toBe(true);
+
+    const h = read('MoD train CT hltvdemo');
+    const hl = chatRadioLog(h.m, periods(h.m, h.r.seconds), h.r.hostName).log;
+    expect(hl.filter((e) => e.channel === 'hltv').length).toBeGreaterThan(400);
+    expect(hl.filter((e) => e.channel === 'dead').length).toBe(13);
   }, 120_000);
 });

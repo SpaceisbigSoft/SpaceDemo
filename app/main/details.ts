@@ -10,7 +10,7 @@ import { checkMatch, extractMatch } from '../../engine/src/match/extract.js';
 import type { MatchData, Team } from '../../engine/src/match/types.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { DemoDetails, DetailsMap, PlayerRow, TeamDetails } from '../shared/api.js';
-import { overviewInfo, playersByName, roundDetails, statRows } from './details-extra.js';
+import { chatRadioLog, overviewInfo, periods, playersByName, roundDetails, statRows, voiceTimeline } from './details-extra.js';
 
 export interface DetailsJob {
   key: string;
@@ -50,7 +50,7 @@ export function chatMessage(text: string, who: string | undefined): string {
   return t.trim();
 }
 
-export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats'> {
+export function buildDetails(m: MatchData, talkByName: Map<string, number>, job: Pick<DetailsJob, 'key'>, map: DetailsMap): Omit<DemoDetails, 'overview' | 'roundDetails' | 'stats' | 'periods' | 'log' | 'radioByPlayer' | 'voice' | 'seconds'> {
   // Players per side from the stats (sides from the kill events; reconnects added up by name).
   const stats = statRows(m);
   const team = (t: 'T' | 'CT'): TeamDetails => {
@@ -135,11 +135,16 @@ export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
         if (name) talk.set(name, (talk.get(name) ?? 0) + (b.end - b.start));
       }
     }
+    const ps = periods(m, report.seconds);
     return {
       ...buildDetails(m, talk, job, detailsMap(job, report.maps[0] ?? report.mapName, report.mapChecksum)),
       overview: overviewInfo(report, m),
       roundDetails: roundDetails(m),
       stats: statRows(m),
+      periods: ps,
+      ...chatRadioLog(m, ps, report.hostName),
+      voice: voiceTimeline(m),
+      seconds: ps[ps.length - 1].end,
     };
   } catch (err) {
     return { error: (err as Error).message };
