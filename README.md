@@ -41,6 +41,8 @@ SpaceDemo is designed so it cannot trigger Valve Anti-Cheat (VAC) or any Valve p
 - **VoiceFixer** by Haohe Liu — https://github.com/haoheliu/voicefixer — code MIT, trained models CC BY 4.0 (Zenodo 5600188, 5469951). SpaceDemo's optional AI voice model is a changed copy: combined, compressed (int8/fp16) and converted to ONNX.
 - **OpenAI Whisper** (MIT) via **whisper.cpp** (MIT) — optional voice to text.
 - **ONNX Runtime** (MIT), **opusscript** / libopus (MIT / BSD), Electron and React (MIT).
+- **Opus** (libopus, Xiph.Org and others — BSD) inside opusscript; **MinGW-w64** runtime (ZPL/MIT) in the helper programs; ONNX Runtime ships Microsoft's DirectML and DirectX Shader Compiler files.
+- The full list with every licence text: [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) (made by `npm run notices`; also in the install folder and behind Settings → About → Open-source licences).
 - Format notes from the community, incl. the talent GoldSrc demo-structure notes (cgdangelo) and ReHLDS (map checksum algorithm).
 
 Counter-Strike and Half-Life are trademarks of Valve Corporation. This project is not affiliated with Valve and does not include any Valve game files, nor RAD Game Tools' Miles files: old Miles voice is decoded with the player's own copy from their game folder.

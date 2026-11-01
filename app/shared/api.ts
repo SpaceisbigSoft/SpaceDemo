@@ -724,6 +724,8 @@ export interface SpaceDemoApi {
   onFixBatch(listener: (s: FixBatchState) => void): () => void;
   /** Opens the fixed-demos folder in Explorer. */
   openOutputFolder(): Promise<void>;
+  /** 6.4: opens THIRD-PARTY-NOTICES.txt (or LICENSE.txt) in Windows' text viewer; '' = opened, else the problem. */
+  openLicence(which: 'notices' | 'licence'): Promise<string>;
 
   getSettings(): Promise<AppSettingsView>;
   /** Choose where fixed copies go (folder picker). */
@@ -839,6 +841,7 @@ export const IPC = {
   fixGet: 'fix:get',
   fixChanged: 'fix:changed',
   openOutput: 'shell:open-output',
+  openLicence: 'shell:open-licence',
   gameFolderChoose: 'settings:game-folder',
   gameFolderClear: 'settings:game-folder-clear',
   voiceCleanupSet: 'settings:voice-cleanup',

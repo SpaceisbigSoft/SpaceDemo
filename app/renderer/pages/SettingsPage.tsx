@@ -52,6 +52,7 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
   const [theme, setTheme] = useState<ThemeChoice | undefined>();
   const [info, setInfo] = useState<AppInfo | undefined>();
   const [view, setView] = useState<AppSettingsView | undefined>();
+  const [licenceProblem, setLicenceProblem] = useState('');
 
   useEffect(() => {
     void window.spacedemo.getTheme().then((s) => setTheme(s.choice));
@@ -186,11 +187,21 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
         <h2 id="about-h">About</h2>
         <dl className="facts">
           <dt>Version</dt><dd data-testid="app-version">{info ? `SpaceDemo ${info.version}` : '…'}</dd>
-          <dt>Licence</dt><dd>GNU GPL v3</dd>
-          <dt>Thanks</dt><dd>compLexity Demo Player (COL) and CS Demo Manager, whose work showed the way.</dd>
-          <dt>AI voice</dt><dd data-testid="credit-ai">VoiceFixer by Haohe Liu (code MIT; trained model CC BY 4.0, <span className="mono">zenodo.org/records/5600188</span> and <span className="mono">5469951</span>). SpaceDemo's copy is changed: compressed (int8/fp16) and converted to ONNX.</dd>
+          <dt>Licence</dt><dd>GNU GPL v3 or later — free software; source code at <span className="mono">github.com/SpaceisbigSoft/SpaceDemo</span></dd>
+          <dt>Thanks</dt><dd>compLexity Demo Player (COL) and CS Demo Manager, whose work showed the way; SK Player for ideas; the community's notes on the demo format.</dd>
+          <dt>Old voice</dt><dd>Speex by Xiph.Org (BSD). Old Miles voice is decoded with your own game's files; SpaceDemo includes no Valve or RAD files.</dd>
+          <dt>Steam voice</dt><dd>Opus by Xiph.Org and others (BSD), via opusscript (MIT).</dd>
+          <dt>AI voice</dt><dd data-testid="credit-ai">VoiceFixer by Haohe Liu et al. (code MIT; trained model CC BY 4.0, <span className="mono">zenodo.org/records/5600188</span> and <span className="mono">5469951</span>). SpaceDemo's copy is changed: combined, compressed (int8/fp16) and converted to ONNX. Runs with ONNX Runtime (MIT, Microsoft).</dd>
           <dt>Voice to text</dt><dd>OpenAI Whisper (MIT) via whisper.cpp (MIT).</dd>
+          <dt>App</dt><dd>Electron, Chromium and Node.js; React (MIT); Inter and JetBrains Mono fonts (SIL Open Font Licence 1.1).</dd>
+          <dt>Trademarks</dt><dd>Counter-Strike and Half-Life are trademarks of Valve Corporation. SpaceDemo is not affiliated with Valve.</dd>
         </dl>
+        <div className="btn-row">
+          <button type="button" className="btn" data-testid="open-notices" onClick={() => void window.spacedemo.openLicence('notices').then(setLicenceProblem)}>Open-source licences…</button>
+          <button type="button" className="btn" data-testid="open-licence" onClick={() => void window.spacedemo.openLicence('licence').then(setLicenceProblem)}>GNU GPL v3 text…</button>
+        </div>
+        <p className="note" style={{ color: 'var(--text-2)' }}>The full list of other people's work in SpaceDemo, with every licence, is in THIRD-PARTY-NOTICES.txt in the install folder.</p>
+        {licenceProblem && <p className="note" role="alert" data-testid="licence-problem">{licenceProblem}</p>}
       </section>
     </>
   );

@@ -49,7 +49,7 @@ describe('app shell', () => {
       'addMapFolder', 'addToLibrary', 'chooseAiModel', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadAiModel', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
       'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
       'getWatchInfo', 'info', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onOpenDemo', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
+      'openLicence', 'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
       'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
@@ -123,6 +123,15 @@ describe('app shell', () => {
     await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).cpuCores).toBeUndefined();
     await page.locator('[data-testid="settings-cpu"]').scrollIntoViewIfNeeded();
     await shot('5b settings processor cores');
+  });
+
+  it('Settings → About: credits and licence buttons (6.4)', async () => {
+    await page.click('nav button:has-text("Settings")');
+    await page.waitForSelector('[data-testid="open-notices"]');
+    expect(await page.textContent('#about-h + dl')).toMatch(/Speex.*Opus.*Whisper.*Electron.*not affiliated with Valve/s);
+    expect(await page.isVisible('[data-testid="open-licence"]')).toBe(true);
+    await page.locator('[data-testid="open-notices"]').scrollIntoViewIfNeeded();
+    await shot('5d settings about');
   });
 
   it('Settings: AI voice enhancement (5.g5): off by default, switch, model file, credits', async () => {

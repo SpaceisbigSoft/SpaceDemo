@@ -25,7 +25,8 @@
     "app": "node app/build.mjs && electron .",
     "test:app": "node app/build.mjs && vitest run --config app/vitest.config.ts",
     "dist:win": "node app/build.mjs && electron-builder --win nsis --x64 --publish never",
-    "dist:dir": "node app/build.mjs && electron-builder --dir --publish never"
+    "dist:dir": "node app/build.mjs && electron-builder --dir --publish never",
+    "notices": "node tools/notices.mjs"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
@@ -89,6 +90,10 @@
       {
         "from": "LICENSE",
         "to": "LICENSE.txt"
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.txt",
+        "to": "THIRD-PARTY-NOTICES.txt"
       }
     ],
     "fileAssociations": [

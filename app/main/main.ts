@@ -276,6 +276,12 @@ function registerIpc(): void {
     mkdirSync(outputFolder(), { recursive: true });
     await shell.openPath(outputFolder());
   });
+  // 6.4: the notices and the GPL text sit next to the helpers (resources\ when installed, the repository in development).
+  ipcMain.handle(IPC.openLicence, async (_e, which: unknown) => {
+    const file = join(helpersBase(), which === 'licence' ? (app.isPackaged ? 'LICENSE.txt' : 'LICENSE') : 'THIRD-PARTY-NOTICES.txt');
+    if (!existsSync(file)) return `Not found: ${file}`;
+    return shell.openPath(file);
+  });
   ipcMain.handle(IPC.gameFolderChoose, async (_e, path: unknown) => {
     const [dir] = path === undefined ? await pickFolders('Choose the Half-Life folder (the one with hl.exe and cstrike)', false) : cleanPaths([path]);
     if (!dir) return settingsView();
