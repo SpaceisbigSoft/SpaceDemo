@@ -1,7 +1,8 @@
 // SpaceDemo app: the main process (plans 4.2, 4.3). Opens the window, keeps the settings and answers the window's few requests.
 // Safety: the window runs sandboxed with no access to Node.js or files; it can only call the named functions in
 // app/shared/api.ts. Links to websites open in the normal browser, never inside the app. Nothing here touches the game.
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
+import { MIN_WINDOW, startBounds } from './window-state.js';
 import { appendFileSync, existsSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { IPC, THEME_CHOICES, type AppInfo, type AppSettingsView, type GameStatus, type ThemeChoice, type ThemeState } from '../shared/api.js';
@@ -115,11 +116,11 @@ function themeChanged(): void {
 
 function createWindow(): void {
   const tb = currentTitleBar();
+  const bounds = startBounds(settings.window, screen.getAllDisplays().map((d) => d.workArea));
   win = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 900,
-    minHeight: 600,
+    ...bounds,
+    minWidth: MIN_WINDOW.width,
+    minHeight: MIN_WINDOW.height,
     title: 'SpaceDemo',
     backgroundColor: tb.background,
     show: false,
@@ -136,7 +137,17 @@ function createWindow(): void {
     },
   });
 
-  win.once('ready-to-show', () => win?.show());
+  win.once('ready-to-show', () => {
+    if (settings.window?.maximized) win?.maximize();
+    win?.show();
+  });
+  // Remember the size and place for next time (the normal size even when maximized).
+  win.on('close', () => {
+    if (!win || win.isFullScreen()) return;
+    const b = win.getNormalBounds();
+    settings = { ...settings, window: { x: b.x, y: b.y, width: b.width, height: b.height, maximized: win.isMaximized() } };
+    try { saveSettings(file, settings); } catch { /* not critical */ }
+  });
   win.on('closed', () => { win = undefined; });
 
   // Never navigate the app window away, and never open new app windows: web links go to the normal browser.

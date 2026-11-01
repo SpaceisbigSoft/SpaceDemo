@@ -1,6 +1,7 @@
 // The app's own settings, kept as one small JSON file in the app's data folder (on Windows %APPDATA%\SpaceDemo).
 // Unknown or damaged content falls back to the defaults; the file is written to a temporary name first, then renamed,
 // so a crash never leaves half a file.
+import { cleanSavedWindow, type SavedWindow } from './window-state.js';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { THEME_CHOICES, type ThemeChoice } from '../shared/api.js';
@@ -30,6 +31,8 @@ export interface Settings {
   aiVoice: boolean;
   /** 5.g5 AI model file chosen by hand (undefined = the downloaded one in the app's data folder). */
   aiModel?: string;
+  /** Window size/place when SpaceDemo last closed (owner, 2026-11-01). */
+  window?: SavedWindow;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
@@ -64,6 +67,8 @@ export function cleanSettings(raw: unknown): Settings {
     if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
     if (typeof r.aiVoice === 'boolean') out.aiVoice = r.aiVoice;
     if (typeof r.aiModel === 'string' && r.aiModel.trim()) out.aiModel = r.aiModel;
+    const w = cleanSavedWindow(r.window);
+    if (w) out.window = w;
     if (typeof r.cpuCores === 'number' && Number.isInteger(r.cpuCores) && r.cpuCores >= 1 && r.cpuCores <= 1024) out.cpuCores = r.cpuCores;
   }
   return out;
