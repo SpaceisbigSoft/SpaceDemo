@@ -1,6 +1,7 @@
 // Reading demos and maps for the library (plan 4.3). The same work runs either in a background thread (the app: the
 // window never waits) or directly (tests). Only reads files.
 import { readFileSync } from 'node:fs';
+import { writeBursts, type BurstsJob, type BurstsResult } from './voice-bursts.js';
 import { inspectDemo } from '../../engine/src/inspect.js';
 import { indexMaps, type MapFile } from '../../engine/src/map-index.js';
 import { readZipEntry } from '../../engine/src/zip.js';
@@ -22,6 +23,8 @@ export interface LibraryReader {
   combined(job: DetailsJob & { companions: CompanionJob[] }): Promise<CombinedData | { error: string }>;
   players(job: PlayersJob): Promise<DemoPlayers | { error: string }>;
   fix(job: FixJob): Promise<FixResult>;
+  /** 5.v: the demo's talk bursts as WAV files in a temporary folder. */
+  bursts(job: BurstsJob): Promise<BurstsResult>;
   close(): void;
 }
 
@@ -63,6 +66,7 @@ export function directReader(): LibraryReader {
     combined: async (job) => readCombined(job),
     players: async (job) => readPlayersNow(job),
     fix: async (job) => runFix(job),
+    bursts: async (job) => writeBursts(job),
     close: () => {},
   };
 }

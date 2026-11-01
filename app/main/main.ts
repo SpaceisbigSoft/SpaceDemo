@@ -10,6 +10,7 @@ import { checkGameDir, findGame } from '../../engine/src/launch/steam.js';
 import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
+import { SpeechService } from './speech-service.js';
 import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
 import { PlayersService } from './players-service.js';
@@ -35,6 +36,7 @@ let watcher: WatchService;
 let fixer: FixService;
 let fixedStore: FixedStore;
 let players: PlayersService;
+let speech: SpeechService;
 
 /** Test-only switches: a stand-in game folder, and "pretend to start Steam" (writes what it would run to a log). */
 const TEST_GAME_DIR = process.env.SPACEDEMO_GAME_DIR;
@@ -259,6 +261,21 @@ function registerIpc(): void {
 
   // ---- Settings: map pool ----
   ipcMain.handle(IPC.settingsGet, () => settingsView());
+  // 5.v voice to text.
+  ipcMain.handle(IPC.speechModelGet, () => speech.model());
+  ipcMain.handle(IPC.speechModelDownload, () => speech.download());
+  ipcMain.handle(IPC.speechModelChoose, async (_e, path: unknown) => {
+    let p = typeof path === 'string' && isAbsolute(path) ? path : undefined;
+    if (!p) {
+      const opts: Electron.OpenDialogOptions = { title: 'Choose the speech model file', properties: ['openFile'], filters: [{ name: 'Speech model', extensions: ['bin'] }] };
+      const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+      p = r.canceled ? undefined : r.filePaths[0];
+    }
+    return p ? speech.choose(p) : speech.model();
+  });
+  ipcMain.handle(IPC.transcriptGet, (_e, key: unknown) => (typeof key === 'string' ? speech.transcript(key) : { key: '', status: 'failed', error: 'No demo given.' }));
+  ipcMain.handle(IPC.transcriptStart, (_e, key: unknown) => (typeof key === 'string' ? speech.start(key) : { key: '', status: 'failed', error: 'No demo given.' }));
+  ipcMain.handle(IPC.transcriptStop, () => speech.stop());
   ipcMain.handle(IPC.mapFolderAdd, async (_e, path: unknown) => {
     const add = path === undefined ? await pickFolders('Choose a folder with old map versions', false) : cleanPaths([path]);
     const next = [...settings.mapFolders];
@@ -319,6 +336,16 @@ if (!app.requestSingleInstanceLock()) {
       library, fixed: fixedStore, fixer, findGame: findRaw, outputFolder,
       onProgress: (p) => win?.webContents.send(IPC.watchProgress, p),
       ...(DRY_LAUNCH ? { start: (exe: string, args: string[]) => appendFileSync(launchLog, JSON.stringify({ exe, args }) + '\n'), gameRunning: () => false, noWait: true } : {}),
+    });
+    speech = new SpeechService({
+      dataDir: app.getPath('userData'), library, reader, gameDir: () => game?.gameDir,
+      voiceHelperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
+      whisperExe: process.env.SPACEDEMO_WHISPER_EXE ?? join(app.getAppPath(), 'helpers', 'whisper-helper', 'spacedemo-whisper.exe'),
+      wine: process.env.SPACEDEMO_WHISPER_WINE, modelUrl: process.env.SPACEDEMO_MODEL_URL,
+      chosenModel: () => settings.speechModel,
+      saveChosenModel: (path) => saveAndApply({ ...settings, speechModel: path }),
+      onModel: (st) => win?.webContents.send(IPC.speechModelChanged, st),
+      onTranscript: (st) => win?.webContents.send(IPC.transcriptChanged, st),
     });
     findGameNow();
     registerIpc();

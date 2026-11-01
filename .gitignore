@@ -26,3 +26,5 @@ Thumbs.db
 *.voice
 __pycache__/
 helpers/voice-helper/*.exe
+helpers/whisper-helper/*.exe
+helpers/whisper-helper/whisper.cpp/

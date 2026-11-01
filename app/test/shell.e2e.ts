@@ -46,10 +46,11 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'clearGameFolder', 'findGame', 'fixDemos', 'fixFiles', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay',
-      'getSettings', 'getTheme', 'getWatchInfo', 'info', 'mergePlayers', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onThemeChanged', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder',
-      'stopFixing', 'unmergePlayer', 'watch',
+      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
+      'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
+      'getWatchInfo', 'info', 'mergePlayers', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
+      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
+      'stopFixing', 'stopTranscript', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);
@@ -125,6 +126,11 @@ describe('app shell', () => {
       const back = await page.evaluate(() => window.spacedemo.clearGameFolder());
       expect(back.gameDir).toBeUndefined();
     }
+    // 5.v the speech model: not there yet; a file that isn't a model is refused with the reason.
+    expect(await page.textContent('[data-testid="settings-speech"]')).toContain('Not downloaded yet');
+    const notModel = await page.evaluate((p) => window.spacedemo.chooseSpeechModel(p), join(dataDir, 'settings.json'));
+    expect(notModel.problem).toContain('not a speech model');
+    await page.locator('[data-testid="settings-speech"]').scrollIntoViewIfNeeded();
     await shot('16 settings');
   });
 

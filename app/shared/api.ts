@@ -723,6 +723,55 @@ export interface SpaceDemoApi {
   /** Adds a map-pool folder (no path = ask with the folder picker). */
   addMapFolder(path?: string): Promise<AppSettingsView>;
   removeMapFolder(path: string): Promise<AppSettingsView>;
+
+  /** 5.v voice to text: the speech model (download it once, or choose a model file you have; no path = file picker). */
+  getSpeechModel(): Promise<SpeechModelState>;
+  downloadSpeechModel(): Promise<SpeechModelState>;
+  chooseSpeechModel(path?: string): Promise<SpeechModelState>;
+  onSpeechModel(listener: (s: SpeechModelState) => void): () => void;
+  /** A demo's transcript (kept once made); start turns its voice into text in the background, updates come through
+   *  onTranscript. One demo at a time. */
+  getTranscript(key: string): Promise<TranscriptState>;
+  startTranscript(key: string): Promise<TranscriptState>;
+  stopTranscript(): Promise<void>;
+  onTranscript(listener: (s: TranscriptState) => void): () => void;
+}
+
+/** 5.v the speech model and the speech helper. */
+export interface SpeechModelState {
+  /** The model file to use, when there is one. */
+  path?: string;
+  chosenByHand: boolean;
+  /** Our speech helper (spacedemo-whisper.exe) is in place. */
+  helper: boolean;
+  /** Download size (bytes) and progress while downloading. */
+  size: number;
+  downloading?: { done: number; total: number };
+  problem?: string;
+}
+
+/** 5.v one talk burst as text. */
+export interface TranscriptLine {
+  /** Demo seconds. */
+  time: number;
+  end: number;
+  player?: string;
+  text: string;
+}
+
+export interface TranscriptState {
+  key: string;
+  status: 'none' | 'working' | 'done' | 'failed';
+  /** Talk bursts done / to do while working. */
+  done?: number;
+  total?: number;
+  /** Talk bursts with text (empty ones — noise, silence — are left out). */
+  lines?: TranscriptLine[];
+  /** Model file name it was made with, and when (ms). */
+  model?: string;
+  madeAt?: number;
+  note?: string;
+  error?: string;
 }
 
 /** IPC channel names (one place, so main and preload can't drift apart). */
@@ -762,6 +811,14 @@ export const IPC = {
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',
+  speechModelGet: 'speech:model-get',
+  speechModelDownload: 'speech:model-download',
+  speechModelChoose: 'speech:model-choose',
+  speechModelChanged: 'speech:model-changed',
+  transcriptGet: 'speech:transcript-get',
+  transcriptStart: 'speech:transcript-start',
+  transcriptStop: 'speech:transcript-stop',
+  transcriptChanged: 'speech:transcript-changed',
 } as const;
 
 declare global {

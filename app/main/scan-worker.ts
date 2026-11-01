@@ -5,6 +5,7 @@ import { indexMaps } from '../../engine/src/map-index.js';
 import { readDemoNow, readPlayersNow, type PlayersJob } from './reader.js';
 import { readCombined, readDetails, readReplay, type CompanionJob, type DetailsJob } from './details.js';
 import { runFix, type FixJob } from './fixer.js';
+import { writeBursts, type BurstsJob } from './voice-bursts.js';
 
 type Job =
   | { id: number; kind: 'maps'; folders: string[] }
@@ -13,13 +14,16 @@ type Job =
   | ({ id: number; kind: 'replay'; round: number; combined?: boolean } & DetailsJob)
   | ({ id: number; kind: 'combined'; companions: CompanionJob[] } & DetailsJob)
   | ({ id: number; kind: 'players' } & PlayersJob)
-  | ({ id: number; kind: 'fix' } & FixJob);
+  | ({ id: number; kind: 'fix' } & FixJob)
+  | ({ id: number; kind: 'bursts' } & BurstsJob);
 
 parentPort!.on('message', (job: Job) => {
   if (job.kind === 'maps') {
     let maps: ReturnType<typeof indexMaps> = [];
     try { maps = indexMaps(job.folders); } catch { /* unreadable folders give no maps */ }
     parentPort!.postMessage({ id: job.id, maps });
+  } else if (job.kind === 'bursts') {
+    parentPort!.postMessage({ id: job.id, bursts: writeBursts(job) });
   } else if (job.kind === 'fix') {
     parentPort!.postMessage({ id: job.id, fix: runFix(job) });
   } else if (job.kind === 'players') {

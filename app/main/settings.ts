@@ -21,6 +21,8 @@ export interface Settings {
   playerMerges: Record<string, string>;
   /** 5.p: suggested merges the owner said no to ("a|b", sorted). */
   playerRejected: string[];
+  /** 5.v: speech model file chosen by hand (undefined = the downloaded one in the app's data folder). */
+  speechModel?: string;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
@@ -52,6 +54,7 @@ export function cleanSettings(raw: unknown): Settings {
       for (const [k, v] of Object.entries(r.playerMerges as Record<string, unknown>)) if (typeof v === 'string' && k && v && k !== v) out.playerMerges[k] = v;
     }
     out.playerRejected = cleanPaths(r.playerRejected);
+    if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
   }
   return out;
 }

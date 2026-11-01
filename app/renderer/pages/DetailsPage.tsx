@@ -12,6 +12,7 @@ import { AimTab } from './DetailsAim.js';
 import { HighlightsTab } from './DetailsHighlights.js';
 import { LagTab } from './DetailsLag.js';
 import { ChatTab, VoiceTab } from './DetailsLog.js';
+import { TranscriptCard } from './DetailsTranscript.js';
 import { RoundsTab, ScoreboardTab, ServerCard } from './DetailsTabs.js';
 
 const TEAM_NAME = { T: 'Terrorists', CT: 'Counter-Terrorists' } as const;
@@ -99,7 +100,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
       )}
       {d && tab === 'rounds' && <div role="tabpanel" id="panel-rounds" aria-labelledby="tab-rounds"><RoundsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'chat' && <div role="tabpanel" id="panel-chat" aria-labelledby="tab-chat"><ChatTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
-      {d && tab === 'voice' && <div role="tabpanel" id="panel-voice" aria-labelledby="tab-voice"><VoiceTab d={d} tagT={tag('T')} tagCT={tag('CT')} recording={i?.recording} /></div>}
+      {d && tab === 'voice' && <div role="tabpanel" id="panel-voice" aria-labelledby="tab-voice"><VoiceTab d={d} tagT={tag('T')} tagCT={tag('CT')} recording={i?.recording} />{demo && <div style={{ marginTop: 16 }}><TranscriptCard demoKey={demo.key} d={d} /></div>}</div>}
       {d && tab === 'highlights' && <div role="tabpanel" id="panel-highlights" aria-labelledby="tab-highlights"><HighlightsTab d={d} onWatch={(h) => { setReplayStart({ round: h.round, time: h.time - 3 }); setTab('replay'); }} /></div>}
       {d && tab === 'lag' && <div role="tabpanel" id="panel-lag" aria-labelledby="tab-lag"><LagTab d={d} onWatch={(round, time) => { setReplayStart({ round, time }); setTab('replay'); }} /></div>}
       {d && tab === 'recorder' && <div role="tabpanel" id="panel-recorder" aria-labelledby="tab-recorder"><RecorderTab d={d} /></div>}

@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
+import { IPC, type SpeechModelState, type TranscriptState, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -59,6 +59,22 @@ const api: SpaceDemoApi = {
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),
+  getSpeechModel: () => ipcRenderer.invoke(IPC.speechModelGet),
+  downloadSpeechModel: () => ipcRenderer.invoke(IPC.speechModelDownload),
+  chooseSpeechModel: (path?: string) => ipcRenderer.invoke(IPC.speechModelChoose, path),
+  onSpeechModel: (listener: (s: SpeechModelState) => void) => {
+    const handler = (_event: unknown, s: SpeechModelState) => listener(s);
+    ipcRenderer.on(IPC.speechModelChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.speechModelChanged, handler); };
+  },
+  getTranscript: (key: string) => ipcRenderer.invoke(IPC.transcriptGet, key),
+  startTranscript: (key: string) => ipcRenderer.invoke(IPC.transcriptStart, key),
+  stopTranscript: () => ipcRenderer.invoke(IPC.transcriptStop),
+  onTranscript: (listener: (s: TranscriptState) => void) => {
+    const handler = (_event: unknown, s: TranscriptState) => listener(s);
+    ipcRenderer.on(IPC.transcriptChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.transcriptChanged, handler); };
+  },
 };
 
 contextBridge.exposeInMainWorld('spacedemo', api);

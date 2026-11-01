@@ -1,6 +1,7 @@
 // Settings (plan 4.7): theme (4.2), the game (found automatically or chosen by hand), old map folders (4.3), voice cleanup,
 // fixed-demos folder (4.5), about.
 import { useEffect, useState } from 'react';
+import { SpeechModelCard } from './DetailsTranscript.js';
 import type { AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
 const THEMES: { id: ThemeChoice; label: string }[] = [
@@ -107,6 +108,8 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           </span>
         </label>
       </section>
+
+      <SpeechModelCard />
 
       <section className="card" aria-labelledby="out-h" data-testid="settings-output">
         <h2 id="out-h">Fixed demos</h2>

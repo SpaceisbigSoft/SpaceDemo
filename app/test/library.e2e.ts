@@ -1,6 +1,7 @@
 // Library screen interface test (plan 4.3), on the real Set 1 zips: set CDF_ZIPS (folder of the zips), and optionally
 // SPACEDEMO_GAME_DIR (a Half-Life folder with cstrike\maps) and CDF_POOL (an old-map folder).
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
@@ -21,7 +22,7 @@ async function launch(): Promise<void> {
     args: [root, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
     executablePath: (await import('electron')).default as unknown as string,
     // DRY_LAUNCH: Steam is never started; what would run goes to launch-log.txt.
-    env: { ...process.env, SPACEDEMO_USER_DATA: dataDir, SPACEDEMO_DRY_LAUNCH: '1', SPACEDEMO_OUTPUT_DIR: outDir },
+    env: { ...process.env, SPACEDEMO_USER_DATA: dataDir, SPACEDEMO_DRY_LAUNCH: '1', SPACEDEMO_OUTPUT_DIR: outDir, SPACEDEMO_WHISPER_EXE: join(root, 'app', 'test', 'fake-whisper.mjs') },
   });
   page = await app.firstWindow();
   await page.setViewportSize({ width: 1280, height: 820 });
@@ -191,6 +192,30 @@ describe.skipIf(!zips)('library screen', () => {
     await page.locator('.vt-burst').first().click();
     expect(await page.textContent('[data-testid="voice-picked"]')).toContain('round 3');
     await shot('10f details voice round 3');
+    // 5.v voice to text: without a model the button waits; choose a model file → ready; a kept transcript is listed and
+    // searchable. (Transcribing itself is tested in app/test/speech.test.ts; here the transcript is put in place.)
+    await page.waitForSelector('[data-testid="details-transcript"]');
+    expect(await page.isDisabled('[data-testid="tr-start"]')).toBe(true);
+    const modelFile = join(dataDir, 'my-model.bin');
+    { const b = Buffer.alloc(2_000_000); b.write('lmgg', 0, 'latin1'); writeFileSync(modelFile, b); }
+    expect((await page.evaluate((f) => window.spacedemo.chooseSpeechModel(f), modelFile)).path).toBe(modelFile);
+    const key = await page.evaluate(async () => (await window.spacedemo.getLibrary()).demos.find((x) => x.name === 'modTside')!.key);
+    mkdirSync(join(dataDir, 'transcripts'), { recursive: true });
+    writeFileSync(join(dataDir, 'transcripts', `${createHash('sha1').update(key).digest('hex')}.json`), JSON.stringify({
+      key, status: 'done', model: 'ggml-small.en-q5_1.bin', madeAt: Date.now(), lines: [
+        { time: 446, end: 447.5, player: ':i69:Virus23', text: 'They\'re coming B, rush B.' },
+        { time: 452, end: 453, player: ':i69:Guido', text: 'One left, he\'s low.' },
+        { time: 470, end: 472, player: ':i69:Virus23', text: 'Nice one.' },
+      ] }));
+    await page.click('[role="tab"]:has-text("Overview")');
+    await page.click('[role="tab"]:has-text("Voice")');
+    await page.waitForSelector('[data-testid="tr-lines"]');
+    expect(await page.locator('[data-testid="tr-line"]').count()).toBe(3);
+    await page.fill('[data-testid="tr-search"]', 'rush');
+    expect(await page.locator('[data-testid="tr-line"]').count()).toBe(1);
+    expect(await page.textContent('[data-testid="tr-line"]')).toContain('R3');
+    await page.locator('[data-testid="details-transcript"]').scrollIntoViewIfNeeded();
+    await shot('10w details voice to text (5.v)');
     // 5.r other recordings of the same match (read after the details): the HLTV demo of the same rounds, the other half.
     await page.click('[role="tab"]:has-text("Overview")');
     await page.waitForFunction(() => document.querySelectorAll('[data-testid="combined-recording"]').length > 0, undefined, { timeout: 180_000 });
