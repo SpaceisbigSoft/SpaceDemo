@@ -106,7 +106,7 @@ Old demos stored voice in codecs today's game can't play (Miles from 2001–2003
 - A player's demo only holds **his own team's** voice. His own voice was never recorded. Some HLTV demos carry voice and some don't.
 - **Voice cleanup** (Settings → Voice, on by default) removes rumble and hiss and evens out the loudness of each talk burst. Turn it off to keep the voice exactly as decoded.
 - **AI voice enhancement** (Settings → AI voice enhancement, off by default) uses a free AI model (VoiceFixer) to make the 2002 voice fuller and clearer. You download the model once with **Download the AI model** (about 142 MB). It runs on your PC and takes longer than a normal fix: about 15 seconds per minute of voice on a fast PC. Demos fixed the other way are fixed again when you watch them. To get the plain voice back, switch it off.
-  - The AI voice needs Microsoft's Visual C++ runtime, which most PCs already have. If it reports a problem, install the *Microsoft Visual C++ Redistributable* (x64) from Microsoft.
+  - The AI voice needs Microsoft's Visual C++ runtime, which most PCs already have. If it's missing, the demo is fixed with the normal voice and a note says so: install the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vc14/vc_redist.x64.exe), then fix the demo again.
 - **Voice to text** (demo details → Voice tab → *Turn voice into text*) writes down what was said, so you can read and search it. Download the speech model once (about 190 MB). It runs on your PC, takes a few minutes per demo, and is kept afterwards. Old, noisy voice gives rough text: treat it as a guide to what was said, not an exact record.
 - **Processor cores** (Settings) sets how many cores the AI voice and voice to text may use. The suggested maximum is all cores but one, so Windows stays smooth.
 
@@ -179,7 +179,7 @@ The window remembers its size and position. Settings are stored in `%APPDATA%\Sp
 | *Steam says Counter-Strike isn't fully installed yet* or *has an update waiting* | Let Steam finish the update, then try again. |
 | Counter-Strike is on a beta branch | Switch back to the normal branch in Steam (Counter-Strike → Properties → Betas). Fixed demos are made for the normal game. |
 | *This demo is for "…", not Counter-Strike* | It's a demo from another Half-Life game (for example Day of Defeat). SpaceDemo plays Counter-Strike demos only. |
-| AI voice reports a problem | Install the Microsoft Visual C++ Redistributable (x64), then try again. |
+| A note says *The AI voice couldn't start* | The copy has the normal voice. Install the [Microsoft Visual C++ Redistributable (x64)](https://aka.ms/vc14/vc_redist.x64.exe), then fix the demo again. |
 | Windows SmartScreen blocks the installer | **More info → Run anyway** (the installer isn't signed). |
 
 Still stuck? Open an issue on [GitHub](https://github.com/SpaceisbigSoft/SpaceDemo/issues) with the demo's name, what you clicked and what you saw.

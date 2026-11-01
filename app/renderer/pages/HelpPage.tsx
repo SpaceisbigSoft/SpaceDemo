@@ -57,7 +57,7 @@ export function HelpPage({ onGo }: { onGo: (page: 'library' | 'fix' | 'settings'
             <dt>Map error, or "couldn't open … .wad"</dt><dd>The demo needs an old map version or its textures: add your old maps folder; put a missing <span className="mono">.wad</span> in <span className="mono">cstrike_downloads</span>.</dd>
             <dt>No voice in game</dt><dd>Check the library's Voice column; many HLTV demos have none. Old Miles voice needs <span className="mono">mssvoice.asi</span> in the Half-Life folder (Steam installs it).</dd>
             <dt>Update or beta branch</dt><dd>Let Steam finish updating Counter-Strike, and use the normal branch (not a beta).</dd>
-            <dt>AI voice problem</dt><dd>Install the Microsoft Visual C++ Redistributable (x64), then try again.</dd>
+            <dt>"The AI voice couldn't start"</dt><dd>The copy has the normal voice. Install the <a href="https://aka.ms/vc14/vc_redist.x64.exe" target="_blank" rel="noreferrer">Microsoft Visual C++ Redistributable (x64)</a>, then fix the demo again.</dd>
           </dl>
           <p className="note">Still stuck? <a href={ISSUES_URL} target="_blank" rel="noreferrer">Report it on GitHub</a> with the demo's name, what you clicked and what you saw.</p>
         </section>

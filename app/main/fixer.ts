@@ -61,6 +61,18 @@ function enhancerFor(model: string, threads: number): Promise<VoiceEnhancer> {
   return loaded.enhancer;
 }
 
+/** Microsoft's permalink for the latest Visual C++ v14 Redistributable, x64 (learn.microsoft.com, 2026-11-01). */
+export const VC_REDIST_URL = 'https://aka.ms/vc14/vc_redist.x64.exe';
+
+/** Plain-language note when the AI voice can't start. */
+export function aiStartProblem(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/specified module could not be found|MSVCP140|VCRUNTIME140|ERR_DLOPEN_FAILED|onnxruntime/i.test(msg)) {
+    return `The AI voice couldn't start: Windows seems to be missing the Microsoft Visual C++ Redistributable (x64), which it needs. Install it from ${VC_REDIST_URL}, then fix this demo again. This copy has the normal voice.`;
+  }
+  return `The AI voice couldn't start (${msg}). This copy has the normal voice.`;
+}
+
 /** `onProgress`: seconds of voice done / total while the AI works. */
 export async function runFix(job: FixJob, onProgress?: (p: { done: number; total: number }) => void): Promise<FixResult> {
   const t0 = Date.now();
@@ -71,7 +83,17 @@ export async function runFix(job: FixJob, onProgress?: (p: { done: number; total
     const decoder = process.platform === 'win32' && asi && existsSync(asi) && job.helperExe && existsSync(job.helperExe)
       ? helperDecoder(job.helperExe, asi)
       : undefined;
-    const ai = job.ai ? { enhancer: await enhancerFor(job.ai.model, job.ai.threads), cacheDir: job.ai.cacheDir, onProgress: (done: number, total: number) => onProgress?.({ done, total }) } : undefined;
+    // 6.5: if the AI voice can't start (e.g. Windows lacks the Visual C++ runtime ONNX Runtime needs), fix with the
+    // normal voice and say why, instead of failing the whole fix.
+    let ai: { enhancer: VoiceEnhancer; cacheDir: string; onProgress: (done: number, total: number) => void } | undefined;
+    const aiNotes: string[] = [];
+    if (job.ai) {
+      try {
+        ai = { enhancer: await enhancerFor(job.ai.model, job.ai.threads), cacheDir: job.ai.cacheDir, onProgress: (done: number, total: number) => onProgress?.({ done, total }) };
+      } catch (e) {
+        aiNotes.push(aiStartProblem(e));
+      }
+    }
     // 0.8: the demo's old map version goes into cstrike_downloads\maps (under a new name when today's map has its name).
     const mapDone: string[] = [], mapNotes: string[] = [];
     let mapName: string | undefined, oldMap: FixResult['oldMap'];
@@ -103,7 +125,7 @@ export async function runFix(job: FixJob, onProgress?: (p: { done: number; total
     if (report.voice) done.push(`Put the original voice back as Steam voice (${Math.round(report.voice.seconds / 6) / 10} min${report.ai ? ', AI-enhanced' : job.cleanup ? ', voice cleanup on' : ''}).`);
     done.push(...mapDone);
     const voice = report.voice ? { seconds: report.voice.seconds, bursts: report.voice.bursts } : undefined;
-    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes, ...mapNotes], voice, ai: !!report.ai, aiStyle: report.ai?.style, oldMap };
+    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...aiNotes, ...report.notes, ...mapNotes], voice, ai: !!report.ai, aiStyle: report.ai?.style, oldMap };
   } catch (err) {
     return { ok: false, error: (err as Error).message, done: [], notes: [] };
   }
