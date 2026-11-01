@@ -8,7 +8,8 @@ import type { DemoFile } from '../container/types.js';
 import { readDemo } from '../container/read.js';
 import { writeDemo } from '../container/write.js';
 import { upgradeTo48 } from '../transforms/upgrade-to-48.js';
-import { oldVoicePackets, restoreVoice, type PcmFilter, type RestoreReport } from '../voice/restore.js';
+import { burstAudio, oldVoicePackets, restoreVoice, talkBursts, type OldVoicePacket, type PcmFilter, type RestoreOptions, type RestoreReport } from '../voice/restore.js';
+import { enhanceBursts, type VoiceEnhancer } from '../voice/enhance.js';
 import type { OldVoiceDecoder } from '../voice/decoders.js';
 import { createState, decodeMessages } from '../protocol/messages.js';
 import { FrameType } from '../container/types.js';
@@ -66,6 +67,8 @@ export interface FixReport {
   notes: string[];
   voiceCodec?: string;
   voice?: RestoreReport & { decoder: string };
+  /** AI voice enhancement (5.g4): model id, encode rate, time taken (s). */
+  ai?: { model: string; rate: number; seconds: number };
 }
 
 /** The voice codec a demo announces (svc_voiceinit), e.g. "voice_miles", "voice_speex", "" (Steam voice). */
@@ -88,7 +91,15 @@ export function voiceQualityOf(demo: DemoFile): number | undefined {
   return undefined;
 }
 
-export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: Uint8Array; report: FixReport } {
+interface Prepared {
+  cur: DemoFile;
+  report: FixReport;
+  /** Decoded old voice, ready to put back (undefined = nothing to restore). */
+  voice?: { packets: OldVoicePacket[]; pcm: Int16Array[]; decoder: string };
+}
+
+/** Repair + convert + decode the old voice (everything before the voice is put back). */
+function prepare(input: Uint8Array, options: FixOptions): Prepared {
   const demo = readDemo(input);
   const report: FixReport = { recovered: !!demo.recovered, problems: [...demo.problems], sourceProtocol: demo.header.networkProtocol, converted: false, conversion: {}, notes: [] };
   report.voiceCodec = voiceCodecOf(demo);
@@ -104,24 +115,54 @@ export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: U
   const old = report.voiceCodec && report.voiceCodec !== '' && packets.some((p) => p.data.length > 0);
   if (old && report.voiceCodec === 'voice_miles') {
     if (!options.voiceDecoder) report.notes.push('Old Miles voice left as is (no voice decoder given): it will not be heard in today\'s game.');
-    else {
-      const pcm = options.voiceDecoder.decodeAll(packets);
-      const r = restoreVoice(cur, pcm, { filter: options.voiceFilter });
-      cur = r.demo;
-      report.voice = { ...r.report, decoder: options.voiceDecoder.name };
-    }
+    else return { cur, report, voice: { packets, pcm: options.voiceDecoder.decodeAll(packets), decoder: options.voiceDecoder.name } };
   } else if (old && report.voiceCodec === 'voice_speex') {
     // 2.17: Speex is decoded by our built-in decoder (no game file needed).
     const dec = speexDecoder(voiceQualityOf(demo) ?? 5);
     const pcm = dec.decodeAll(packets);
-    const r = restoreVoice(cur, pcm, { filter: options.voiceFilter });
-    cur = r.demo;
-    report.voice = { ...r.report, decoder: dec.name };
     if (dec.stats.corrupt) report.notes.push(`${dec.stats.corrupt} of ${dec.stats.frames} Speex voice frames were damaged and were filled in.`);
+    return { cur, report, voice: { packets, pcm, decoder: dec.name } };
   } else if (!packets.some((p) => p.data.length > 0)) {
     report.notes.push('This demo has no voice recorded in it.');
   } else if (old) {
     report.notes.push(`Voice codec "${report.voiceCodec}" is not supported yet (only voice_miles and voice_speex); voice left as is.`);
   }
-  return { bytes: writeDemo(cur, { rebuildDirectory: true }), report };
+  return { cur, report };
+}
+
+function finish(p: Prepared, restore?: RestoreOptions): { bytes: Uint8Array; report: FixReport } {
+  let cur = p.cur;
+  if (p.voice) {
+    const r = restoreVoice(cur, p.voice.pcm, restore);
+    cur = r.demo;
+    p.report.voice = { ...r.report, decoder: p.voice.decoder };
+  }
+  return { bytes: writeDemo(cur, { rebuildDirectory: true }), report: p.report };
+}
+
+export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: Uint8Array; report: FixReport } {
+  return finish(prepare(input, options), { filter: options.voiceFilter });
+}
+
+export interface AiOptions {
+  enhancer: VoiceEnhancer;
+  /** Steam voice encode rate for the enhanced voice (plan 5.g2 decides; default 8000 like the plain voice). */
+  rate?: 8000 | 24000;
+  cacheDir?: string;
+  onProgress?: (done: number, total: number) => void;
+}
+
+/** fixDemo, optionally with AI voice enhancement (5.g4). Without `ai` it is the same as fixDemo. */
+export async function fixDemoAsync(input: Uint8Array, options: FixOptions & { ai?: AiOptions } = {}): Promise<{ bytes: Uint8Array; report: FixReport }> {
+  const p = prepare(input, options);
+  if (!options.ai || !p.voice) return finish(p, { filter: options.voiceFilter });
+  const t0 = Date.now();
+  const bursts = talkBursts(p.voice.packets, p.voice.pcm);
+  const audio = bursts.map((b) => burstAudio(b, p.voice!.pcm));
+  const slots = bursts.map((b) => p.voice!.packets[b[0]].slot);
+  const rate = options.ai.rate ?? 8000;
+  const replacement = await enhanceBursts(audio, slots, options.ai.enhancer, { rate, cacheDir: options.ai.cacheDir, onProgress: options.ai.onProgress });
+  const out = finish(p, { replacement, rate });
+  out.report.ai = { model: options.ai.enhancer.id, rate, seconds: Math.round((Date.now() - t0) / 100) / 10 };
+  return out;
 }

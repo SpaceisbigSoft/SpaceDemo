@@ -57,12 +57,17 @@ export interface RestoreReport {
  * Replaces every voice packet with Steam voice made from `pcm` (one Int16Array per packet of `oldVoicePackets`, same
  * order; empty = no audio). `steamIdOf` gives each slot a stable fake SteamID (the game only uses it to tell talkers apart).
  */
-export function restoreVoice(demo: DemoFile, pcm: Int16Array[], options: { filter?: PcmFilter } = {}): { demo: DemoFile; report: RestoreReport } {
-  const packets = oldVoicePackets(demo);
-  if (packets.length !== pcm.length) throw new Error(`The demo has ${packets.length} voice packets but ${pcm.length} decoded ones were given.`);
-  const report: RestoreReport = { bursts: 0, replaced: 0, emptyDropped: 0, folded: 0, seconds: 0 };
+export interface RestoreOptions {
+  filter?: PcmFilter;
+  /** Audio to send instead of each talk burst's decoded audio (same order as talkBursts(); e.g. AI-enhanced voice,
+   * 5.g4), at `rate`, and as long as the burst (burst samples × rate / 8000). The filter is not applied to these. */
+  replacement?: Int16Array[];
+  /** Rate the replacement audio is encoded at (default 8000). */
+  rate?: 8000 | 24000;
+}
 
-  // Talk bursts per slot.
+/** Talk bursts: per player slot, packets with audio at most BURST_GAP_SECONDS apart (indexes into the packet list). */
+export function talkBursts(packets: OldVoicePacket[], pcm: Int16Array[]): number[][] {
   const bursts: number[][] = [];
   const open = new Map<number, { burst: number[]; last: number }>();
   for (const p of packets) {
@@ -77,18 +82,35 @@ export function restoreVoice(demo: DemoFile, pcm: Int16Array[], options: { filte
       open.set(p.slot, { burst, last: p.time });
     }
   }
+  return bursts;
+}
+
+/** The decoded audio of one talk burst, end to end. */
+export function burstAudio(burst: number[], pcm: Int16Array[]): Int16Array {
+  const audio = new Int16Array(burst.reduce((n, i) => n + pcm[i].length, 0));
+  let at = 0;
+  for (const i of burst) { audio.set(pcm[i], at); at += pcm[i].length; }
+  return audio;
+}
+
+export function restoreVoice(demo: DemoFile, pcm: Int16Array[], options: RestoreOptions = {}): { demo: DemoFile; report: RestoreReport } {
+  const packets = oldVoicePackets(demo);
+  if (packets.length !== pcm.length) throw new Error(`The demo has ${packets.length} voice packets but ${pcm.length} decoded ones were given.`);
+  const report: RestoreReport = { bursts: 0, replaced: 0, emptyDropped: 0, folded: 0, seconds: 0 };
+
+  const bursts = talkBursts(packets, pcm);
   report.bursts = bursts.length;
 
   // Encode each burst; share its frames out over its packets.
   const framesFor = new Map<number, { frames: Uint8Array[]; end: boolean }>();
-  for (const b of bursts) {
+  const rate = options.replacement ? options.rate ?? OLD_VOICE_RATE : OLD_VOICE_RATE;
+  if (options.replacement && options.replacement.length !== bursts.length) throw new Error(`${bursts.length} talk bursts but ${options.replacement.length} replacements.`);
+  bursts.forEach((b, bi) => {
     const total = b.reduce((n, i) => n + pcm[i].length, 0);
-    let audio = new Int16Array(total);
-    let at = 0;
-    for (const i of b) { audio.set(pcm[i], at); at += pcm[i].length; }
-    if (options.filter) audio = options.filter(audio, OLD_VOICE_RATE);
+    let audio = options.replacement?.[bi] ?? burstAudio(b, pcm);
+    if (options.filter && !options.replacement) audio = options.filter(audio, OLD_VOICE_RATE);
     report.seconds += total / OLD_VOICE_RATE;
-    const frames = encodeOpus(audio);
+    const frames = encodeOpus(audio, rate);
     let samples = 0, given = 0;
     b.forEach((i, k) => {
       samples += pcm[i].length;
@@ -97,7 +119,7 @@ export function restoreVoice(demo: DemoFile, pcm: Int16Array[], options: { filte
       framesFor.set(i, { frames: frames.slice(given, upTo), end: last });
       given = upTo;
     });
-  }
+  });
 
   const sequence = new Map<number, number>();
   let index = 0;
@@ -118,16 +140,17 @@ export function restoreVoice(demo: DemoFile, pcm: Int16Array[], options: { filte
   return { demo: out, report };
 }
 
-/** 8 kHz PCM → Opus packets of 20 ms (voice mode). The last frame is padded with silence. */
-export function encodeOpus(pcm: Int16Array): Uint8Array[] {
-  const enc = new OpusScript(OLD_VOICE_RATE as 8000, 1, OpusScript.Application.VOIP);
+/** PCM (8 or 24 kHz) → Opus packets of 20 ms (voice mode). The last frame is padded with silence. */
+export function encodeOpus(pcm: Int16Array, rate: 8000 | 24000 = OLD_VOICE_RATE): Uint8Array[] {
+  const enc = new OpusScript(rate, 1, OpusScript.Application.VOIP);
+  const size = (rate * FRAME_MS) / 1000;
   try {
     enc.setBitrate(OPUS_BITRATE);
     const out: Uint8Array[] = [];
-    for (let p = 0; p < pcm.length; p += FRAME_SAMPLES) {
-      const frame = new Int16Array(FRAME_SAMPLES);
-      frame.set(pcm.subarray(p, Math.min(pcm.length, p + FRAME_SAMPLES)));
-      out.push(new Uint8Array(enc.encode(Buffer.from(frame.buffer), FRAME_SAMPLES)));
+    for (let p = 0; p < pcm.length; p += size) {
+      const frame = new Int16Array(size);
+      frame.set(pcm.subarray(p, Math.min(pcm.length, p + size)));
+      out.push(new Uint8Array(enc.encode(Buffer.from(frame.buffer), size)));
     }
     return out;
   } finally {

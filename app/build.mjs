@@ -32,7 +32,7 @@ const builds = [
     ...cjsImportMeta,
     platform: 'node',
     format: 'cjs',
-    external: ['electron'],
+    external: ['electron', 'onnxruntime-node'],
     target: 'node22',
   },
   {
@@ -50,7 +50,7 @@ const builds = [
     outfile: join(out, 'preload/preload.cjs'),
     platform: 'node',
     format: 'cjs',
-    external: ['electron'],
+    external: ['electron', 'onnxruntime-node'],
     target: 'node22',
   },
   {

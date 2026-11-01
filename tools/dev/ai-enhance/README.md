@@ -36,3 +36,15 @@ and the trial's join positions are lost. Spectrally the rebuild matches: mixed +
    2 workspace cores: PyTorch ≈ 75 s, ONNX Runtime 1.31.1 ≈ 110 s per minute of voice (time is in the convs).
    `onnxruntime-node` 1.31.1 gives the same output bit for bit; its npm package already holds the win32/linux x64
    CPU binaries (install with `--ignore-scripts`: the script fetches extras from nuget.org, blocked here).
+
+## In the engine (5.g4)
+`engine/src/voice/enhance.ts` does the same steps in TypeScript with `onnxruntime-node` (loaded only when used):
+`enhanceBursts(audio, slots, enhancer, { rate, cacheDir })` → one Int16Array per talk burst at the encode rate, which
+`restoreVoice(..., { replacement, rate })` encodes as Steam voice. `fixDemoAsync(input, { ..., ai: { enhancer, rate } })`
+and `npm run fix -- <old> <new> --ai <model.onnx> [--ai-rate 8000|24000] [--ai-cache <folder>]`. Voice cleanup is
+not applied to AI-enhanced voice. Resampling: `engine/src/voice/resample.ts` (Kaiser windowed sinc; defaults chosen to
+come closest to librosa's soxr_hq: 61.8 dB on 8 → 44.1 kHz voice).
+`npx tsx tools/dev/ai-enhance/check-enhance.ts <tracks dir> <model.onnx> <reference.wav> [out.wav]` compares it with
+the Python reference: MoD minute log-mel correlation 0.9998, mean difference 0.19 dB, every band within ±0.1 dB.
+Sample-for-sample comparison is meaningless here: VoiceFixer's waveform changes a lot with tiny input differences
+(noise 62 dB below the voice → output SNR 13 dB), so compare spectra and listen.
