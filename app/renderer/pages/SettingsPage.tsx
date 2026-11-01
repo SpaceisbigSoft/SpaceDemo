@@ -115,12 +115,12 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           <button type="button" className="btn" onClick={() => void chooseGame()} data-testid="choose-game">Choose game folder…</button>
           {view?.gameDir && <button type="button" className="btn" onClick={() => void window.spacedemo.clearGameFolder().then((v) => { setView(v); onLookAgain(); })}>Find automatically</button>}
         </div>
-        <p className="note">SpaceDemo only reads the game folder. It starts the game through Steam with -insecure and never changes game files.</p>
+        <p className="note">SpaceDemo never changes the game's own files. It only adds its own: a copy of the demo you watch (cstrike\cdf_test, removed when the game closes) and old map versions a demo needs (cstrike_downloads, under a new name when today's map has the same name). It starts the game through Steam with -insecure.</p>
       </section>
 
       <section className="card" aria-labelledby="maps-h" data-testid="settings-maps">
         <h2 id="maps-h">Old map versions</h2>
-        <p className="note" style={{ color: 'var(--text-2)' }}>Many old demos were recorded on earlier versions of a map. Add the folders where you keep old .bsp files (your map pool); SpaceDemo finds the right version by its checksum. These folders are only read.</p>
+        <p className="note" style={{ color: 'var(--text-2)' }}>Many old demos were recorded on earlier versions of a map. Add the folders where you keep old .bsp files (your map pool); SpaceDemo finds the right version by its checksum and puts it in place when a demo needs it. These folders are only read.</p>
         {view && view.mapFolders.length > 0 ? (
           <ul className="folder-list" aria-label="Map pool folders">
             {view.mapFolders.map((f) => (

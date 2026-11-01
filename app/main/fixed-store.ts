@@ -18,6 +18,8 @@ export interface FixedRecord {
   ai?: boolean;
   /** 5.g6: version of the AI voice (AI_STYLE in engine/src/voice/enhance.ts); older AI copies are made again. */
   aiStyle?: number;
+  /** 0.8: the old map this copy plays on (cstrike_downloads\maps\<installName>.bsp). */
+  oldMap?: { source: string; installName: string };
 }
 
 export class FixedStore {
@@ -42,6 +44,11 @@ export class FixedStore {
       return undefined;
     }
     return r;
+  }
+
+  /** The record as stored, valid or not. */
+  peek(key: string): FixedRecord | undefined {
+    return this.records[key];
   }
 
   /** Our own earlier output for this demo (valid or not), so it may be replaced by a new fix. */

@@ -1,9 +1,12 @@
 // Watch from the app (plan 4.5): fix the demo if it needs it (a new fixed copy; the original is only read), then start
 // CS 1.6 through Steam with the 3.2 launcher (-insecure, copy in cstrike\cdf_test) and remove that copy when the game
 // closes (3.5). Anti-cheat rule: nothing here touches the game's memory or its own files.
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanupCopies, waitForGameClose } from '../../engine/src/launch/cleanup.js';
 import { isGameRunning, launch, planLaunch, type LaunchPlan } from '../../engine/src/launch/launch.js';
 import type { FindResult } from '../../engine/src/launch/steam.js';
+import { installOldMap, planOldMap } from '../../engine/src/launch/old-maps.js';
 import type { WatchInfo, WatchProgress } from '../shared/api.js';
 import { fixedOutputPath, type FixedStore } from './fixed-store.js';
 import type { FixService } from './fix-service.js';
@@ -14,6 +17,8 @@ export interface WatchDeps {
   fixed: FixedStore;
   fixer: FixService;
   findGame: () => FindResult;
+  /** 0.8: Settings → Old map versions (to put a removed old map back). */
+  mapFolders?: () => string[];
   outputFolder: () => string;
   onProgress: (p: WatchProgress) => void;
   /** Replaceable in tests: starting Steam, checking whether the game runs, waiting. */
@@ -41,8 +46,9 @@ export class WatchService {
     const found = this.d.findGame();
     if (!found.steam) problems.push('Steam wasn\'t found.');
     if (!found.game) problems.push('Counter-Strike 1.6 wasn\'t found (see Settings).');
-    if (demo.map && demo.map.note !== 'installed' && demo.map.kind !== 'unknown') {
-      warnings.push(`This demo needs a ${demo.map.kind === 'bad' ? 'map that isn\'t found' : `different version of ${i.map} (${demo.map.note})`}. Putting old map versions in place for playback isn't built yet, so the game may stop with a map error when it loads.`);
+    // 0.8: old map versions found in the map pool are put in place when the demo is fixed; only missing ones need a warning.
+    if (demo.map && (demo.map.kind === 'bad' || demo.map.kind === 'warn')) {
+      warnings.push(`This demo needs ${demo.map.kind === 'bad' ? `the map ${i.map}, which isn't found` : `an older version of ${i.map}, which isn't found`}. Add a folder with old maps in Settings → Old map versions, or the game may stop when it loads the map.`);
     }
     const needsFix = this.needsFix(key);
     return {
@@ -88,6 +94,16 @@ export class WatchService {
         notes = r.notes;
       }
       if (!source) return say({ stage: 'error', message: 'No playable copy of this demo.' });
+      // 0.8: put the old map back if it was removed from cstrike_downloads since the demo was fixed.
+      const rec = this.d.fixed.peek(key);
+      if (!info.needsFix && rec?.oldMap && found.game && !existsSync(join(found.game.dir, 'cstrike_downloads', 'maps', `${rec.oldMap.installName}.bsp`))) {
+        try {
+          const source = existsSync(rec.oldMap.source) ? rec.oldMap.source : undefined;
+          const p = source ? undefined : planOldMap(row.demo.info!.map, row.demo.info!.mapChecksum, found.game.dir, this.d.mapFolders?.() ?? []);
+          const from = source ?? (p?.kind === 'install' ? p.source : undefined);
+          if (from) installOldMap(found.game.dir, { kind: 'install', source: from, installName: rec.oldMap.installName, rename: true });
+        } catch { /* the game will say what's missing */ }
+      }
 
       say({ stage: 'starting', message: 'Starting Counter-Strike through Steam…', done, notes });
       let plan: LaunchPlan;

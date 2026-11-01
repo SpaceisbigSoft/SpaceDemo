@@ -368,12 +368,12 @@ if (!app.requestSingleInstanceLock()) {
     });
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
     fixer = new FixService({
-      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup, ai: aiJob,
+      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup, ai: aiJob, mapFolders: () => settings.mapFolders,
       helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
       onChange: (s) => win?.webContents.send(IPC.fixChanged, s),
     });
     watcher = new WatchService({
-      library, fixed: fixedStore, fixer, findGame: findRaw, outputFolder,
+      library, fixed: fixedStore, fixer, findGame: findRaw, outputFolder, mapFolders: () => settings.mapFolders,
       onProgress: (p) => win?.webContents.send(IPC.watchProgress, p),
       ...(DRY_LAUNCH ? { start: (exe: string, args: string[]) => appendFileSync(launchLog, JSON.stringify({ exe, args }) + '\n'), gameRunning: () => false, noWait: true } : {}),
     });

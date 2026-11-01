@@ -114,6 +114,7 @@ function prepare(input: Uint8Array, options: FixOptions): Prepared {
     report.conversion = up.report.applied;
     report.notes.push(...up.report.warnings);
   }
+  if (options.mapName && !report.converted) report.notes.push(`This demo already uses protocol 48; playing it on a renamed old map (${options.mapName}) isn't supported yet.`);
   const packets = oldVoicePackets(cur);
   const old = report.voiceCodec && report.voiceCodec !== '' && packets.some((p) => p.data.length > 0);
   if (old && report.voiceCodec === 'voice_miles') {
