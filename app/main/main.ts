@@ -10,7 +10,7 @@ import { checkGameDir, findGame } from '../../engine/src/launch/steam.js';
 import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
-import { SpeechService } from './speech-service.js';
+import { physicalCores, SpeechService, suggestedCores, usableCores } from './speech-service.js';
 import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
 import { PlayersService } from './players-service.js';
@@ -66,7 +66,8 @@ function saveAndApply(next: Settings): void {
 }
 
 function settingsView(): AppSettingsView {
-  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup };
+  const cpu = { cores: usableCores(settings.cpuCores), chosen: settings.cpuCores !== undefined, suggested: suggestedCores(), max: physicalCores() };
+  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup, cpu };
 }
 
 /** Paths from the window: kept only if they are absolute and exist. */
@@ -246,6 +247,11 @@ function registerIpc(): void {
     void library.refresh();
     return settingsView();
   });
+  ipcMain.handle(IPC.cpuCoresSet, (_e, cores: unknown) => {
+    if (cores === null) saveAndApply({ ...settings, cpuCores: undefined });
+    else if (typeof cores === 'number' && Number.isInteger(cores) && cores >= 1) saveAndApply({ ...settings, cpuCores: Math.min(cores, physicalCores()) });
+    return settingsView();
+  });
   ipcMain.handle(IPC.voiceCleanupSet, (_e, on: unknown) => {
     if (typeof on === 'boolean') saveAndApply({ ...settings, voiceCleanup: on });
     return settingsView();
@@ -342,6 +348,7 @@ if (!app.requestSingleInstanceLock()) {
       voiceHelperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
       whisperExe: process.env.SPACEDEMO_WHISPER_EXE ?? join(app.getAppPath(), 'helpers', 'whisper-helper', 'spacedemo-whisper.exe'),
       wine: process.env.SPACEDEMO_WHISPER_WINE, modelUrl: process.env.SPACEDEMO_MODEL_URL,
+      cores: () => usableCores(settings.cpuCores),
       chosenModel: () => settings.speechModel,
       saveChosenModel: (path) => saveAndApply({ ...settings, speechModel: path }),
       onModel: (st) => win?.webContents.send(IPC.speechModelChanged, st),

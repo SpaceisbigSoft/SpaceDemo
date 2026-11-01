@@ -22,6 +22,8 @@ export interface SpeechDeps {
   whisperExe: string;
   /** Run the speech helper under this (Linux development: "wine"). */
   wine?: string;
+  /** Cores SpaceDemo may use (the Processor cores setting); default: the suggested maximum. */
+  cores?: () => number;
   /** Model chosen by hand (settings), and saving a new choice. */
   chosenModel: () => string | undefined;
   saveChosenModel: (path: string | undefined) => void;
@@ -78,9 +80,19 @@ export function physicalCores(): number {
   return coresCache;
 }
 
-/** `cores` = real (physical) cores. */
-export function parallelPlan(cores: number, memBytes: number): { processes: number; threads: number } {
-  const usable = Math.max(1, cores - 1);
+/** The suggested maximum for the "Processor cores" setting: all real cores but one (left for Windows and SpaceDemo). */
+export function suggestedCores(): number {
+  return Math.max(1, physicalCores() - 1);
+}
+
+/** Cores to use: the setting if given (1 … real cores), else the suggested maximum. */
+export function usableCores(setting?: number): number {
+  return setting ? Math.max(1, Math.min(setting, physicalCores())) : suggestedCores();
+}
+
+/** `usable` = cores SpaceDemo may use (the "Processor cores" setting; suggested: real cores − 1). */
+export function parallelPlan(usableCount: number, memBytes: number): { processes: number; threads: number } {
+  const usable = Math.max(1, usableCount);
   const byMem = Math.max(1, Math.floor(memBytes / 1e9) - 2);
   const processes = Math.max(1, Math.min(Math.floor(usable / 3) || 1, byMem, 8));
   return { processes, threads: Math.max(1, Math.floor(usable / processes)) };
@@ -199,7 +211,7 @@ export class SpeechService {
       send();
       // Several helpers side by side (each on its own few files): one helper can't keep a big CPU busy on short clips,
       // because much of Whisper's work per clip runs one step after another.
-      const plan = parallelPlan(physicalCores(), totalmem());
+      const plan = parallelPlan(this.d.cores?.() ?? suggestedCores(), totalmem());
       const runner: WhisperRunner = { exe: this.d.whisperExe, wine: this.d.wine, model, threads: plan.threads };
       const prompt = transcriptPrompt(b.bursts.map((x) => x.player ?? ''));
       const lines: TranscriptLine[] = [];

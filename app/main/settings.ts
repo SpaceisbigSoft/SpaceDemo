@@ -23,6 +23,9 @@ export interface Settings {
   playerRejected: string[];
   /** 5.v: speech model file chosen by hand (undefined = the downloaded one in the app's data folder). */
   speechModel?: string;
+  /** Processor cores SpaceDemo may use for heavy work (voice to text, AI voice); undefined = the suggested maximum
+   * (real cores − 1, owner 2026-11-01). */
+  cpuCores?: number;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
@@ -55,6 +58,7 @@ export function cleanSettings(raw: unknown): Settings {
     }
     out.playerRejected = cleanPaths(r.playerRejected);
     if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
+    if (typeof r.cpuCores === 'number' && Number.isInteger(r.cpuCores) && r.cpuCores >= 1 && r.cpuCores <= 1024) out.cpuCores = r.cpuCores;
   }
   return out;
 }

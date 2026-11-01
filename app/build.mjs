@@ -40,6 +40,8 @@ const builds = [
     entryPoints: [join(root, 'app/main/scan-worker.ts')],
     outfile: join(out, 'main/scan-worker.cjs'),
     ...cjsImportMeta,
+    // onnxruntime-node (AI voice, 5.g4) holds native .node files: loaded from node_modules at run time, never bundled.
+    external: ['onnxruntime-node'],
     platform: 'node',
     format: 'cjs',
     target: 'node22',

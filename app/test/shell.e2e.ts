@@ -49,7 +49,7 @@ describe('app shell', () => {
       'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
       'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
       'getWatchInfo', 'info', 'mergePlayers', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
+      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
       'stopFixing', 'stopTranscript', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
@@ -103,6 +103,26 @@ describe('app shell', () => {
     await launch();
     expect(await bg()).toBe('rgb(244, 245, 247)');
     expect(await page.evaluate(() => window.spacedemo.getTheme())).toEqual({ choice: 'light', dark: false });
+  });
+
+  it('Settings: processor cores (suggested maximum by default) and the voice-to-text accuracy note', async () => {
+    await page.click('nav button:has-text("Settings")');
+    await page.waitForSelector('[data-testid="cpu-cores"] option', { state: 'attached' });
+    const view = await page.evaluate(() => window.spacedemo.getSettings());
+    expect(view.cpu.chosen).toBe(false);
+    expect(view.cpu.suggested).toBe(Math.max(1, view.cpu.max - 1));
+    expect(Number(await page.inputValue('[data-testid="cpu-cores"]'))).toBe(view.cpu.suggested);
+    expect(await page.locator('[data-testid="cpu-cores"] option').count()).toBe(view.cpu.max);
+    expect(await page.textContent('[data-testid="cpu-note"]')).toContain('Suggested maximum');
+    expect(await page.textContent('[data-testid="speech-accuracy"]')).toMatch(/can come out wrong/);
+    const chosen = await page.evaluate(() => window.spacedemo.setCpuCores(1));
+    expect(chosen.cpu).toMatchObject({ cores: 1, chosen: true });
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).cpuCores).toBe(1);
+    const back = await page.evaluate(() => window.spacedemo.setCpuCores(null));
+    expect(back.cpu).toMatchObject({ cores: view.cpu.suggested, chosen: false });
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).cpuCores).toBeUndefined();
+    await page.locator('[data-testid="settings-cpu"]').scrollIntoViewIfNeeded();
+    await shot('5b settings processor cores');
   });
 
   it('Settings: voice cleanup switch and the game folder by hand (4.7)', async () => {

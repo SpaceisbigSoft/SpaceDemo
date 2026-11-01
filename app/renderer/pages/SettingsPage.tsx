@@ -111,6 +111,30 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
 
       <SpeechModelCard />
 
+      <section className="card" aria-labelledby="cpu-h" data-testid="settings-cpu">
+        <h2 id="cpu-h">Processor cores</h2>
+        <p className="note" style={{ color: 'var(--text-2)' }}>How many of this PC's processor cores SpaceDemo may use for heavy work: turning voice into text and AI voice enhancement. More cores is faster; fewer leaves more room for other programs while it works.</p>
+        <label className="check-row" style={{ alignItems: 'center' }}>
+          <select className="select"
+            value={view?.cpu.cores ?? ''}
+            disabled={!view}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              void window.spacedemo.setCpuCores(view && n === view.cpu.suggested ? null : n).then(setView);
+            }}
+            data-testid="cpu-cores"
+            aria-label="Processor cores SpaceDemo may use"
+          >
+            {view && Array.from({ length: view.cpu.max }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n}{n === view.cpu.suggested ? ' (suggested maximum)' : ''}</option>
+            ))}
+          </select>
+          <span className="note" data-testid="cpu-note">
+            {view ? `Suggested maximum: ${view.cpu.suggested} of ${view.cpu.max} — all cores but one, so Windows stays smooth.${view.cpu.chosen && view.cpu.cores !== view.cpu.suggested ? ' You chose a different number.' : ''}` : '…'}
+          </span>
+        </label>
+      </section>
+
       <section className="card" aria-labelledby="out-h" data-testid="settings-output">
         <h2 id="out-h">Fixed demos</h2>
         <p className="note" style={{ color: 'var(--text-2)' }}>When a demo is fixed, the fixed copy is saved here. Your originals are never changed.</p>

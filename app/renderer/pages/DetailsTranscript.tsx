@@ -94,6 +94,7 @@ export function SpeechModelCard() {
     <section className="card" aria-labelledby="speech-h" data-testid="settings-speech">
       <h2 id="speech-h">Voice to text</h2>
       <p className="note" style={{ color: 'var(--text-2)' }}>To turn the players' voice into text (Voice tab), SpaceDemo uses a free speech model (OpenAI Whisper "small", English) that runs on this PC. It is downloaded once, about {mb(m?.size ?? 190_000_000)}.</p>
+      <p className="note" data-testid="speech-accuracy">How good the text is depends on how good the recorded voice is. Old, noisy or quiet voice (like most 2002 demos) gives rougher text, and some words can come out wrong — treat it as a guide to what was said, not an exact record.</p>
       {m?.downloading ? (
         <>
           <p className="note" data-testid="speech-progress">Downloading… {mb(m.downloading.done)} of {mb(m.downloading.total)}</p>

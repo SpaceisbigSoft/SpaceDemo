@@ -33,6 +33,9 @@ describe('app settings', () => {
     expect(cleanSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.voiceCleanup).toBe(true);
     expect(cleanSettings({ voiceCleanup: 'no', gameDir: '' })).toEqual(DEFAULT_SETTINGS);
+    expect(cleanSettings({ cpuCores: 6 })).toEqual({ ...DEFAULT_SETTINGS, cpuCores: 6 });
+    expect(cleanSettings({ cpuCores: 0 })).toEqual(DEFAULT_SETTINGS);
+    expect(cleanSettings({ cpuCores: 2.5 })).toEqual(DEFAULT_SETTINGS);
     expect(cleanSettings({ playerMerges: { a: 'a', b: 3, c: 'd' }, playerRejected: 'x' })).toEqual({ ...DEFAULT_SETTINGS, playerMerges: { c: 'd' } });
   });
 });

@@ -56,6 +56,7 @@ const api: SpaceDemoApi = {
   chooseGameFolder: (path?: string) => ipcRenderer.invoke(IPC.gameFolderChoose, path),
   clearGameFolder: () => ipcRenderer.invoke(IPC.gameFolderClear),
   setVoiceCleanup: (on: boolean) => ipcRenderer.invoke(IPC.voiceCleanupSet, on),
+  setCpuCores: (cores: number | null) => ipcRenderer.invoke(IPC.cpuCoresSet, cores),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

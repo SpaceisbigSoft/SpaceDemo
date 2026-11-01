@@ -654,6 +654,9 @@ export interface AppSettingsView {
   voiceCleanup: boolean;
   /** Folders with old map versions (the map pool). */
   mapFolders: string[];
+  /** Processor cores: what is used now, whether the person chose it, the suggested maximum and the most allowed
+   * (real cores). */
+  cpu: { cores: number; chosen: boolean; suggested: number; max: number };
 }
 
 /** The person's choice and the look actually used (for 'system': Windows' own setting). */
@@ -720,6 +723,8 @@ export interface SpaceDemoApi {
   /** Back to finding the game automatically. */
   clearGameFolder(): Promise<AppSettingsView>;
   setVoiceCleanup(on: boolean): Promise<AppSettingsView>;
+  /** Processor cores SpaceDemo may use; null = back to the suggested maximum. */
+  setCpuCores(cores: number | null): Promise<AppSettingsView>;
   /** Adds a map-pool folder (no path = ask with the folder picker). */
   addMapFolder(path?: string): Promise<AppSettingsView>;
   removeMapFolder(path: string): Promise<AppSettingsView>;
@@ -808,6 +813,7 @@ export const IPC = {
   gameFolderChoose: 'settings:game-folder',
   gameFolderClear: 'settings:game-folder-clear',
   voiceCleanupSet: 'settings:voice-cleanup',
+  cpuCoresSet: 'settings:cpu-cores',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',
