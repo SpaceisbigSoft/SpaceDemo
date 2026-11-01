@@ -5,7 +5,7 @@
 // except the one-time model download.
 import { createHash } from 'node:crypto';
 import { createWriteStream, existsSync, mkdirSync, openSync, readSync, closeSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { cpus, tmpdir } from 'node:os';
+import { cpus, tmpdir, totalmem } from 'node:os';
 import { basename, join } from 'node:path';
 import { FILES_PER_RUN, SPEECH_MODEL, transcribeFiles, transcriptPrompt, type WhisperRunner } from '../../engine/src/voice/transcribe.js';
 import type { SpeechModelState, TranscriptLine, TranscriptState } from '../shared/api.js';
@@ -40,6 +40,18 @@ export function isSpeechModel(path: string): boolean {
     closeSync(fd);
     return b.toString('latin1') === 'lmgg';
   } catch { return false; }
+}
+
+/**
+ * How many speech helpers to run side by side, and threads each: about 3 threads per helper (Whisper's encoder uses
+ * them well; its decoder mostly runs one step at a time), one core left free for Windows and SpaceDemo, and at most one
+ * helper per ~1 GB of memory (the small model uses ~0.5 GB per helper).
+ */
+export function parallelPlan(cores: number, memBytes: number): { processes: number; threads: number } {
+  const usable = Math.max(1, cores - 1);
+  const byMem = Math.max(1, Math.floor(memBytes / 1e9) - 2);
+  const processes = Math.max(1, Math.min(Math.floor(usable / 3) || 1, byMem, 8));
+  return { processes, threads: Math.max(1, Math.floor(usable / processes)) };
 }
 
 export class SpeechService {
@@ -153,21 +165,32 @@ export class SpeechService {
       if (!b.bursts.length) { Object.assign(state, { status: 'done', lines: [], note: b.note ?? 'No talking in this demo.', model: basename(model), madeAt: Date.now() }); this.save(key, state); return; }
       state.total = b.bursts.length;
       send();
-      const runner: WhisperRunner = { exe: this.d.whisperExe, wine: this.d.wine, model, threads: Math.max(1, Math.min(8, cpus().length - 1)) };
+      // Several helpers side by side (each on its own few files): one helper can't keep a big CPU busy on short clips,
+      // because much of Whisper's work per clip runs one step after another.
+      const plan = parallelPlan(cpus().length, totalmem());
+      const runner: WhisperRunner = { exe: this.d.whisperExe, wine: this.d.wine, model, threads: plan.threads };
       const prompt = transcriptPrompt(b.bursts.map((x) => x.player ?? ''));
       const lines: TranscriptLine[] = [];
-      for (let i = 0; i < b.bursts.length; i += FILES_PER_RUN) {
-        if (signal.aborted) throw new Error('Stopped.');
-        const part = b.bursts.slice(i, i + FILES_PER_RUN);
-        const texts = await transcribeFiles(runner, part.map((x) => x.file), prompt, signal);
-        for (const x of part) {
-          const text = texts.get(x.file);
-          if (text) lines.push({ time: x.start, end: x.end, player: x.player, text });
+      const batches: (typeof b.bursts)[] = [];
+      for (let i = 0; i < b.bursts.length; i += FILES_PER_RUN) batches.push(b.bursts.slice(i, i + FILES_PER_RUN));
+      let next = 0, done = 0;
+      const worker = async () => {
+        while (next < batches.length) {
+          if (signal.aborted) throw new Error('Stopped.');
+          const part = batches[next++];
+          const texts = await transcribeFiles(runner, part.map((x) => x.file), prompt, signal);
+          for (const x of part) {
+            const text = texts.get(x.file);
+            if (text) lines.push({ time: x.start, end: x.end, player: x.player, text });
+          }
+          done += part.length;
+          state.done = done;
+          state.lines = [...lines].sort((p, q) => p.time - q.time);
+          send();
         }
-        state.done = Math.min(b.bursts.length, i + part.length);
-        state.lines = [...lines];
-        send();
-      }
+      };
+      await Promise.all(Array.from({ length: Math.min(plan.processes, batches.length) }, worker));
+      lines.sort((p, q) => p.time - q.time);
       Object.assign(state, { status: 'done', lines, model: basename(model), madeAt: Date.now() });
       this.save(key, state);
     } catch (err) {

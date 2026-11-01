@@ -5,12 +5,19 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { directReader } from '../main/reader.js';
-import { isSpeechModel, SpeechService } from '../main/speech-service.js';
+import { isSpeechModel, parallelPlan, SpeechService } from '../main/speech-service.js';
 import type { TranscriptState } from '../shared/api.js';
 
 const fakeModel = (dir: string) => { const f = join(dir, 'model.bin'); const b = Buffer.alloc(2_000_000); b.write('lmgg', 0, 'latin1'); writeFileSync(f, b); return f; };
 
 describe('5.v speech service', () => {
+  it('runs several helpers side by side on bigger CPUs, within memory', () => {
+    expect(parallelPlan(2, 8e9)).toEqual({ processes: 1, threads: 1 });
+    expect(parallelPlan(8, 16e9)).toEqual({ processes: 2, threads: 3 });
+    expect(parallelPlan(16, 32e9)).toEqual({ processes: 5, threads: 3 });
+    expect(parallelPlan(24, 32e9)).toEqual({ processes: 7, threads: 3 });
+    expect(parallelPlan(32, 4e9)).toEqual({ processes: 2, threads: 15 });
+  });
   it('recognises a whisper.cpp model file and refuses others', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-sp-'));
     try {
