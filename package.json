@@ -26,7 +26,7 @@
     "test:app": "node app/build.mjs && vitest run --config app/vitest.config.ts"
   },
   "devDependencies": {
-    "@types/node": "22.10.2",
+    "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "electron": "44.10.1",
@@ -47,6 +47,7 @@
   "main": "out/app/main/main.cjs",
   "allowScripts": {
     "esbuild": true,
-    "electron": true
+    "electron": true,
+    "onnxruntime-node": false
   }
 }
