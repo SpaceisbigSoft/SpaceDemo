@@ -130,6 +130,12 @@ jobs:
           pre=""; case "$tag" in *-*) pre="--prerelease";; esac
           title="SpaceDemo ${tag#v}"
           # 6.7: the installer + its .blockmap + latest.yml/beta.yml/alpha.yml are what the in-app updater reads.
+          # Same update info under every channel name, so betas and normal versions both find it.
+          for c in beta alpha; do [ -f "dist/$c.yml" ] || cp dist/latest.yml "dist/$c.yml"; done
+          # A re-run replaces an earlier *draft* for the same version (published releases are never touched).
+          gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.draft and .tag_name == \"$tag\") | .id" | while read -r id; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done
           files=(dist/SpaceDemo-Setup-*.exe dist/SpaceDemo-Setup-*.exe.blockmap dist/installer-SHA256.txt)
           for y in dist/latest.yml dist/beta.yml dist/alpha.yml; do [ -f "$y" ] && files+=("$y"); done
           gh release view "$tag" > /dev/null 2>&1 \
