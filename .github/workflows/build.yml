@@ -1,7 +1,8 @@
 # SpaceDemo build pipeline (Plan 6.2).
 #   Every push / pull request: type check + tests (no demos, so the real-demo tests are skipped) and both helper programs.
 #   Tags v* and "Run workflow" by hand: also the Windows installer. A tag also gets a DRAFT release with the installer
-#   (nothing is published until the owner presses "Publish release" on GitHub).
+#   (nothing is published until the owner presses "Publish release" on GitHub); a tag with "-" (v0.9.0-beta.1) is a
+#   pre-release, and docs/release-notes/<tag>.md gives the release text.
 # The helpers are cross-built on Linux with MinGW-w64, exactly like helpers/*/build.sh (the builds proven on the
 # owner's PC); the installer is built on a real Windows runner with electron-builder (no wine needed).
 # Never added here: demos, Valve/RAD files (mssvoice.asi etc.), the AI model (separate release file).
@@ -109,7 +110,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A version with "-" (e.g. v0.9.0-beta.1) becomes a pre-release; notes from docs/release-notes/<tag>.md if present.
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          [ -f "$notes" ] || { echo "Windows installer (unsigned: SmartScreen → More info → Run anyway). Checksums in installer-SHA256.txt." > /tmp/notes.md; notes=/tmp/notes.md; }
+          pre=""; case "$GITHUB_REF_NAME" in *-*) pre="--prerelease";; esac
+          title="SpaceDemo ${GITHUB_REF_NAME#v}"
           gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 \
             && gh release upload "$GITHUB_REF_NAME" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt --clobber \
             || gh release create "$GITHUB_REF_NAME" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt \
-                 --draft --title "SpaceDemo $GITHUB_REF_NAME" --notes "Windows installer (unsigned: SmartScreen → More info → Run anyway). Checksums in installer-SHA256.txt."
+                 --draft $pre --title "$title" --notes-file "$notes"

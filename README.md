@@ -2,10 +2,10 @@
 
 A modern Windows app for watching old **Counter-Strike 1.0–1.6** demos (`.dem`) in today's Steam CS 1.6 — **with the original voice communication**.
 
-> **Download:** from version 0.9.0 the Windows installer is on the [Releases page](https://github.com/SpaceisbigSoft/SpaceDemo/releases) (unsigned: SmartScreen → More info → Run anyway).
+> **Download:** the Windows installer is on the [Releases page](https://github.com/SpaceisbigSoft/SpaceDemo/releases) (unsigned: SmartScreen → More info → Run anyway).
 > **How to use it:** the [user guide](docs/USER-GUIDE.md) (also the Help page inside the app).
 >
-> Status: version 0.8.0, working on Windows 10/11 with Steam CS 1.6: demo library (folders and zips), fix & watch with the original voice, batch fixing, old map versions, match details (rounds, scoreboard, chat, voice, heatmaps, radar replay, aim and more), players across demos, optional AI voice and voice to text. Tested with over 100 demos from 2001–2005.
+> Status: version 0.9.0 beta 1 (test version), working on Windows 10/11 with Steam CS 1.6: demo library (folders and zips), fix & watch with the original voice, batch fixing, old map versions, match details (rounds, scoreboard, chat, voice, heatmaps, radar replay, aim and more), players across demos, optional AI voice and voice to text. Tested with over 100 demos from 2001–2005.
 >
 > Main repository: https://github.com/SpaceisbigSoft/SpaceDemo (renamed from `i69-demoviewer` on 2026-10-26; earlier `cs-demo-fixer`). Working name during development: CS Demo Fixer.
 
