@@ -137,11 +137,13 @@ export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { li
                 );
               })}
             </div>
-            <label htmlFor="mapfilter" className="muted-label">Map</label>
-            <select id="mapfilter" className="select" value={map} onChange={(e) => setMap(e.target.value)}>
-              <option value="">All maps</option>
-              {maps.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <span className="map-filter">
+              <label htmlFor="mapfilter" className="muted-label">Map</label>
+              <select id="mapfilter" className="select" value={map} onChange={(e) => setMap(e.target.value)}>
+                <option value="">All maps</option>
+                {maps.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </span>
           </div>
 
           <div className="table-wrap">

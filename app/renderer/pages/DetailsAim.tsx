@@ -29,7 +29,7 @@ export function AimTab({ d, onWatch }: { d: DemoDetails; onWatch: (round: number
         <div className="aim-head">
           <h2 id="aim-h">{a.name} · aim</h2>
           <label className="note">Round{' '}
-            <select value={round} onChange={(e) => { setRound(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPicked(undefined); }} data-testid="aim-round">
+            <select className="select" value={round} onChange={(e) => { setRound(e.target.value === 'all' ? 'all' : Number(e.target.value)); setPicked(undefined); }} data-testid="aim-round">
               <option value="all">All rounds</option>
               {a.rounds.map((r) => <option key={r.round} value={r.round}>Round {r.round}</option>)}
             </select>

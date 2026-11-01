@@ -75,7 +75,7 @@ export function App() {
         <nav className="sidebar" aria-label="Main">
           <div className="brand">
             <LogoMark />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div className="brand-text" style={{ display: 'flex', flexDirection: 'column' }}>
               <span className="brand-name">SpaceDemo</span>
               <span className="brand-tag">old demos, original voice</span>
             </div>
@@ -87,9 +87,10 @@ export function App() {
               className="nav-item"
               aria-current={navPage === id ? 'page' : undefined}
               onClick={() => setPage(id)}
+              title={label}
             >
               <Icon />
-              {label}
+              <span className="nav-label">{label}</span>
             </button>
           ))}
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
@@ -119,7 +120,8 @@ function GameCard({ game, looking, onOpen }: { game?: GameStatus; looking: boole
     );
   } else state = <span className="state bad">Not found · open Settings</span>;
   return (
-    <button type="button" className="game-card" data-testid="game-card" onClick={onOpen}>
+    <button type="button" className="game-card" data-testid="game-card" onClick={onOpen} title={game?.found ? 'Counter-Strike 1.6 found' : 'Counter-Strike 1.6 not found · open Settings'}>
+      <span className={`game-dot ${game?.found ? 'ok' : looking && !game ? '' : 'bad'}`} aria-hidden="true" />
       <span className="label">Counter-Strike 1.6</span>
       {state}
     </button>

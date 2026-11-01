@@ -136,6 +136,21 @@ button, input, select { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .game-card:hover { background: var(--surface-3); }
+.game-dot { display: none; }
+/* 4.8: narrow windows (e.g. 150 % scaling on a laptop): the sidebar shrinks to icons; names stay for screen readers
+   and as tooltips, the game card becomes a coloured dot (green = found, red = not found). */
+@media (max-width: 1000px) {
+  .sidebar { flex-basis: 72px; padding: 20px 10px; align-items: center; }
+  .brand { padding: 4px 0 18px; }
+  .brand-text, .nav-label, .game-card .label, .game-card .state, .game-card .where {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .nav-item { justify-content: center; padding: 0; width: 48px; }
+  .game-card { width: 48px; height: 44px; padding: 0; align-items: center; justify-content: center; position: relative; }
+  .game-dot { display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+  .game-dot.ok { background: var(--ok-text); }
+  .game-dot.bad { background: var(--bad-text); }
+}
 .game-card .label { font-size: 12px; color: var(--muted); }
 .game-card .state { font-size: 13px; font-weight: 600; }
 .game-card .state.ok { color: var(--text); }
@@ -235,6 +250,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .filter-chip[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
 .muted-label { color: var(--muted); font-size: 13px; }
+.map-filter { display: inline-flex; align-items: center; gap: 8px; }
 .select { min-height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
 .demo-table { width: 100%; min-width: 900px; border-collapse: collapse; }

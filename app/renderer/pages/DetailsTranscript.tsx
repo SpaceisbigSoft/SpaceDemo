@@ -46,7 +46,7 @@ export function TranscriptCard({ demoKey, d, onSettings }: { demoKey: string; d:
           <>
             <div className="tr-tools">
               <input type="search" placeholder="Search what was said…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search what was said" data-testid="tr-search" />
-              <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Player" data-testid="tr-player">
+              <select className="select" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Player" data-testid="tr-player">
                 <option value="all">Everyone</option>
                 {players.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>

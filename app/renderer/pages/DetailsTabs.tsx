@@ -33,7 +33,8 @@ export function ServerCard({ d }: { d: DemoDetails }) {
       </section>
       <section className="card" aria-labelledby="net-h" data-testid="details-network">
         <h2 id="net-h">Network settings</h2>
-        <div style={{ overflowX: 'auto' }}>
+        {/* 4.8: a box that scrolls sideways must be reachable with the keyboard (arrow keys scroll it once focused). */}
+        <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Network settings table (scrolls sideways)">
           <table className="team-table">
             <thead>
               <tr>
@@ -181,7 +182,7 @@ export function ScoreboardTab({ d }: { d: DemoDetails }) {
   return (
     <section className="card" aria-labelledby="sb-h" data-testid="details-scoreboard">
       <h2 id="sb-h">Scoreboard</h2>
-      <div style={{ overflowX: 'auto' }}>
+      <div style={{ overflowX: 'auto' }} tabIndex={0} role="region" aria-label="Scoreboard table (scrolls sideways)">
         <table className="team-table scoreboard">
           <thead>
             <tr>
