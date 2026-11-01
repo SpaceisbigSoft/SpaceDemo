@@ -87,7 +87,7 @@ export function planLaunch(fixedDemo: string, steam: SteamInstall, game: GameIns
   if (mode === 'viewdemo' && maps.length > 1) notes.push(`This demo changes map (${maps.join(' → ')}); viewdemo can't follow a map change, playdemo can.`);
   const speed = options.speed ?? 1;
   if (!(speed > 0 && speed <= 20)) problems.push(`Speed ${speed} isn't usable (choose between 0.1 and 20).`);
-  if (mode === 'viewdemo' && speed !== 1) notes.push('viewdemo starts at normal speed; change speed in the game with the playback keys.');
+  if (mode === 'viewdemo' && speed !== 1) notes.push('viewdemo starts at normal speed; change the speed in the game\'s demo panel (press ~ to open the console).');
 
   const folder = join(game.cstrikeDir, DEMO_FOLDER);
   const src = resolve(fixedDemo);

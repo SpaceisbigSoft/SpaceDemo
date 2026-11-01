@@ -1,7 +1,7 @@
 // 4.8 accessibility audit of the real SpaceDemo window (dev tool, not part of the app).
 //   xvfb-run -a node tools/dev/a11y-audit.mjs <out folder> <axe.min.js> <demo folder> [<old maps folder>]
 // axe-core (npm, MPL-2.0) is not a dependency: install it in a scratch folder (npm install axe-core@4.13.0) and pass its axe.min.js.
-// Runs WCAG 2.1 A/AA checks on Library, Details (all tabs), Fix & convert, Players, Settings and the Watch dialog, in dark and
+// Runs WCAG 2.1 A/AA checks on Library, Details (all tabs), Fix & convert, Players, Settings, Help (6.3) and the Watch dialog, in dark and
 // light, at 1280x820 (100 %) and 853x547 (1280x820 at 150 %); tabs through pages checking a visible focus ring; checks Escape
 // closes the Watch dialog and that no page scrolls sideways. Writes results.json + screenshots. v46: 0 problems after fixes.
 import { _electron as electron } from 'playwright-core';
@@ -64,6 +64,8 @@ for (const theme of ['dark', 'light']) {
     await nav('Players'); await page.waitForTimeout(3000); await audit(`players-${tag}`);
     await nav('Settings'); await audit(`settings-${tag}`);
     if (sz === '100') await keyboard(`settings-${tag}`);
+    await nav('Help'); await audit(`help-${tag}`);
+    if (sz === '100') await keyboard(`help-${tag}`);
     await nav('Library');
     await page.click('button[aria-label="Watch ' + (process.env.A11Y_DEMO ?? 'mfaTside') + '"]'); await page.waitForTimeout(800); await audit(`watch-dialog-${tag}`);
     await page.keyboard.press('Escape'); await page.waitForTimeout(300);

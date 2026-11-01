@@ -125,6 +125,17 @@ describe('app shell', () => {
     await shot('5b settings processor cores');
   });
 
+  it('Help page (6.3): getting started, demo panel, troubleshooting, link to the full guide', async () => {
+    await page.click('nav button:has-text("Help")');
+    await page.waitForSelector('#help-start');
+    expect(await page.textContent('[data-testid="titlebar-page"]')).toBe('Help');
+    for (const id of ['help-start', 'help-panel', 'help-voice', 'help-maps', 'help-trouble', 'help-safe']) expect(await page.isVisible(`#${id}`)).toBe(true);
+    expect(await page.getAttribute('[data-testid="help-guide"]', 'href')).toBe('https://github.com/SpaceisbigSoft/SpaceDemo/blob/main/docs/USER-GUIDE.md');
+    await shot('5e help');
+    await page.click('#help-start ~ ol button:has-text("Library")');
+    expect(await page.textContent('[data-testid="titlebar-page"]')).toBe('Library');
+  });
+
   it('Settings → About: credits and licence buttons (6.4)', async () => {
     await page.click('nav button:has-text("Settings")');
     await page.waitForSelector('[data-testid="open-notices"]');

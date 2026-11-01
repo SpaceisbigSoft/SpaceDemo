@@ -1,7 +1,8 @@
 // The app frame (plan 4.2): title bar, left navigation, the game card and the current page.
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import type { FixBatchState, GameStatus, LibraryState } from '../shared/api.js';
-import { FixIcon, LibraryIcon, LogoMark, PlayersIcon, SettingsIcon } from './icons.js';
+import { FixIcon, HelpIcon, LibraryIcon, LogoMark, PlayersIcon, SettingsIcon } from './icons.js';
+import { HelpPage } from './pages/HelpPage.js';
 import { PlayersPage } from './pages/PlayersPage.js';
 import { LibraryPage } from './pages/LibraryPage.js';
 import { FixPage } from './pages/FixPage.js';
@@ -9,13 +10,14 @@ import { SettingsPage } from './pages/SettingsPage.js';
 import { DetailsPage } from './pages/DetailsPage.js';
 import { WatchDialog } from './WatchDialog.js';
 
-export type PageId = 'library' | 'fix' | 'players' | 'settings' | 'details';
+export type PageId = 'library' | 'fix' | 'players' | 'settings' | 'help' | 'details';
 
 const PAGES: { id: PageId; label: string; Icon: () => ReactElement }[] = [
   { id: 'library', label: 'Library', Icon: LibraryIcon },
   { id: 'fix', label: 'Fix & convert', Icon: FixIcon },
   { id: 'players', label: 'Players', Icon: PlayersIcon },
   { id: 'settings', label: 'Settings', Icon: SettingsIcon },
+  { id: 'help', label: 'Help', Icon: HelpIcon },
 ];
 
 export function App() {
@@ -114,6 +116,7 @@ export function App() {
           {page === 'fix' && <FixPage batch={fixBatch} library={library} onWatch={setWatchKey} />}
           {page === 'players' && <PlayersPage />}
           {page === 'settings' && <SettingsPage game={game} looking={looking} onLookAgain={lookForGame} />}
+          {page === 'help' && <HelpPage onGo={setPage} />}
         </main>
       </div>
       {watchDemo && <WatchDialog demo={watchDemo} onClose={() => setWatchKey(undefined)} />}
