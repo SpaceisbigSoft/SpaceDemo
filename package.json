@@ -1,6 +1,6 @@
 {
   "name": "spacedemo",
-  "version": "0.9.0-beta.1",
+  "version": "0.9.0-beta.2",
   "private": true,
   "description": "Repair and play old Counter-Strike 1.0-1.6 demos with voice in modern CS 1.6",
   "license": "GPL-3.0-or-later",
@@ -43,6 +43,7 @@
   "dependencies": {
     "@fontsource/inter": "5.3.0",
     "@fontsource/jetbrains-mono": "5.3.0",
+    "electron-updater": "6.8.11",
     "onnxruntime-node": "1.31.1",
     "opusscript": "0.1.1",
     "react": "19.3.0",
@@ -124,7 +125,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "SpaceDemo",
       "license": "LICENSE",
-      "artifactName": "SpaceDemo Setup ${version}.${ext}",
+      "artifactName": "SpaceDemo-Setup-${version}.${ext}",
       "deleteAppDataOnUninstall": false,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
@@ -135,9 +136,16 @@
       ],
       "icon": "build/icon.png"
     },
-    "publish": null,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "SpaceisbigSoft",
+        "repo": "SpaceDemo"
+      }
+    ],
     "electronLanguages": [
       "en-US"
-    ]
+    ],
+    "generateUpdatesFilesForAllChannels": true
   }
 }

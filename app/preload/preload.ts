@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type AiModelState, type SpeechModelState, type TranscriptState, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
+import { IPC, type AiModelState, type SpeechModelState, type TranscriptState, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type UpdateState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -60,6 +60,16 @@ const api: SpaceDemoApi = {
   },
   openOutputFolder: () => ipcRenderer.invoke(IPC.openOutput),
   openLicence: (which: 'notices' | 'licence') => ipcRenderer.invoke(IPC.openLicence, which),
+  getUpdate: () => ipcRenderer.invoke(IPC.updateGet),
+  checkForUpdate: () => ipcRenderer.invoke(IPC.updateCheck),
+  downloadUpdate: () => ipcRenderer.invoke(IPC.updateDownload),
+  installUpdate: () => ipcRenderer.invoke(IPC.updateInstall),
+  setUpdateCheck: (on: boolean) => ipcRenderer.invoke(IPC.updateCheckSet, on),
+  onUpdate: (listener: (s: UpdateState) => void) => {
+    const handler = (_event: unknown, s: UpdateState) => listener(s);
+    ipcRenderer.on(IPC.updateChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.updateChanged, handler); };
+  },
   chooseGameFolder: (path?: string) => ipcRenderer.invoke(IPC.gameFolderChoose, path),
   clearGameFolder: () => ipcRenderer.invoke(IPC.gameFolderClear),
   setVoiceCleanup: (on: boolean) => ipcRenderer.invoke(IPC.voiceCleanupSet, on),

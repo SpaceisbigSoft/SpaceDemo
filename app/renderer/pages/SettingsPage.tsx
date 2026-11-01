@@ -1,6 +1,7 @@
 // Settings (plan 4.7): theme (4.2), the game (found automatically or chosen by hand), old map folders (4.3), voice cleanup,
 // fixed-demos folder (4.5), about.
 import { useEffect, useState } from 'react';
+import { UpdatesCard } from '../UpdateBanner.js';
 import { SpeechModelCard } from './DetailsTranscript.js';
 import type { AiModelState, AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
@@ -182,6 +183,8 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
         <span className="mono" style={{ overflowWrap: 'anywhere' }}>{view?.outputFolder ?? '…'}</span>
         <div><button type="button" className="btn" onClick={() => void window.spacedemo.chooseOutputFolder().then(setView)}>Change folder…</button></div>
       </section>
+
+      <UpdatesCard on={view?.updateCheck} onChange={(on) => void window.spacedemo.setUpdateCheck(on).then(setView)} />
 
       <section className="card" aria-labelledby="about-h">
         <h2 id="about-h">About</h2>

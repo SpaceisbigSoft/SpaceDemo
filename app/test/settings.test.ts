@@ -16,7 +16,7 @@ describe('app settings', () => {
   it('saves and loads the theme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-set-'));
     const f = settingsFile(join(dir, 'new folder'));
-    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [], voiceCleanup: false, gameDir: 'E:\\Games\\Half-Life', playerMerges: { 'Old Name': 'New Name' }, playerRejected: ['a|b'], aiVoice: true };
+    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [], voiceCleanup: false, gameDir: 'E:\\Games\\Half-Life', playerMerges: { 'Old Name': 'New Name' }, playerRejected: ['a|b'], aiVoice: true, updateCheck: false };
     saveSettings(f, next);
     expect(loadSettings(f)).toEqual(next);
     expect(JSON.parse(readFileSync(f, 'utf8'))).toEqual(next);

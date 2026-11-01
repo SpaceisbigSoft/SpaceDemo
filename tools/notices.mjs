@@ -106,6 +106,8 @@ function npmPackages() {
     const files = licenceFiles(join(root, path)).map((f) => `${path}/${f}`);
     // onnxruntime-node / -common have no licence file in the package: use ONNX Runtime's.
     if (!files.length && name.startsWith('onnxruntime-')) files.push('licenses/onnxruntime-LICENSE.txt');
+    // lazy-val (used by electron-updater, 6.7) says MIT but ships no licence file.
+    if (!files.length && name === 'lazy-val') files.push('licenses/lazy-val-MIT.txt');
     if (!files.length) throw new Error(`No licence file for ${name}: add one to licenses/ and to this script`);
     const p = JSON.parse(readFileSync(join(root, path, 'package.json'), 'utf8'));
     const home = p.homepage ?? (typeof p.repository === 'string' ? p.repository : p.repository?.url ?? '');

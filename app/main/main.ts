@@ -14,6 +14,7 @@ import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
 import { physicalCores, SpeechService, suggestedCores, usableCores } from './speech-service.js';
 import { AiModelService } from './ai-model.js';
+import { UpdateService, type UpdaterLike } from './updates.js';
 import type { FixJob } from './fixer.js';
 import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
@@ -48,6 +49,19 @@ function aiJob(): FixJob['ai'] {
 let fixedStore: FixedStore;
 let players: PlayersService;
 let speech: SpeechService;
+let updates: UpdateService;
+// Tests and screenshots only: SPACEDEMO_FAKE_UPDATE=<version> pretends GitHub has that version (nothing is downloaded).
+const FAKE_UPDATE = process.env.SPACEDEMO_FAKE_UPDATE;
+function fakeUpdater(version: string): UpdaterLike {
+  let progress: ((p: { percent: number }) => void) | undefined;
+  return {
+    autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false,
+    checkForUpdates: async () => ({ updateInfo: { version, releaseNotes: '<p>Test release notes.</p><ul><li>One change</li><li>Another change</li></ul>' } }),
+    downloadUpdate: async () => { for (const p of [25, 60, 100]) { await new Promise((r) => setTimeout(r, 150)); progress?.({ percent: p }); } return []; },
+    quitAndInstall: () => { appendFileSync(join(app.getPath('userData'), 'fake-update-log.txt'), 'quitAndInstall\n'); },
+    on: (_e, l) => { progress = l; return undefined; },
+  };
+}
 
 /** Test-only switches: a stand-in game folder, and "pretend to start Steam" (writes what it would run to a log). */
 const TEST_GAME_DIR = process.env.SPACEDEMO_GAME_DIR;
@@ -78,7 +92,7 @@ function saveAndApply(next: Settings): void {
 
 function settingsView(): AppSettingsView {
   const cpu = { cores: usableCores(settings.cpuCores), chosen: settings.cpuCores !== undefined, suggested: suggestedCores(), max: physicalCores() };
-  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup, cpu, aiVoice: { on: settings.aiVoice, active: !!aiJob() } };
+  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup, cpu, aiVoice: { on: settings.aiVoice, active: !!aiJob() }, updateCheck: settings.updateCheck };
 }
 
 /** Paths from the window: kept only if they are absolute and exist. */
@@ -276,6 +290,15 @@ function registerIpc(): void {
     mkdirSync(outputFolder(), { recursive: true });
     await shell.openPath(outputFolder());
   });
+  // 6.7 updates from GitHub releases.
+  ipcMain.handle(IPC.updateGet, () => updates.state());
+  ipcMain.handle(IPC.updateCheck, () => updates.check(true));
+  ipcMain.handle(IPC.updateDownload, () => updates.download());
+  ipcMain.handle(IPC.updateInstall, () => updates.install());
+  ipcMain.handle(IPC.updateCheckSet, (_e, on: unknown) => {
+    if (typeof on === 'boolean') saveAndApply({ ...settings, updateCheck: on });
+    return settingsView();
+  });
   // 6.4: the notices and the GPL text sit next to the helpers (resources\ when installed, the repository in development).
   ipcMain.handle(IPC.openLicence, async (_e, which: unknown) => {
     const file = join(helpersBase(), which === 'licence' ? (app.isPackaged ? 'LICENSE.txt' : 'LICENSE') : 'THIRD-PARTY-NOTICES.txt');
@@ -431,9 +454,17 @@ if (!app.requestSingleInstanceLock()) {
       onModel: (st) => win?.webContents.send(IPC.speechModelChanged, st),
       onTranscript: (st) => win?.webContents.send(IPC.transcriptChanged, st),
     });
+    // 6.7: only the installed Windows app updates itself (SPACEDEMO_NO_UPDATES turns it off, e.g. for tests).
+    updates = new UpdateService({
+      current: app.getVersion(),
+      supported: !!FAKE_UPDATE || (app.isPackaged && process.platform === 'win32' && !process.env.SPACEDEMO_NO_UPDATES),
+      updater: async () => (FAKE_UPDATE ? fakeUpdater(FAKE_UPDATE) : (await import('electron-updater')).autoUpdater as unknown as UpdaterLike),
+      onChange: (s) => win?.webContents.send(IPC.updateChanged, s),
+    });
     findGameNow();
     registerIpc();
     createWindow();
+    if (settings.updateCheck) setTimeout(() => { void updates.check(); }, FAKE_UPDATE ? 500 : 8000);
     void library.refresh();
     const dem = demoArg(process.argv);
     if (dem) openDemoFile(dem);

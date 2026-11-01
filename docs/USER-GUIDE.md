@@ -18,8 +18,9 @@ Your demos are only ever read. SpaceDemo makes a fixed **copy** when one is need
 11. [Settings](#11-settings)
 12. [Safety: your files, the game and VAC](#12-safety-your-files-the-game-and-vac)
 13. [Troubleshooting](#13-troubleshooting)
-14. [Uninstalling](#14-uninstalling)
-15. [Which demos work](#15-which-demos-work)
+14. [Updates](#14-updates)
+15. [Uninstalling](#15-uninstalling)
+16. [Which demos work](#16-which-demos-work)
 
 ---
 
@@ -33,7 +34,7 @@ You don't need the old game. Old voice recorded with the Miles codec (most 2001�
 
 ## 2. Install
 
-1. Download `SpaceDemo Setup <version>.exe` from the [Releases page](https://github.com/SpaceisbigSoft/SpaceDemo/releases).
+1. Download `SpaceDemo-Setup-<version>.exe` from the [Releases page](https://github.com/SpaceisbigSoft/SpaceDemo/releases).
 2. Run it. The installer isn't signed (signing costs money), so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info → Run anyway**.
 3. Choose where to install (the suggested folder is fine). You get a desktop shortcut and a Start Menu entry.
 
@@ -155,6 +156,7 @@ Many old demos were recorded on **earlier versions of a map** (for example the 2
 | AI voice enhancement | On/off, and the AI model (section 7). |
 | Processor cores | How many cores the AI voice and voice to text may use. |
 | Fixed demos | Where fixed copies are saved. |
+| Updates | Check for a new version when SpaceDemo starts (on), Check now (section 14). |
 | About | Version, credits, and buttons that open the licences. |
 
 The window remembers its size and position. Settings are stored in `%APPDATA%\SpaceDemo\settings.json`.
@@ -164,7 +166,7 @@ The window remembers its size and position. Settings are stored in `%APPDATA%\Sp
 - **Your demos are never changed.** Fixes are always saved as a new copy.
 - **The game's own files are never changed.** SpaceDemo only adds its own files: the demo you watch (`cstrike\cdf_test`, removed when the game closes) and old map versions (`cstrike_downloads`).
 - **Nothing touches the running game.** No injection, no hooks, no memory reading. Playback starts through Steam with `-insecure`, which turns VAC off for that session. To play online afterwards, just start the game normally.
-- **Nothing is sent anywhere**, apart from the one-time downloads of the AI and speech models, which you start yourself.
+- **Nothing about you is sent anywhere.** SpaceDemo only asks GitHub whether a newer version exists (you can turn that off in Settings → Updates) and downloads what you start yourself: updates and the AI and speech models.
 
 ## 13. Troubleshooting
 
@@ -184,11 +186,26 @@ The window remembers its size and position. Settings are stored in `%APPDATA%\Sp
 
 Still stuck? Open an issue on [GitHub](https://github.com/SpaceisbigSoft/SpaceDemo/issues) with the demo's name, what you clicked and what you saw.
 
-## 14. Uninstalling
+## 14. Updates
+
+SpaceDemo keeps itself up to date from its [GitHub releases](https://github.com/SpaceisbigSoft/SpaceDemo/releases):
+
+1. A few seconds after it starts, SpaceDemo asks GitHub for the newest version. Nothing about you is sent.
+2. If there's a newer one, a bar at the top says so. Click **What's new** to read the changes, **Download** to get it, or **Later**.
+3. The download runs in the background, and often only the changed parts are fetched. You can keep using SpaceDemo.
+4. Click **Restart now**. SpaceDemo closes, installs the new version over the old one and opens again, in a few seconds. Or choose **Later**, and it installs when you next close SpaceDemo.
+
+Your settings, library, fixed demos and downloaded models stay. Updates install without the setup screens, and Windows usually doesn't show the SmartScreen warning for them.
+
+- Turn the automatic check off in **Settings → Updates**. **Check now** checks by hand.
+- If you installed a **beta** (a version like 0.9.0-beta.2), you're also offered newer betas. Normal versions are only offered normal versions.
+- The very first update needs a version that already has the updater (0.9.0-beta.2 or later). Older versions: install the new one over the top; settings stay.
+
+## 15. Uninstalling
 
 Use Windows **Settings → Apps → SpaceDemo → Uninstall**. Your settings (`%APPDATA%\SpaceDemo`) and fixed demos (`Documents\SpaceDemo\Fixed demos`) are kept. Delete those folders yourself if you don't need them any more. Old map versions SpaceDemo placed in the game's `cstrike_downloads\maps` folder can be deleted too.
 
-## 15. Which demos work
+## 16. Which demos work
 
 - Counter-Strike demos recorded with network **protocol 45, 46, 47 or 48**. That covers the WON-era CS 1.x releases (2001–2003) and Steam CS 1.6. SpaceDemo has been tested with over 100 real demos from 2001–2005, player (POV) and HLTV.
 - Voice: **Miles** (WON era) and **Speex** (early Steam). Demos recorded with today's game already have Steam voice and play as they are.

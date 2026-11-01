@@ -64,7 +64,7 @@ export function HelpPage({ onGo }: { onGo: (page: 'library' | 'fix' | 'settings'
 
         <section className="card help-wide" aria-labelledby="help-safe">
           <h2 id="help-safe">Safe for your files and your Steam account</h2>
-          <p>Your demos and the game's own files are never changed. SpaceDemo doesn't touch the running game (no injection, no memory reading), and starts demos through Steam with <span className="mono">-insecure</span>, which turns VAC off for that session only. Nothing is sent anywhere except the model downloads you start yourself.</p>
+          <p>Your demos and the game's own files are never changed. SpaceDemo doesn't touch the running game (no injection, no memory reading), and starts demos through Steam with <span className="mono">-insecure</span>, which turns VAC off for that session only. Nothing about you is sent anywhere: SpaceDemo only asks GitHub whether a newer version exists (Settings → Updates) and downloads what you start yourself.</p>
         </section>
       </div>
     </>

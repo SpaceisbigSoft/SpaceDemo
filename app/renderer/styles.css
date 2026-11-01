@@ -719,3 +719,10 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .help-grid a { color: var(--accent-text); }
 .page-header a.btn { text-decoration: none; display: inline-flex; align-items: center; box-sizing: border-box; }
 @media (max-width: 1000px) { .help-grid { grid-template-columns: minmax(0, 1fr); } .help-facts { grid-template-columns: 1fr; } }
+
+/* 6.7 update banner */
+.update-banner { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; padding: 14px 18px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent); margin-bottom: 20px; }
+.update-banner .update-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 320px; line-height: 1.5; }
+.update-banner progress { width: 100%; max-width: 360px; accent-color: var(--accent); }
+.update-banner .update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.update-notes { margin: 4px 0 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; max-height: 200px; overflow: auto; color: var(--text-2); }

@@ -31,12 +31,14 @@ export interface Settings {
   aiVoice: boolean;
   /** 5.g5 AI model file chosen by hand (undefined = the downloaded one in the app's data folder). */
   aiModel?: string;
+  /** 6.7: check GitHub for a newer version when SpaceDemo starts (on by default). */
+  updateCheck: boolean;
   /** Window size/place when SpaceDemo last closed (owner, 2026-11-01). */
   window?: SavedWindow;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [], aiVoice: false };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [], aiVoice: false, updateCheck: true };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
@@ -66,6 +68,7 @@ export function cleanSettings(raw: unknown): Settings {
     out.playerRejected = cleanPaths(r.playerRejected);
     if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
     if (typeof r.aiVoice === 'boolean') out.aiVoice = r.aiVoice;
+    if (typeof r.updateCheck === 'boolean') out.updateCheck = r.updateCheck;
     if (typeof r.aiModel === 'string' && r.aiModel.trim()) out.aiModel = r.aiModel;
     const w = cleanSavedWindow(r.window);
     if (w) out.window = w;

@@ -46,11 +46,11 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseAiModel', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadAiModel', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
-      'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
-      'getWatchInfo', 'info', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onOpenDemo', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
-      'openLicence', 'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
-      'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
+      'addMapFolder', 'addToLibrary', 'checkForUpdate', 'chooseAiModel', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadAiModel', 'downloadSpeechModel', 'downloadUpdate', 'findGame',
+      'fixDemos', 'fixFiles', 'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme',
+      'getTranscript', 'getUpdate', 'getWatchInfo', 'info', 'installUpdate', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onOpenDemo', 'onPlayersChanged', 'onSpeechModel',
+      'onThemeChanged', 'onTranscript', 'onUpdate', 'onWatchProgress', 'openLicence', 'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice',
+      'setCpuCores', 'setTheme', 'setUpdateCheck', 'setVoiceCleanup', 'showInFolder', 'startTranscript', 'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);
@@ -134,6 +134,21 @@ describe('app shell', () => {
     await shot('5e help');
     await page.click('#help-start ~ ol button:has-text("Library")');
     expect(await page.textContent('[data-testid="titlebar-page"]')).toBe('Library');
+  });
+
+  it('Settings → Updates (6.7): switch saved, development copy says updates work in the installed app', async () => {
+    await page.click('nav button:has-text("Settings")');
+    await page.waitForSelector('[data-testid="settings-updates"]');
+    expect(await page.textContent('[data-testid="update-status"]')).toContain('installed SpaceDemo');
+    expect(await page.isDisabled('[data-testid="update-check-now"]')).toBe(true);
+    expect(await page.isChecked('[data-testid="update-check"]')).toBe(true);
+    await page.click('[data-testid="update-check"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).updateCheck).toBe(false);
+    await page.click('[data-testid="update-check"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).updateCheck).toBe(true);
+    expect(await page.isVisible('[data-testid="update-banner"]')).toBe(false);
+    await page.locator('[data-testid="settings-updates"]').scrollIntoViewIfNeeded();
+    await shot('5f settings updates');
   });
 
   it('Settings → About: credits and licence buttons (6.4)', async () => {

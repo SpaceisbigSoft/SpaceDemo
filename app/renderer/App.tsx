@@ -9,6 +9,7 @@ import { FixPage } from './pages/FixPage.js';
 import { SettingsPage } from './pages/SettingsPage.js';
 import { DetailsPage } from './pages/DetailsPage.js';
 import { WatchDialog } from './WatchDialog.js';
+import { UpdateBanner } from './UpdateBanner.js';
 
 export type PageId = 'library' | 'fix' | 'players' | 'settings' | 'help' | 'details';
 
@@ -111,6 +112,7 @@ export function App() {
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
         <main className={`page${page === 'library' ? ' page-fixed' : ''}`} data-testid={`page-${page}`}>
+          <UpdateBanner />
           {page === 'library' && <LibraryPage library={library} onOpen={openDetails} onWatch={setWatchKey} onFixAll={fixAll} fixing={!!fixBatch?.running} />}
           {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} onWatch={setWatchKey} onOpen={openDetails} />}
           {page === 'fix' && <FixPage batch={fixBatch} library={library} onWatch={setWatchKey} />}

@@ -95,17 +95,24 @@ jobs:
           want="v$(node -p "require('./package.json').version")"
           [ "$GITHUB_REF_NAME" = "$want" ] || { echo "Tag $GITHUB_REF_NAME but package.json says $want"; exit 1; }
       - run: npm run dist:win
+      - name: Update files are there (6.7)
+        shell: bash
+        run: |
+          ls dist
+          test -f dist/win-unpacked/resources/app-update.yml && cat dist/win-unpacked/resources/app-update.yml
+          ls dist/latest.yml dist/beta.yml dist/alpha.yml 2>/dev/null | grep -q . && cat dist/*.yml | grep -v "^$" | grep -iv debug | head -40
+          ls dist/SpaceDemo-Setup-*.exe.blockmap
       - name: Checksum
         shell: bash
         run: |
           cd dist
-          sha256sum "SpaceDemo Setup "*.exe | tee installer-SHA256.txt
+          sha256sum SpaceDemo-Setup-*.exe | tee installer-SHA256.txt
           cat ../helpers-SHA256.txt >> installer-SHA256.txt
       - uses: actions/upload-artifact@v7
         with:
           name: installer
           path: |
-            dist/SpaceDemo Setup *.exe
+            dist/SpaceDemo-Setup-*.exe
             dist/installer-SHA256.txt
           if-no-files-found: error
           compression-level: 0
@@ -122,7 +129,10 @@ jobs:
           [ -f "$notes" ] || { echo "Windows installer (unsigned: SmartScreen → More info → Run anyway). Checksums in installer-SHA256.txt." > /tmp/notes.md; notes=/tmp/notes.md; }
           pre=""; case "$tag" in *-*) pre="--prerelease";; esac
           title="SpaceDemo ${tag#v}"
+          # 6.7: the installer + its .blockmap + latest.yml/beta.yml/alpha.yml are what the in-app updater reads.
+          files=(dist/SpaceDemo-Setup-*.exe dist/SpaceDemo-Setup-*.exe.blockmap dist/installer-SHA256.txt)
+          for y in dist/latest.yml dist/beta.yml dist/alpha.yml; do [ -f "$y" ] && files+=("$y"); done
           gh release view "$tag" > /dev/null 2>&1 \
-            && gh release upload "$tag" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt --clobber \
-            || gh release create "$tag" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt \
+            && gh release upload "$tag" "${files[@]}" --clobber \
+            || gh release create "$tag" "${files[@]}" \
                  --draft $pre --target "$GITHUB_SHA" --title "$title" --notes-file "$notes"

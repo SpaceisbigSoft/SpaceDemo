@@ -10,6 +10,7 @@ Texts that are not in an npm package's own folder. `node tools/notices.mjs` puts
 | whisper.cpp-LICENSE.txt | https://github.com/ggml-org/whisper.cpp tag v1.9.5 (d1be6fde) `LICENSE` |
 | mingw-w64-runtime-COPYING.txt, winpthreads-COPYING.txt | https://github.com/mingw-w64/mingw-w64 @ ee9bd876 (2026-11-01): `COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt`, `mingw-w64-libraries/winpthreads/COPYING` |
 | dxc-LICENSE.txt, dxc-ThirdPartyNotices.txt | https://github.com/microsoft/DirectXShaderCompiler @ f9fc72ad (2026-10-30) `LICENSE.TXT`, `ThirdPartyNotices.txt` |
+| lazy-val-MIT.txt | Written by us: lazy-val 1.0.5 (used by electron-updater) says MIT in package.json but has no licence file (npm package and https://github.com/develar/lazy-val @ b69ad41, checked 2026-11-01); standard MIT text |
 | directml.txt | Written by us: name, version and link to Microsoft's DirectML licence terms (nuget.org, Microsoft.AI.DirectML 1.15.4) |
 
 Speex's licence stays at `helpers/speex/COPYING`. When a shipped part changes version, update its text here.

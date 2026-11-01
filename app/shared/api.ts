@@ -663,6 +663,26 @@ export interface AppSettingsView {
   cpu: { cores: number; chosen: boolean; suggested: number; max: number };
   /** 5.g5 AI voice enhancement switch (off by default); `active` = on and the model is there. */
   aiVoice: { on: boolean; active: boolean };
+  /** 6.7: check GitHub for a newer version when SpaceDemo starts (on by default). */
+  updateCheck: boolean;
+}
+
+/** 6.7 Updates from GitHub releases. */
+export interface UpdateState {
+  /** unsupported = development build or not Windows; none = up to date; ready = downloaded, restart to install. */
+  stage: 'unsupported' | 'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error';
+  current: string;
+  /** The newer version found. */
+  latest?: string;
+  /** Its release notes, as plain text. */
+  notes?: string;
+  /** Download progress, 0–100. */
+  percent?: number;
+  error?: string;
+  /** When GitHub was last asked (ms). */
+  checked?: number;
+  /** The person started this (Check now / Download): show results and errors; automatic checks stay quiet on errors. */
+  manual?: boolean;
 }
 
 /** The person's choice and the look actually used (for 'system': Windows' own setting). */
@@ -724,6 +744,14 @@ export interface SpaceDemoApi {
   onFixBatch(listener: (s: FixBatchState) => void): () => void;
   /** Opens the fixed-demos folder in Explorer. */
   openOutputFolder(): Promise<void>;
+  /** 6.7 Updates. */
+  getUpdate(): Promise<UpdateState>;
+  checkForUpdate(): Promise<UpdateState>;
+  downloadUpdate(): Promise<UpdateState>;
+  /** Closes SpaceDemo, installs the downloaded update and starts it again. */
+  installUpdate(): Promise<void>;
+  setUpdateCheck(on: boolean): Promise<AppSettingsView>;
+  onUpdate(listener: (s: UpdateState) => void): () => void;
   /** 6.4: opens THIRD-PARTY-NOTICES.txt (or LICENSE.txt) in Windows' text viewer; '' = opened, else the problem. */
   openLicence(which: 'notices' | 'licence'): Promise<string>;
 
@@ -842,6 +870,12 @@ export const IPC = {
   fixChanged: 'fix:changed',
   openOutput: 'shell:open-output',
   openLicence: 'shell:open-licence',
+  updateGet: 'update:get',
+  updateCheck: 'update:check',
+  updateDownload: 'update:download',
+  updateInstall: 'update:install',
+  updateChanged: 'update:changed',
+  updateCheckSet: 'settings:update-check',
   gameFolderChoose: 'settings:game-folder',
   gameFolderClear: 'settings:game-folder-clear',
   voiceCleanupSet: 'settings:voice-cleanup',
