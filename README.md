@@ -8,6 +8,8 @@ Demos recorded in 2001–2005 no longer play in today's game: the network format
 
 > **Status: 0.9.0 beta** (test version) for Windows 10/11. Tested with over 100 demos from 2001–2005, player (POV) and HLTV.
 
+![SpaceDemo's radar replay of a 2002 match on de_train: every player's position, the kill feed and round events](docs/screenshots/radar.png)
+
 ## What it does
 
 - **Plays old demos in today's CS 1.6.** It converts older network protocols (45, 46 and 47 → 48), repairs recordings that were cut off, and finds the old version of a map when a demo needs it.
@@ -18,6 +20,19 @@ Demos recorded in 2001–2005 no longer play in today's game: the network format
 - **Players** across all your demos, with name changes recognised.
 - **Voice to text** (optional): read and search what was said.
 - **Updates itself** from GitHub releases, after asking you first.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Demo library: 27 demos from 2002 with map, date, length, voice and status](docs/screenshots/library.png) | ![Match overview: score, round results, map with bomb sites, players and who talked](docs/screenshots/details-overview.png) |
+| **Library:** folders and zips, search and filters | **Match overview:** score, rounds, players, who talked |
+| ![Rounds tab: a short story of each round, kills and players alive over time](docs/screenshots/rounds.png) | ![Heatmaps tab: kills and bomb plants on the map, fight distances per weapon](docs/screenshots/heatmap.png) |
+| **Rounds:** what happened, round by round | **Heatmaps:** kills, deaths, plants, grenades |
+
+![Fix & watch: the demo is repaired, converted and its voice restored, then it starts in Counter-Strike](docs/screenshots/watch.png)
+
+*Screenshots: i69's 2002 league matches, recorded in CS 1.5.*
 
 ## Getting started
 
