@@ -69,6 +69,11 @@ export function writeDemo(input: DemoFile, options: WriteOptions = {}): Uint8Arr
 
   out.set(demo.header.raw.subarray(0, HEADER_SIZE), 0);
   view.setUint32(12, demo.header.networkProtocol, true);
+  if (demo.header.mapName !== readFixedString(demo.header.raw, 16, 260)) {
+    // Map renamed (0.8 old maps): 260-byte zero-padded name at offset 16.
+    out.fill(0, 16, 16 + 260);
+    out.set(new TextEncoder().encode(demo.header.mapName).subarray(0, 259), 16);
+  }
   view.setUint32(536, demo.header.mapChecksum >>> 0, true);
   view.setUint32(540, dirOffset, true);
 
@@ -105,4 +110,9 @@ export function writeDemo(input: DemoFile, options: WriteOptions = {}): Uint8Arr
     p += DIRECTORY_ENTRY_SIZE;
   }
   return out;
+}
+
+function readFixedString(b: Uint8Array, at: number, len: number): string {
+  const end = b.subarray(at, at + len).indexOf(0);
+  return new TextDecoder('latin1').decode(b.subarray(at, end < 0 ? at + len : at + end));
 }

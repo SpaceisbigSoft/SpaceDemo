@@ -45,3 +45,29 @@ describe.skipIf(demos.length === 0)('upgrade real demos to protocol 48 (CDF_DEMO
     expect(voiceInits).toBeGreaterThan(0);
   });
 });
+
+// 0.8 old maps: the map is renamed everywhere the game reads it (header, server info, resource list), nothing else.
+describe.skipIf(!demos.length)('rename the map (0.8)', () => {
+  it(`${demos[0] ? basename(demos[0]) : ''}`, () => {
+    const demo = readDemo(new Uint8Array(readFileSync(demos[0])));
+    const { demo: up, report } = upgradeTo48(demo, { mapName: 'de_test_0123abcd' });
+    expect(report.applied['map renamed']).toBe(1);
+    const back = readDemo(writeDemo(up));
+    expect(back.header.mapName).toBe('de_test_0123abcd');
+    expect(back.header.mapChecksum).toBe(demo.header.mapChecksum);
+    const state = createState(48, 'cstrike');
+    const names: string[] = [], res: string[] = [];
+    for (const f of back.sections[0].frames) {
+      if (f.type !== FrameType.NetMessages && f.type !== FrameType.NetMessagesLoading) continue;
+      for (const m of decodeMessages(f.messages, state)) {
+        if (m.body?.kind === 'serverInfo') names.push(m.body.mapName);
+        if (m.body?.kind === 'resourceList') res.push(...m.body.resources.map((r) => r.name.toLowerCase()));
+      }
+    }
+    expect(names).toEqual(['maps/de_test_0123abcd.bsp']);
+    const old = `maps/${demo.header.mapName.toLowerCase()}.bsp`;
+    expect(res).not.toContain(old);
+    // Without the option nothing changes.
+    expect(readDemo(writeDemo(upgradeTo48(demo).demo)).header.mapName).toBe(demo.header.mapName);
+  });
+});

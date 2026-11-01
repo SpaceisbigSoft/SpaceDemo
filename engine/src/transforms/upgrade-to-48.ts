@@ -16,6 +16,12 @@ export interface UpgradeOptions {
   isResourceMissing?: (name: string) => boolean;
   /** Speex quality value written into svc_voiceinit (protocol 47+ requires one). */
   voiceQuality?: number;
+  /**
+   * 0.8 old maps: play the demo on a copy of its old map saved under this name (e.g. "de_nuke_0x7a05c3a"), because
+   * the stock map of the same name is today's version and must not be replaced. Renames the map in the header, the
+   * server info and the resource list (the world model); the checksum stays (it doesn't include the name).
+   */
+  mapName?: string;
 }
 
 export interface UpgradeReport {
@@ -43,6 +49,8 @@ class Upgrade {
   readonly applied: Record<string, number> = {};
   readonly warnings: string[] = [];
   sawDirector = false;
+  /** The world model name from the server info ("maps/de_nuke.bsp"), when the map is renamed. */
+  oldWorld?: string;
 
   /** True for demos from before CS 1.6 (protocol 44-46): the CS 1.5 -> 1.6 layout rules apply. */
   private readonly old: boolean;
@@ -76,6 +84,11 @@ class Upgrade {
       case 'serverInfo':
         // Protocol number 48; the protocol-46 extra-info block (flag + 21 bytes) is replaced by "no extra info".
         this.count('server info: protocol 48');
+        if (this.opts.mapName) {
+          this.oldWorld = b.mapName.toLowerCase().replace(/\\/g, '/');
+          this.count('map renamed');
+          return [{ ...m, bytes: encodeServerInfo({ ...b, mapName: `maps/${this.opts.mapName}.bsp` }, { protocol: TARGET_PROTOCOL, extra: Uint8Array.of(0) }) }];
+        }
         return [{ ...m, bytes: encodeServerInfo(b, { protocol: TARGET_PROTOCOL, extra: Uint8Array.of(0) }) }];
       case 'voiceInit':
         if (b.quality !== undefined) return [m];
@@ -111,10 +124,15 @@ class Upgrade {
       }
       case 'resourceList': {
         const missing = this.opts.isResourceMissing;
-        const resources = missing ? b.resources.filter((r) => !missing(r.name)) : b.resources;
+        let resources = missing ? b.resources.filter((r) => !missing(r.name)) : b.resources;
         const dropped = b.resources.length - resources.length;
         if (dropped) this.warnings.push(`Removed ${dropped} resources that don't exist in the current game.`);
-        if (!dropped && !b.hadConsistencyList) return [m];
+        let renamed = false;
+        if (this.opts.mapName && this.oldWorld) {
+          const world = `maps/${this.opts.mapName}.bsp`;
+          resources = resources.map((r) => (r.name.toLowerCase().replace(/\\/g, '/') === this.oldWorld ? ((renamed = true), { ...r, name: world }) : r));
+        }
+        if (!dropped && !renamed && !b.hadConsistencyList) return [m];
         this.count('resource list');
         return [{ ...m, bytes: encodeResourceList({ ...b, resources }) }];
       }
@@ -232,7 +250,7 @@ export function upgradeTo48(demo: DemoFile, options: UpgradeOptions = {}): { dem
   });
 
   return {
-    demo: { ...demo, header: { ...demo.header, networkProtocol: TARGET_PROTOCOL }, sections },
+    demo: { ...demo, header: { ...demo.header, networkProtocol: TARGET_PROTOCOL, ...(options.mapName ? { mapName: options.mapName } : {}) }, sections },
     report: { sourceProtocol: P, applied: up.applied, warnings: up.warnings },
   };
 }

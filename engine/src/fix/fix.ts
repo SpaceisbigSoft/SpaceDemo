@@ -53,6 +53,8 @@ export function gameResourceCheck(halfLifeDir?: string): (name: string) => boole
 export interface FixOptions {
   /** Half-Life folder of the player's game (to check which sprites/models exist). */
   halfLifeDir?: string;
+  /** 0.8: play on a copy of the demo's old map saved under this name (see UpgradeOptions.mapName). */
+  mapName?: string;
   /** Decoder for old voice; without one, voice is left as it is (it will not play in today's game). */
   voiceDecoder?: OldVoiceDecoder;
   /** Optional processing of decoded voice (the "voice cleanup" setting). */
@@ -106,7 +108,7 @@ function prepare(input: Uint8Array, options: FixOptions): Prepared {
   report.voiceCodec = voiceCodecOf(demo);
   let cur = demo;
   if (cur.header.networkProtocol !== 48) {
-    const up = upgradeTo48(cur, { isResourceMissing: gameResourceCheck(options.halfLifeDir) });
+    const up = upgradeTo48(cur, { isResourceMissing: gameResourceCheck(options.halfLifeDir), mapName: options.mapName });
     cur = up.demo;
     report.converted = true;
     report.conversion = up.report.applied;
