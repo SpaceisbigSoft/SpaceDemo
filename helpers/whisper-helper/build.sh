@@ -4,6 +4,8 @@
 # Needs: git, cmake, g++-mingw-w64-x86-64-posix. CPU: AVX2 (any PC from ~2013 on).
 # _WIN32_WINNT=0x0601: MinGW's headers lack the Windows 10 thread power-throttling API that whisper.cpp uses when told
 # it is building for Windows 8+; with it off the threads simply run without that hint.
+# -ffile-prefix-map + --no-insert-timestamp: no build folder or time inside the file, so the same source and compiler
+# give the same file on any machine (CI builds can be checked byte for byte).
 set -e
 cd "$(dirname "$0")"
 [ -d whisper.cpp ] || git clone -q --depth 1 --branch v1.9.5 https://github.com/ggml-org/whisper.cpp whisper.cpp
@@ -11,8 +13,9 @@ test "$(git -C whisper.cpp rev-parse HEAD)" = d1be6fde11ac6e0407606b4e42fe72d34a
 cmake -S whisper.cpp -B whisper.cpp/build-win -DCMAKE_TOOLCHAIN_FILE="$(pwd)/mingw-x64.cmake" -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_SERVER=OFF -DGGML_OPENMP=OFF -DGGML_NATIVE=OFF \
   -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON \
-  -DCMAKE_C_FLAGS="-D_WIN32_WINNT=0x0601" -DCMAKE_CXX_FLAGS="-D_WIN32_WINNT=0x0601" \
-  -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" > /dev/null
+  -DCMAKE_C_FLAGS="-D_WIN32_WINNT=0x0601 -ffile-prefix-map=$(pwd)=." \
+  -DCMAKE_CXX_FLAGS="-D_WIN32_WINNT=0x0601 -ffile-prefix-map=$(pwd)=." \
+  -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--no-insert-timestamp" > /dev/null
 cmake --build whisper.cpp/build-win --config Release -j"$(nproc)" --target whisper-cli > /dev/null
 cp whisper.cpp/build-win/bin/whisper-cli.exe spacedemo-whisper.exe
 echo "built $(pwd)/spacedemo-whisper.exe"

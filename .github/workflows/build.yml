@@ -1,0 +1,115 @@
+# SpaceDemo build pipeline (Plan 6.2).
+#   Every push / pull request: type check + tests (no demos, so the real-demo tests are skipped) and both helper programs.
+#   Tags v* and "Run workflow" by hand: also the Windows installer. A tag also gets a DRAFT release with the installer
+#   (nothing is published until the owner presses "Publish release" on GitHub).
+# The helpers are cross-built on Linux with MinGW-w64, exactly like helpers/*/build.sh (the builds proven on the
+# owner's PC); the installer is built on a real Windows runner with electron-builder (no wine needed).
+# Never added here: demos, Valve/RAD files (mssvoice.asi etc.), the AI model (separate release file).
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Type check + tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      # --ignore-scripts: onnxruntime-node's install script must stay off (Reference → pitfalls, npm);
+      # esbuild works without its script and Electron downloads itself when first used.
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+
+  helpers:
+    name: Helper programs (MinGW-w64)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install MinGW-w64 + CMake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-mingw-w64-i686 g++-mingw-w64-x86-64-posix cmake
+      - name: Voice helper (32-bit, loads the player's own mssvoice.asi)
+        run: sh helpers/voice-helper/build.sh
+      - name: Whisper helper (64-bit, whisper.cpp v1.9.5)
+        run: sh helpers/whisper-helper/build.sh
+      - name: Checksums
+        run: |
+          sha256sum helpers/voice-helper/cdf-voice-helper.exe helpers/whisper-helper/spacedemo-whisper.exe | tee helpers-SHA256.txt
+          i686-w64-mingw32-gcc --version | head -1 >> helpers-SHA256.txt
+          x86_64-w64-mingw32-g++-posix --version | head -1 >> helpers-SHA256.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: helpers
+          path: |
+            helpers/voice-helper/cdf-voice-helper.exe
+            helpers/whisper-helper/spacedemo-whisper.exe
+            helpers-SHA256.txt
+          if-no-files-found: error
+
+  installer:
+    name: Windows installer
+    needs: [test, helpers]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    permissions:
+      contents: write   # only used to create the draft release for a tag
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v8
+        with:
+          name: helpers
+          path: .   # keeps helpers/voice-helper/… and helpers/whisper-helper/… where package.json expects them
+      - name: Tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          [ "$GITHUB_REF_NAME" = "$want" ] || { echo "Tag $GITHUB_REF_NAME but package.json says $want"; exit 1; }
+      - run: npm run dist:win
+      - name: Checksum
+        shell: bash
+        run: |
+          cd dist
+          sha256sum "SpaceDemo Setup "*.exe | tee installer-SHA256.txt
+          cat ../helpers-SHA256.txt >> installer-SHA256.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: installer
+          path: |
+            dist/SpaceDemo Setup *.exe
+            dist/installer-SHA256.txt
+          if-no-files-found: error
+          compression-level: 0
+      - name: Draft release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 \
+            && gh release upload "$GITHUB_REF_NAME" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt --clobber \
+            || gh release create "$GITHUB_REF_NAME" dist/SpaceDemo\ Setup\ *.exe dist/installer-SHA256.txt \
+                 --draft --title "SpaceDemo $GITHUB_REF_NAME" --notes "Windows installer (unsigned: SmartScreen → More info → Run anyway). Checksums in installer-SHA256.txt."
