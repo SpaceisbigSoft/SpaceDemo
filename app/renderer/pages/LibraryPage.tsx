@@ -165,7 +165,12 @@ export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { li
                 {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} onWatch={onWatch} />)}
               </tbody>
             </table>
-            {shown.length === 0 && demos.length > 0 && <p className="note table-empty">No demos match. Clear the search or pick "All".</p>}
+            {shown.length === 0 && demos.length > 0 && (
+              <p className="note table-empty" role="status">
+                No demos match {[query.trim() && `"${query.trim()}"`, filter !== 'all' && 'the chosen filter', map && `map ${map}`].filter(Boolean).join(' + ')} (they all have to fit).{' '}
+                <button type="button" className="link-btn" onClick={() => { setQuery(''); setFilter('all'); setMap(''); }} data-testid="library-clear-filters">Clear search and filters</button>
+              </p>
+            )}
             {demos.length === 0 && !library?.scan && <p className="note table-empty">No demos found in these folders (looking for .dem files, also inside .zip files).</p>}
           </div>
           <p className="note">Your demos are only read, never changed. Click a demo's name for its details. Fix & watch fixes a copy first (your original is never changed), then starts it in CS 1.6.</p>

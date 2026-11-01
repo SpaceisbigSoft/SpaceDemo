@@ -4,7 +4,7 @@ import { useState, type DragEvent } from 'react';
 import type { FixBatchState, FixItem, LibraryState } from '../../shared/api.js';
 import { FixIcon } from '../icons.js';
 
-const STATE_TEXT: Record<FixItem['state'], string> = { waiting: 'Waiting', fixing: 'Fixing…', fixed: 'Fixed', failed: "Didn't work", skipped: 'Skipped' };
+const STATE_TEXT: Record<FixItem['state'], string> = { waiting: 'Waiting', fixing: 'Fixing…', fixed: 'Fixed', failed: "Didn't work", skipped: 'Not fixed (stopped)' };
 
 export function FixPage({ batch, library, onWatch }: { batch?: FixBatchState; library?: LibraryState; onWatch: (key: string) => void }) {
   const [dragging, setDragging] = useState(false);
