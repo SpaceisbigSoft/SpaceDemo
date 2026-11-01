@@ -94,7 +94,7 @@ export function App() {
           ))}
           <GameCard game={game} looking={looking} onOpen={() => setPage('settings')} />
         </nav>
-        <main className="page" data-testid={`page-${page}`}>
+        <main className={`page${page === 'library' ? ' page-fixed' : ''}`} data-testid={`page-${page}`}>
           {page === 'library' && <LibraryPage library={library} onOpen={openDetails} onWatch={setWatchKey} onFixAll={fixAll} fixing={!!fixBatch?.running} />}
           {page === 'details' && <DetailsPage demo={detailsDemo} onBack={() => setPage('library')} onWatch={setWatchKey} onOpen={openDetails} />}
           {page === 'fix' && <FixPage batch={fixBatch} library={library} onWatch={setWatchKey} />}

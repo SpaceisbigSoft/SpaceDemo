@@ -195,6 +195,17 @@ button, input, select { font: inherit; color: inherit; }
 
 /* ---------- Library (4.3) ---------- */
 .library { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: 16px; }
+/* Owner (2026-11-01): the library's top area (title, buttons, search, filters) stays put; only the list scrolls,
+   with its column headings kept at the top. Short windows (e.g. 150 % scaling on a small screen) scroll as before. */
+.page-fixed { overflow-y: hidden; }
+.page-fixed > .library { flex: 1 1 auto; min-height: 0; }
+.page-fixed .library .table-wrap { flex: 1 1 auto; min-height: 160px; overflow: auto; }
+.page-fixed .library .demo-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); box-shadow: inset 0 -1px 0 var(--border); border-bottom: 0; }
+@media (max-height: 600px) {
+  .page-fixed { overflow-y: auto; }
+  .page-fixed > .library { flex: 0 0 auto; }
+  .page-fixed .library .table-wrap { flex: 0 0 auto; overflow: visible; overflow-x: auto; }
+}
 .library.dragging { outline: 2px dashed var(--accent); outline-offset: 6px; border-radius: 10px; }
 .drop-overlay {
   position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
