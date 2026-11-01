@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { directReader } from '../main/reader.js';
-import { isSpeechModel, parallelPlan, SpeechService } from '../main/speech-service.js';
+import { isSpeechModel, parallelPlan, physicalCores, SpeechService } from '../main/speech-service.js';
 import type { TranscriptState } from '../shared/api.js';
 
 const fakeModel = (dir: string) => { const f = join(dir, 'model.bin'); const b = Buffer.alloc(2_000_000); b.write('lmgg', 0, 'latin1'); writeFileSync(f, b); return f; };
@@ -17,6 +17,9 @@ describe('5.v speech service', () => {
     expect(parallelPlan(16, 32e9)).toEqual({ processes: 5, threads: 3 });
     expect(parallelPlan(24, 32e9)).toEqual({ processes: 7, threads: 3 });
     expect(parallelPlan(32, 4e9)).toEqual({ processes: 2, threads: 15 });
+    // The owner's i9-14900K: 24 real cores (32 logical), 48 GB → 7 helpers × 3 threads = 21 threads on real cores.
+    expect(parallelPlan(24, 48e9)).toEqual({ processes: 7, threads: 3 });
+    expect(physicalCores()).toBeGreaterThanOrEqual(1);
   });
   it('recognises a whisper.cpp model file and refuses others', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-sp-'));

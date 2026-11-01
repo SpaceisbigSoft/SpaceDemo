@@ -3,6 +3,7 @@
 // background thread (talk bursts → WAV files in our own temporary folder), then our speech helper (whisper.cpp) turns
 // them into text a few at a time. Transcripts are kept per demo, so a demo is only done once. Nothing leaves the PC
 // except the one-time model download.
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createWriteStream, existsSync, mkdirSync, openSync, readSync, closeSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { cpus, tmpdir, totalmem } from 'node:os';
@@ -47,6 +48,37 @@ export function isSpeechModel(path: string): boolean {
  * them well; its decoder mostly runs one step at a time), one core left free for Windows and SpaceDemo, and at most one
  * helper per ~1 GB of memory (the small model uses ~0.5 GB per helper).
  */
+/**
+ * Real (physical) CPU cores. Windows reports hyper-threads as extra processors (i9-14900K: 24 cores, 32 logical); two
+ * threads sharing one core fight over the same units on this kind of maths, so the helpers are sized by real cores
+ * (owner, 2026-10-31). Asked from Windows once; if that fails, half the logical count (at least 1).
+ */
+let coresCache: number | undefined;
+export function physicalCores(): number {
+  if (coresCache) return coresCache;
+  const logical = cpus().length;
+  let n: number | undefined;
+  try {
+    if (process.platform === 'win32') {
+      const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfCores -Sum).Sum'], { encoding: 'utf8', timeout: 10_000, windowsHide: true });
+      n = Number.parseInt(out.trim(), 10);
+    } else if (process.platform === 'linux') {
+      // Unique (physical id, core id) pairs.
+      const pairs = new Set<string>();
+      let phys = '0';
+      for (const line of readFileSync('/proc/cpuinfo', 'utf8').split('\n')) {
+        const m = /^(physical id|core id)\s*:\s*(\d+)/.exec(line);
+        if (m?.[1] === 'physical id') phys = m[2];
+        else if (m) pairs.add(`${phys}:${m[2]}`);
+      }
+      n = pairs.size || undefined;
+    }
+  } catch { /* fall back below */ }
+  coresCache = n && n > 0 && n <= logical ? n : Math.max(1, Math.floor(logical / 2));
+  return coresCache;
+}
+
+/** `cores` = real (physical) cores. */
 export function parallelPlan(cores: number, memBytes: number): { processes: number; threads: number } {
   const usable = Math.max(1, cores - 1);
   const byMem = Math.max(1, Math.floor(memBytes / 1e9) - 2);
@@ -167,7 +199,7 @@ export class SpeechService {
       send();
       // Several helpers side by side (each on its own few files): one helper can't keep a big CPU busy on short clips,
       // because much of Whisper's work per clip runs one step after another.
-      const plan = parallelPlan(cpus().length, totalmem());
+      const plan = parallelPlan(physicalCores(), totalmem());
       const runner: WhisperRunner = { exe: this.d.whisperExe, wine: this.d.wine, model, threads: plan.threads };
       const prompt = transcriptPrompt(b.bursts.map((x) => x.player ?? ''));
       const lines: TranscriptLine[] = [];
