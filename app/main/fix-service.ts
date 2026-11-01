@@ -48,7 +48,7 @@ export class FixService {
       gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true, ai: this.d.ai?.(),
     }, onProgress);
     if (r.ok && r.output) {
-      this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes, ai: r.ai });
+      this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes, ai: r.ai, aiStyle: r.aiStyle });
       this.d.library.fixedChanged(key);
     }
     return r;

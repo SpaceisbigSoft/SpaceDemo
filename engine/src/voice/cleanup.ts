@@ -36,7 +36,16 @@ export function voiceCleanup(pcm: Int16Array, rate: number): Int16Array {
   x = run(x, highpass(110, rate));
   x = run(x, lowpass(Math.min(3400, rate * 0.45), rate));
   x = run(x, peaking(2200, rate, 3));
-  // Even levels: bring the burst's speech level (RMS of the louder half of 20 ms blocks) to the target.
+  return evenLevel(x, rate);
+}
+
+/**
+ * Brings a burst's speech level (RMS of the louder half of 20 ms blocks) to TARGET_RMS (quiet bursts lifted at most
+ * MAX_GAIN times), with a soft limit near full scale instead of clipping. Used by voice cleanup and, since 5.g6, by the
+ * AI voice (owner: AI voice sounded quieter than the normal fix; it was ~9 dB lower because it skipped this step).
+ */
+export function evenLevel(input: ArrayLike<number>, rate: number): Int16Array {
+  const x = input;
   const block = Math.round(rate * 0.02), levels: number[] = [];
   for (let p = 0; p + block <= x.length; p += block) {
     let s = 0;
@@ -49,7 +58,6 @@ export function voiceCleanup(pcm: Int16Array, rate: number): Int16Array {
   const gain = rms > 1 ? Math.min(MAX_GAIN, TARGET_RMS / rms) : 1;
   const out = new Int16Array(x.length);
   for (let i = 0; i < x.length; i++) {
-    // Soft limit near full scale instead of clipping.
     const v = x[i] * gain;
     out[i] = Math.round(Math.abs(v) < 24000 ? v : Math.sign(v) * (24000 + 8767 * Math.tanh((Math.abs(v) - 24000) / 8767)));
   }

@@ -7,6 +7,7 @@ import { isAbsolute, join } from 'node:path';
 import { IPC, THEME_CHOICES, type AppInfo, type AppSettingsView, type GameStatus, type ThemeChoice, type ThemeState } from '../shared/api.js';
 import { gameStatus, toGameStatus } from './game.js';
 import { checkGameDir, findGame } from '../../engine/src/launch/steam.js';
+import { AI_STYLE } from '../../engine/src/voice/enhance.js';
 import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
@@ -354,7 +355,7 @@ if (!app.requestSingleInstanceLock()) {
       cacheFile: join(app.getPath('userData'), 'library-cache.json'),
       reader,
       // A fixed copy counts only if it was made the way fixing works now (with or without AI voice, 5.g5).
-      fixedCopy: (key, source) => { const r = fixedStore.get(key, source); return r && !!r.ai === !!aiJob() ? r.output : undefined; },
+      fixedCopy: (key, source) => { const r = fixedStore.get(key, source); return r && (aiJob() ? r.ai && r.aiStyle === AI_STYLE : !r.ai) ? r.output : undefined; },
       roots: () => settings.libraryFolders,
       mapFolders: () => settings.mapFolders,
       gameDir: () => game?.gameDir,

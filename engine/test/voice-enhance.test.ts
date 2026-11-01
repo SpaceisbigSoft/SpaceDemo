@@ -7,8 +7,9 @@ import { describe, expect, it } from 'vitest';
 import { readDemo } from '../src/container/read.js';
 import { fixDemo, fixDemoAsync } from '../src/fix/fix.js';
 import { emulatorDecoder } from '../src/voice/decoders.js';
-import { enhanceBursts, onnxEnhancer, restoreInMemory, smoothEndings, type VoiceEnhancer } from '../src/voice/enhance.js';
+import { AI_STYLE, enhanceBursts, onnxEnhancer, restoreInMemory, smoothEndings, type VoiceEnhancer } from '../src/voice/enhance.js';
 import { resample } from '../src/voice/resample.js';
+import { evenLevel, voiceCleanup } from '../src/voice/cleanup.js';
 import { decodeOpus, encodeOpus, oldVoicePackets } from '../src/voice/restore.js';
 import { parseSteamVoice } from '../src/voice/steam-voice.js';
 import { fixtureDemos } from './fixtures.js';
@@ -119,5 +120,40 @@ describe.skipIf(!asi || !existsSync(asi) || !demo)('fix with AI voice (stand-in 
       for (const p of out) expect(parseSteamVoice(p.data).chunks.some((c) => c.kind === 'sampleRate')).toBe(true);
     }
     expect(Buffer.compare(Buffer.from(input), readFileSync(demo!))).toBe(0); // the original is untouched (no deep compare: 30 MB)
+  }, 600_000);
+});
+
+// 5.g6: owner heard the AI voice quieter than the normal fix (it skipped voice cleanup's level step, ~9 dB on
+// fta_vigor) and preferred 24 kHz on all 3 test demos.
+describe('5.g6 AI voice level and default rate', () => {
+  it('evenLevel brings a quiet burst to the voice cleanup level, limits loud ones softly', () => {
+    const quiet = tone16(300, 1, 1200), loud = tone16(300, 1, 30000);
+    const lq = evenLevel(quiet, 8000), ll = evenLevel(loud, 8000);
+    const rms = (x: Int16Array) => Math.sqrt(x.reduce((s, v) => s + v * v, 0) / x.length);
+    expect(rms(lq) / rms(quiet)).toBeGreaterThan(2.5); // ~3500 / 1200 × peak-to-rms
+    expect(Math.abs(rms(lq) - 3500)).toBeLessThan(150);
+    expect(Math.max(...ll)).toBeLessThan(32768);
+    expect(evenLevel(quiet, 24000).length).toBe(quiet.length);
+  });
+  it('voice cleanup still gives the same result (level step moved into evenLevel)', () => {
+    const x = tone16(1000, 0.5, 2000);
+    const y = voiceCleanup(x, 8000);
+    const rms = (a: Int16Array) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
+    expect(Math.abs(rms(y) - 3500)).toBeLessThan(250);
+  });
+  const speex = process.env.CDF_SPEEX_DEMO;
+  it.skipIf(!speex || !existsSync(speex))('a Speex demo with AI voice: 24 kHz by default, version 2, louder than the raw level', async () => {
+    const input = new Uint8Array(readFileSync(speex!));
+    const plain = fixDemo(input, {});
+    const { bytes, report } = await fixDemoAsync(input, { ai: { enhancer: fake(700) } });
+    expect(report.ai!.rate).toBe(24000);
+    expect(report.ai!.style).toBe(AI_STYLE);
+    const level = (b: Uint8Array) => { // as the game hears it (it decodes at 24 kHz)
+      const frames = oldVoicePackets(readDemo(b)).slice(0, 400)
+        .flatMap((p) => parseSteamVoice(p.data).chunks.flatMap((c) => (c.kind === 'opus' ? c.frames.map((f) => f.data) : [])));
+      const pcm = decodeOpus(frames);
+      return Math.sqrt(pcm.reduce((s, v) => s + v * v, 0) / Math.max(1, pcm.length));
+    };
+    expect(level(bytes)).toBeGreaterThan(level(plain.bytes) * 1.5); // plain = raw level (no cleanup here)
   }, 600_000);
 });

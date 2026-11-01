@@ -2,6 +2,7 @@
 //   npm run fix -- <input.dem> <output.dem> [--game <Half-Life folder>] [--asi <mssvoice.asi>] [--decoder helper|emulator] [--plain] [--overwrite]
 //                  [--ai <model.onnx> [--ai-rate 8000|24000] [--ai-cache <folder>]]
 // --ai: AI voice enhancement (plan 5.g4) with the compact VoiceFixer model (5.g3); replaces voice cleanup for that run.
+// --ai-rate defaults to 24000 (owner's pick in game, 5.g6); the AI voice gets the same level step as voice cleanup.
 // Voice cleanup is ON by default (owner's choice 2026-10-26 after listening); --plain keeps the voice exactly as decoded.
 // The original is only read; the output must be a different, new file (see engine/src/fix/safe-output.ts).
 // --game defaults to the Steam CS 1.6 found automatically; --asi defaults to <game>\mssvoice.asi. The helper (helpers/voice-helper/cdf-voice-helper.exe) is the normal decoder
@@ -18,7 +19,7 @@ import { findGame } from '../engine/src/launch/steam.js';
 const args = process.argv.slice(2);
 const opt = (k: string) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
 const flag = (k: string) => { const i = args.indexOf(k); return i >= 0 ? (args.splice(i, 1), true) : false; };
-const aiModel = opt('--ai'), aiRate = Number(opt('--ai-rate') ?? 8000) as 8000 | 24000, aiCache = opt('--ai-cache');
+const aiModel = opt('--ai'), aiRate = Number(opt('--ai-rate') ?? 24000) as 8000 | 24000, aiCache = opt('--ai-cache');
 if (aiRate !== 8000 && aiRate !== 24000) throw new Error('--ai-rate must be 8000 or 24000');
 const game = opt('--game'), asiArg = opt('--asi'), decoderArg = opt('--decoder') ?? 'helper', plain = flag('--plain'), cleanup = !plain, overwrite = flag('--overwrite');
 flag('--cleanup'); // accepted for older notes; cleanup is the default

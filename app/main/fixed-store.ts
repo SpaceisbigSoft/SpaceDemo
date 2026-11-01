@@ -16,6 +16,8 @@ export interface FixedRecord {
   notes: string[];
   /** 5.g5: made with AI voice enhancement. */
   ai?: boolean;
+  /** 5.g6: version of the AI voice (AI_STYLE in engine/src/voice/enhance.ts); older AI copies are made again. */
+  aiStyle?: number;
 }
 
 export class FixedStore {

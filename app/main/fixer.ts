@@ -40,6 +40,8 @@ export interface FixResult {
   voice?: { seconds: number; bursts: number };
   /** The voice was AI-enhanced (5.g5). */
   ai?: boolean;
+  /** Version of the AI voice (5.g6, AI_STYLE). */
+  aiStyle?: number;
 }
 
 // The model is loaded once per thread and kept (about 1 s and a few hundred MB), as long as the file and cores stay the same.
@@ -73,7 +75,7 @@ export async function runFix(job: FixJob, onProgress?: (p: { done: number; total
     if (report.converted) done.push(`Converted protocol ${report.sourceProtocol} → 48 for today's CS 1.6.`);
     if (report.voice) done.push(`Put the original voice back as Steam voice (${Math.round(report.voice.seconds / 6) / 10} min${report.ai ? ', AI-enhanced' : job.cleanup ? ', voice cleanup on' : ''}).`);
     const voice = report.voice ? { seconds: report.voice.seconds, bursts: report.voice.bursts } : undefined;
-    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes], voice, ai: !!report.ai };
+    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes], voice, ai: !!report.ai, aiStyle: report.ai?.style };
   } catch (err) {
     return { ok: false, error: (err as Error).message, done: [], notes: [] };
   }

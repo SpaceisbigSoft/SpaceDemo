@@ -14,6 +14,12 @@ export const MODEL_RATE = 44100;
 
 /** The compact VoiceFixer model (5.g3), hosted as a release file on the SpaceDemo GitHub repo (owner, Q13). Licence:
  * CC BY 4.0 (Haohe Liu, VoiceFixer); our copy is compressed (mixed sizing) — credit + "changed" note in the app. */
+/** Steam voice rate for the AI voice when none is given (5.g6: owner preferred 24 kHz on all 3 test demos). */
+export const AI_DEFAULT_RATE = 24000;
+/** Version of the AI voice output (1 = 5.g4/5.g5: 8 kHz, raw level; 2 = 5.g6: 24 kHz, levelled like voice cleanup).
+ *  Fixed copies made with another version are made again. */
+export const AI_STYLE = 2;
+
 export const AI_MODEL = {
   file: 'spacedemo-voicefixer-mixed.onnx',
   url: 'https://github.com/SpaceisbigSoft/SpaceDemo/releases/download/ai-model-v1/spacedemo-voicefixer-mixed.onnx',

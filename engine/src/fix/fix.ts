@@ -9,7 +9,8 @@ import { readDemo } from '../container/read.js';
 import { writeDemo } from '../container/write.js';
 import { upgradeTo48 } from '../transforms/upgrade-to-48.js';
 import { burstAudio, oldVoicePackets, restoreVoice, talkBursts, type OldVoicePacket, type PcmFilter, type RestoreOptions, type RestoreReport } from '../voice/restore.js';
-import { enhanceBursts, type VoiceEnhancer } from '../voice/enhance.js';
+import { AI_DEFAULT_RATE, AI_STYLE, enhanceBursts, type VoiceEnhancer } from '../voice/enhance.js';
+import { evenLevel } from '../voice/cleanup.js';
 import type { OldVoiceDecoder } from '../voice/decoders.js';
 import { createState, decodeMessages } from '../protocol/messages.js';
 import { FrameType } from '../container/types.js';
@@ -68,7 +69,7 @@ export interface FixReport {
   voiceCodec?: string;
   voice?: RestoreReport & { decoder: string };
   /** AI voice enhancement (5.g4): model id, encode rate, time taken (s). */
-  ai?: { model: string; rate: number; seconds: number };
+  ai?: { model: string; rate: number; seconds: number; style: number };
 }
 
 /** The voice codec a demo announces (svc_voiceinit), e.g. "voice_miles", "voice_speex", "" (Steam voice). */
@@ -146,7 +147,7 @@ export function fixDemo(input: Uint8Array, options: FixOptions = {}): { bytes: U
 
 export interface AiOptions {
   enhancer: VoiceEnhancer;
-  /** Steam voice encode rate for the enhanced voice (plan 5.g2 decides; default 8000 like the plain voice). */
+  /** Steam voice encode rate for the enhanced voice (default 24000: owner preferred it in game on all 3 test demos, 5.g6). */
   rate?: 8000 | 24000;
   cacheDir?: string;
   onProgress?: (done: number, total: number) => void;
@@ -160,9 +161,11 @@ export async function fixDemoAsync(input: Uint8Array, options: FixOptions & { ai
   const bursts = talkBursts(p.voice.packets, p.voice.pcm);
   const audio = bursts.map((b) => burstAudio(b, p.voice!.pcm));
   const slots = bursts.map((b) => p.voice!.packets[b[0]].slot);
-  const rate = options.ai.rate ?? 8000;
-  const replacement = await enhanceBursts(audio, slots, options.ai.enhancer, { rate, cacheDir: options.ai.cacheDir, onProgress: options.ai.onProgress });
+  const rate = options.ai.rate ?? AI_DEFAULT_RATE;
+  // The cache holds the model's output; the level step (same as voice cleanup's) runs after it (5.g6).
+  const replacement = (await enhanceBursts(audio, slots, options.ai.enhancer, { rate, cacheDir: options.ai.cacheDir, onProgress: options.ai.onProgress }))
+    .map((b) => evenLevel(b, rate));
   const out = finish(p, { replacement, rate });
-  out.report.ai = { model: options.ai.enhancer.id, rate, seconds: Math.round((Date.now() - t0) / 100) / 10 };
+  out.report.ai = { model: options.ai.enhancer.id, rate, seconds: Math.round((Date.now() - t0) / 100) / 10, style: AI_STYLE };
   return out;
 }
