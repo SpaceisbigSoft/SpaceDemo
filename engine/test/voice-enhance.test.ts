@@ -114,9 +114,10 @@ describe.skipIf(!asi || !existsSync(asi) || !demo)('fix with AI voice (stand-in 
       expect(report.voice!.replaced).toBe(plain.report.voice!.replaced);
       const out = oldVoicePackets(readDemo(bytes));
       const ref = oldVoicePackets(readDemo(plain.bytes));
-      expect(out.map((p) => [p.slot, p.time])).toEqual(ref.map((p) => [p.slot, p.time]));
+      expect(out.length).toBe(ref.length);
+      expect(out.every((p, i) => p.slot === ref[i].slot && p.time === ref[i].time)).toBe(true);
       for (const p of out) expect(parseSteamVoice(p.data).chunks.some((c) => c.kind === 'sampleRate')).toBe(true);
     }
-    expect(input).toEqual(new Uint8Array(readFileSync(demo!))); // the original is untouched
+    expect(Buffer.compare(Buffer.from(input), readFileSync(demo!))).toBe(0); // the original is untouched (no deep compare: 30 MB)
   }, 600_000);
 });
