@@ -66,6 +66,10 @@ export interface FixItem {
   seconds?: number;
   /** "7.7 min · 332 bursts", "none in this demo", or undefined while waiting. */
   voice?: string;
+  /** 5.g5: the voice was AI-enhanced. */
+  ai?: boolean;
+  /** While fixing with AI voice: "AI voice 120 of 405 s". */
+  progress?: string;
   done: string[];
   notes: string[];
   error?: string;
@@ -657,6 +661,8 @@ export interface AppSettingsView {
   /** Processor cores: what is used now, whether the person chose it, the suggested maximum and the most allowed
    * (real cores). */
   cpu: { cores: number; chosen: boolean; suggested: number; max: number };
+  /** 5.g5 AI voice enhancement switch (off by default); `active` = on and the model is there. */
+  aiVoice: { on: boolean; active: boolean };
 }
 
 /** The person's choice and the look actually used (for 'system': Windows' own setting). */
@@ -723,6 +729,13 @@ export interface SpaceDemoApi {
   /** Back to finding the game automatically. */
   clearGameFolder(): Promise<AppSettingsView>;
   setVoiceCleanup(on: boolean): Promise<AppSettingsView>;
+  /** 5.g5: AI voice enhancement on/off (fixed copies made the other way are fixed again when watched or fixed). */
+  setAiVoice(on: boolean): Promise<AppSettingsView>;
+  getAiModel(): Promise<AiModelState>;
+  downloadAiModel(): Promise<AiModelState>;
+  /** No path = Windows' file picker. */
+  chooseAiModel(path?: string): Promise<AiModelState>;
+  onAiModel(listener: (s: AiModelState) => void): () => void;
   /** Processor cores SpaceDemo may use; null = back to the suggested maximum. */
   setCpuCores(cores: number | null): Promise<AppSettingsView>;
   /** Adds a map-pool folder (no path = ask with the folder picker). */
@@ -740,6 +753,16 @@ export interface SpaceDemoApi {
   startTranscript(key: string): Promise<TranscriptState>;
   stopTranscript(): Promise<void>;
   onTranscript(listener: (s: TranscriptState) => void): () => void;
+}
+
+/** 5.g5 the AI voice model (VoiceFixer, compressed): downloaded once, or a file the person has. */
+export interface AiModelState {
+  path?: string;
+  chosenByHand: boolean;
+  /** Download size (bytes). */
+  size: number;
+  downloading?: { done: number; total: number };
+  problem?: string;
 }
 
 /** 5.v the speech model and the speech helper. */
@@ -814,6 +837,11 @@ export const IPC = {
   gameFolderClear: 'settings:game-folder-clear',
   voiceCleanupSet: 'settings:voice-cleanup',
   cpuCoresSet: 'settings:cpu-cores',
+  aiVoiceSet: 'settings:ai-voice',
+  aiModelGet: 'ai:model-get',
+  aiModelDownload: 'ai:model-download',
+  aiModelChoose: 'ai:model-choose',
+  aiModelChanged: 'ai:model-changed',
   settingsGet: 'settings:get',
   mapFolderAdd: 'settings:map-folder-add',
   mapFolderRemove: 'settings:map-folder-remove',

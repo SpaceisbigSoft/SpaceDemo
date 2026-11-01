@@ -16,7 +16,7 @@ describe('app settings', () => {
   it('saves and loads the theme', () => {
     const dir = mkdtempSync(join(tmpdir(), 'sd-set-'));
     const f = settingsFile(join(dir, 'new folder'));
-    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [], voiceCleanup: false, gameDir: 'E:\\Games\\Half-Life', playerMerges: { 'Old Name': 'New Name' }, playerRejected: ['a|b'] };
+    const next = { theme: 'light' as const, libraryFolders: ['D:\\Demos'], mapFolders: [], voiceCleanup: false, gameDir: 'E:\\Games\\Half-Life', playerMerges: { 'Old Name': 'New Name' }, playerRejected: ['a|b'], aiVoice: true };
     saveSettings(f, next);
     expect(loadSettings(f)).toEqual(next);
     expect(JSON.parse(readFileSync(f, 'utf8'))).toEqual(next);
@@ -33,6 +33,9 @@ describe('app settings', () => {
     expect(cleanSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(DEFAULT_SETTINGS.voiceCleanup).toBe(true);
     expect(cleanSettings({ voiceCleanup: 'no', gameDir: '' })).toEqual(DEFAULT_SETTINGS);
+    expect(DEFAULT_SETTINGS.aiVoice).toBe(false);
+    expect(cleanSettings({ aiVoice: true, aiModel: 'D:\\m.onnx' })).toEqual({ ...DEFAULT_SETTINGS, aiVoice: true, aiModel: 'D:\\m.onnx' });
+    expect(cleanSettings({ aiVoice: 'yes', aiModel: '' })).toEqual(DEFAULT_SETTINGS);
     expect(cleanSettings({ cpuCores: 6 })).toEqual({ ...DEFAULT_SETTINGS, cpuCores: 6 });
     expect(cleanSettings({ cpuCores: 0 })).toEqual(DEFAULT_SETTINGS);
     expect(cleanSettings({ cpuCores: 2.5 })).toEqual(DEFAULT_SETTINGS);

@@ -4,7 +4,7 @@
 import { statSync } from 'node:fs';
 import type { FixBatchState, FixItem } from '../shared/api.js';
 import { fixedOutputPath, type FixedStore } from './fixed-store.js';
-import type { FixResult } from './fixer.js';
+import type { FixJob, FixResult } from './fixer.js';
 import type { Candidate } from './library.js';
 import type { LibraryService } from './library-service.js';
 import type { LibraryReader } from './reader.js';
@@ -18,11 +18,13 @@ export interface FixServiceDeps {
   helperExe: string;
   /** Voice cleanup setting (default on). */
   cleanup?: () => boolean;
+  /** 5.g5: AI voice enhancement for this fix (undefined = plain). */
+  ai?: () => FixJob['ai'];
   onChange: (s: FixBatchState) => void;
 }
 
-export function voiceText(r: Pick<FixResult, 'voice'>, hadVoice: boolean | undefined): string {
-  if (r.voice && r.voice.seconds > 0) return `${(r.voice.seconds / 60).toFixed(1)} min · ${r.voice.bursts} bursts`;
+export function voiceText(r: Pick<FixResult, 'voice' | 'ai'>, hadVoice: boolean | undefined): string {
+  if (r.voice && r.voice.seconds > 0) return `${(r.voice.seconds / 60).toFixed(1)} min · ${r.voice.bursts} bursts${r.ai ? ' · AI' : ''}`;
   return hadVoice === false ? 'none in this demo' : 'not restored';
 }
 
@@ -39,14 +41,14 @@ export class FixService {
   }
 
   /** Fixes one demo now (Watch). Records the fixed copy and updates the library row. */
-  async fixOne(key: string, c: Candidate, name: string): Promise<FixResult> {
+  async fixOne(key: string, c: Candidate, name: string, onProgress?: (p: { done: number; total: number }) => void): Promise<FixResult> {
     const out = fixedOutputPath(this.d.outputFolder(), name, this.d.fixed.ownOutput(key));
     const r = await this.d.reader.fix({
       file: c.file, zipEntry: c.zipEntry, output: out.path, overwrite: out.overwrite,
-      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true,
-    });
+      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true, ai: this.d.ai?.(),
+    }, onProgress);
     if (r.ok && r.output) {
-      this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes });
+      this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes, ai: r.ai });
       this.d.library.fixedChanged(key);
     }
     return r;
@@ -105,9 +107,14 @@ export class FixService {
         }
         next.item.state = 'fixing';
         this.d.onChange(this.state());
-        const r = await this.fixOne(next.item.key, next.candidate, next.item.name);
+        let lastSent = 0;
+        const r = await this.fixOne(next.item.key, next.candidate, next.item.name, ({ done, total }) => {
+          next.item.progress = `AI voice ${Math.round(done)} of ${Math.round(total)} s`;
+          if (Date.now() - lastSent > 500 || done >= total) { lastSent = Date.now(); this.d.onChange(this.state()); }
+        });
+        next.item.progress = undefined;
         Object.assign(next.item, r.ok
-          ? { state: 'fixed', seconds: r.seconds, voice: voiceText(r, next.hadVoice), done: r.done, notes: r.notes, output: r.output }
+          ? { state: 'fixed', seconds: r.seconds, voice: voiceText(r, next.hadVoice), ai: r.ai, done: r.done, notes: r.notes, output: r.output }
           : { state: 'failed', error: r.error });
         this.d.onChange(this.state());
       }

@@ -26,10 +26,14 @@ export interface Settings {
   /** Processor cores SpaceDemo may use for heavy work (voice to text, AI voice); undefined = the suggested maximum
    * (real cores − 1, owner 2026-11-01). */
   cpuCores?: number;
+  /** 5.g5 AI voice enhancement when fixing (off by default; the plain fix stays the default). */
+  aiVoice: boolean;
+  /** 5.g5 AI model file chosen by hand (undefined = the downloaded one in the app's data folder). */
+  aiModel?: string;
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [] };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [], aiVoice: false };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
@@ -58,6 +62,8 @@ export function cleanSettings(raw: unknown): Settings {
     }
     out.playerRejected = cleanPaths(r.playerRejected);
     if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
+    if (typeof r.aiVoice === 'boolean') out.aiVoice = r.aiVoice;
+    if (typeof r.aiModel === 'string' && r.aiModel.trim()) out.aiModel = r.aiModel;
     if (typeof r.cpuCores === 'number' && Number.isInteger(r.cpuCores) && r.cpuCores >= 1 && r.cpuCores <= 1024) out.cpuCores = r.cpuCores;
   }
   return out;

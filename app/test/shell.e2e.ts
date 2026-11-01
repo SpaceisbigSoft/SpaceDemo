@@ -46,10 +46,10 @@ describe('app shell', () => {
     // The window has no Node.js: only the bridge.
     expect(await page.evaluate(() => typeof (globalThis as { require?: unknown }).require)).toBe('undefined');
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
-      'addMapFolder', 'addToLibrary', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
-      'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
-      'getWatchInfo', 'info', 'mergePlayers', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
-      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
+      'addMapFolder', 'addToLibrary', 'chooseAiModel', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadAiModel', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
+      'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
+      'getWatchInfo', 'info', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
+      'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
       'stopFixing', 'stopTranscript', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
@@ -123,6 +123,29 @@ describe('app shell', () => {
     await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).cpuCores).toBeUndefined();
     await page.locator('[data-testid="settings-cpu"]').scrollIntoViewIfNeeded();
     await shot('5b settings processor cores');
+  });
+
+  it('Settings: AI voice enhancement (5.g5): off by default, switch, model file, credits', async () => {
+    await page.click('nav button:has-text("Settings")');
+    await page.waitForSelector('[data-testid="ai-voice"]');
+    expect(await page.isChecked('[data-testid="ai-voice"]')).toBe(false);
+    expect(await page.textContent('[data-testid="ai-missing"]')).toContain('downloaded once');
+    expect(await page.textContent('[data-testid="credit-ai"]')).toMatch(/Haohe Liu.*CC BY 4\.0.*changed/s);
+    await page.click('[data-testid="ai-voice"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).aiVoice).toBe(true);
+    await page.waitForSelector('[data-testid="ai-missing"].problem'); // on, but no model yet: says the plain voice is used
+    expect((await page.evaluate(() => window.spacedemo.getSettings())).aiVoice).toEqual({ on: true, active: false });
+    const model = process.env.CDF_AI_MODEL;
+    if (model) {
+      const s = await page.evaluate((p) => window.spacedemo.chooseAiModel(p), model);
+      expect(s).toMatchObject({ path: model, chosenByHand: true });
+      await page.waitForSelector('[data-testid="ai-ready"]');
+      expect((await page.evaluate(() => window.spacedemo.getSettings())).aiVoice).toEqual({ on: true, active: true });
+    }
+    await page.locator('[data-testid="settings-ai"]').scrollIntoViewIfNeeded();
+    await shot('5c settings AI voice');
+    await page.click('[data-testid="ai-voice"]');
+    await expect.poll(() => JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')).aiVoice).toBe(false);
   });
 
   it('Settings: voice cleanup switch and the game folder by hand (4.7)', async () => {

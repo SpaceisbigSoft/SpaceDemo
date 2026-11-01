@@ -11,6 +11,8 @@ import { FixedStore } from './fixed-store.js';
 import { WatchService } from './watch-service.js';
 import { FixService } from './fix-service.js';
 import { physicalCores, SpeechService, suggestedCores, usableCores } from './speech-service.js';
+import { AiModelService } from './ai-model.js';
+import type { FixJob } from './fixer.js';
 import { findCandidates } from './library.js';
 import { LibraryService } from './library-service.js';
 import { PlayersService } from './players-service.js';
@@ -34,6 +36,13 @@ let game: GameStatus | undefined;
 let library: LibraryService;
 let watcher: WatchService;
 let fixer: FixService;
+let aiModel: AiModelService;
+
+/** 5.g5: the AI part of a fix job when AI voice is on and the model is there (undefined = plain fix). */
+function aiJob(): FixJob['ai'] {
+  const model = settings.aiVoice ? aiModel?.modelPath() : undefined;
+  return model ? { model, threads: usableCores(settings.cpuCores), cacheDir: aiModel.cacheDir() } : undefined;
+}
 let fixedStore: FixedStore;
 let players: PlayersService;
 let speech: SpeechService;
@@ -67,7 +76,7 @@ function saveAndApply(next: Settings): void {
 
 function settingsView(): AppSettingsView {
   const cpu = { cores: usableCores(settings.cpuCores), chosen: settings.cpuCores !== undefined, suggested: suggestedCores(), max: physicalCores() };
-  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup, cpu };
+  return { theme: settings.theme, mapFolders: [...settings.mapFolders], outputFolder: outputFolder(), gameDir: settings.gameDir, voiceCleanup: settings.voiceCleanup, cpu, aiVoice: { on: settings.aiVoice, active: !!aiJob() } };
 }
 
 /** Paths from the window: kept only if they are absolute and exist. */
@@ -247,6 +256,23 @@ function registerIpc(): void {
     void library.refresh();
     return settingsView();
   });
+  ipcMain.handle(IPC.aiVoiceSet, (_e, on: unknown) => {
+    if (typeof on === 'boolean') { saveAndApply({ ...settings, aiVoice: on }); library.fixedChangedAll(); }
+    return settingsView();
+  });
+  ipcMain.handle(IPC.aiModelGet, () => aiModel.model());
+  ipcMain.handle(IPC.aiModelDownload, async () => { const s = await aiModel.download(); library.fixedChangedAll(); return s; });
+  ipcMain.handle(IPC.aiModelChoose, async (_e, path: unknown) => {
+    let p = typeof path === 'string' && isAbsolute(path) ? path : undefined;
+    if (!p) {
+      const opts: Electron.OpenDialogOptions = { title: 'Choose the AI voice model file', properties: ['openFile'], filters: [{ name: 'AI voice model', extensions: ['onnx'] }] };
+      const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+      p = r.canceled ? undefined : r.filePaths[0];
+    }
+    const s = p ? aiModel.choose(p) : aiModel.model();
+    library.fixedChangedAll();
+    return s;
+  });
   ipcMain.handle(IPC.cpuCoresSet, (_e, cores: unknown) => {
     if (cores === null) saveAndApply({ ...settings, cpuCores: undefined });
     else if (typeof cores === 'number' && Number.isInteger(cores) && cores >= 1) saveAndApply({ ...settings, cpuCores: Math.min(cores, physicalCores()) });
@@ -318,10 +344,17 @@ if (!app.requestSingleInstanceLock()) {
     nativeTheme.on('updated', themeChanged);
     fixedStore = new FixedStore(join(app.getPath('userData'), 'fixed.json'));
     const reader = workerReader(join(__dirname, 'scan-worker.cjs'));
+    aiModel = new AiModelService({
+      dataDir: app.getPath('userData'), modelUrl: process.env.SPACEDEMO_AI_MODEL_URL,
+      chosenModel: () => settings.aiModel,
+      saveChosenModel: (path) => saveAndApply({ ...settings, aiModel: path }),
+      onModel: (st) => win?.webContents.send(IPC.aiModelChanged, st),
+    });
     library = new LibraryService({
       cacheFile: join(app.getPath('userData'), 'library-cache.json'),
       reader,
-      fixedCopy: (key, source) => fixedStore.get(key, source)?.output,
+      // A fixed copy counts only if it was made the way fixing works now (with or without AI voice, 5.g5).
+      fixedCopy: (key, source) => { const r = fixedStore.get(key, source); return r && !!r.ai === !!aiJob() ? r.output : undefined; },
       roots: () => settings.libraryFolders,
       mapFolders: () => settings.mapFolders,
       gameDir: () => game?.gameDir,
@@ -334,7 +367,7 @@ if (!app.requestSingleInstanceLock()) {
     });
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
     fixer = new FixService({
-      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup,
+      library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup, ai: aiJob,
       helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
       onChange: (s) => win?.webContents.send(IPC.fixChanged, s),
     });

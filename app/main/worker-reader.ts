@@ -9,18 +9,23 @@ import type { BurstsResult } from './voice-bursts.js';
 export function workerReader(workerFile: string): LibraryReader {
   let worker: Worker | undefined;
   let nextId = 1;
+  const progressOf = new Map<number, (p: { done: number; total: number }) => void>();
   const pending = new Map<number, (msg: { maps?: MapFile[]; result?: DemoResult; details?: DemoDetails | { error: string }; replay?: ReplayData | { error: string }; combined?: CombinedData | { error: string }; players?: DemoPlayers | { error: string }; fix?: FixResult; bursts?: BurstsResult }) => void>();
 
   const start = (): Worker => {
     if (worker) return worker;
     const w = new Worker(workerFile);
-    w.on('message', (msg: { id: number; maps?: MapFile[]; result?: DemoResult }) => {
+    w.on('message', (msg: { id: number; maps?: MapFile[]; result?: DemoResult; progress?: { done: number; total: number } }) => {
+      // Progress of a long job (AI voice while fixing): passed on, the job keeps going.
+      if (msg.progress) { progressOf.get(msg.id)?.(msg.progress); return; }
+      progressOf.delete(msg.id);
       const done = pending.get(msg.id);
       pending.delete(msg.id);
       done?.(msg);
     });
     const fail = (why: string) => {
       worker = undefined;
+      progressOf.clear();
       for (const [id, done] of pending) { pending.delete(id); done({ maps: [], result: { error: why } }); }
     };
     w.on('error', (err) => fail(`Reading stopped: ${err.message}`));
@@ -29,9 +34,10 @@ export function workerReader(workerFile: string): LibraryReader {
     return w;
   };
 
-  const ask = <T>(job: object, pick: (m: { maps?: MapFile[]; result?: DemoResult; details?: DemoDetails | { error: string }; replay?: ReplayData | { error: string }; combined?: CombinedData | { error: string }; players?: DemoPlayers | { error: string }; fix?: FixResult; bursts?: BurstsResult }) => T) =>
+  const ask = <T>(job: object, pick: (m: { maps?: MapFile[]; result?: DemoResult; details?: DemoDetails | { error: string }; replay?: ReplayData | { error: string }; combined?: CombinedData | { error: string }; players?: DemoPlayers | { error: string }; fix?: FixResult; bursts?: BurstsResult }) => T, onProgress?: (p: { done: number; total: number }) => void) =>
     new Promise<T>((resolve) => {
       const id = nextId++;
+      if (onProgress) progressOf.set(id, onProgress);
       pending.set(id, (m) => resolve(pick(m)));
       start().postMessage({ id, ...job });
     });
@@ -43,7 +49,7 @@ export function workerReader(workerFile: string): LibraryReader {
     replay: (job, round, combined) => ask({ kind: 'replay', ...job, round, combined: combined === true }, (m) => m.replay ?? { error: m.result?.error ?? 'No answer.' }),
     combined: (job) => ask({ kind: 'combined', ...job }, (m) => m.combined ?? { error: m.result?.error ?? 'No answer.' }),
     players: (job) => ask({ kind: 'players', ...job }, (m) => m.players ?? { error: m.result?.error ?? 'No answer.' }),
-    fix: (job) => ask({ kind: 'fix', ...job }, (m) => m.fix ?? { ok: false, error: m.result?.error ?? 'No answer.', done: [], notes: [] }),
+    fix: (job, onProgress) => ask({ kind: 'fix', ...job }, (m) => m.fix ?? { ok: false, error: m.result?.error ?? 'No answer.', done: [], notes: [] }, onProgress),
     bursts: (job) => ask({ kind: 'bursts', ...job }, (m) => m.bursts ?? { error: m.result?.error ?? 'No answer.', bursts: [] }),
     close: () => { void worker?.terminate(); worker = undefined; },
   };

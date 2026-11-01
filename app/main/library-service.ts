@@ -116,6 +116,12 @@ export class LibraryService {
     return this.rows.find((r) => r.demo.key === key);
   }
 
+  /** Call when what counts as a valid fixed copy changed (e.g. AI voice switched on or off): every row again. */
+  fixedChangedAll(): void {
+    for (const r of this.rows) this.applyFixed(r.demo, r.candidate);
+    this.emit(true);
+  }
+
   /** Call after a demo was fixed: its status becomes "Fixed · ready". */
   fixedChanged(key: string): void {
     const r = this.row(key);

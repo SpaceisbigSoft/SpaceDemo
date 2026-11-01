@@ -1,6 +1,6 @@
 // The only bridge between the window and the app: a fixed list of named calls (see app/shared/api.ts).
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import { IPC, type SpeechModelState, type TranscriptState, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
+import { IPC, type AiModelState, type SpeechModelState, type TranscriptState, type FixBatchState, type LibraryState, type PlayersView, type SpaceDemoApi, type ThemeChoice, type ThemeState, type WatchProgress } from '../shared/api.js';
 
 const api: SpaceDemoApi = {
   info: () => ipcRenderer.invoke(IPC.info),
@@ -57,6 +57,15 @@ const api: SpaceDemoApi = {
   clearGameFolder: () => ipcRenderer.invoke(IPC.gameFolderClear),
   setVoiceCleanup: (on: boolean) => ipcRenderer.invoke(IPC.voiceCleanupSet, on),
   setCpuCores: (cores: number | null) => ipcRenderer.invoke(IPC.cpuCoresSet, cores),
+  setAiVoice: (on: boolean) => ipcRenderer.invoke(IPC.aiVoiceSet, on),
+  getAiModel: () => ipcRenderer.invoke(IPC.aiModelGet),
+  downloadAiModel: () => ipcRenderer.invoke(IPC.aiModelDownload),
+  chooseAiModel: (path?: string) => ipcRenderer.invoke(IPC.aiModelChoose, path),
+  onAiModel: (listener: (s: AiModelState) => void) => {
+    const handler = (_event: unknown, s: AiModelState) => listener(s);
+    ipcRenderer.on(IPC.aiModelChanged, handler);
+    return () => { ipcRenderer.removeListener(IPC.aiModelChanged, handler); };
+  },
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet),
   addMapFolder: (path?: string) => ipcRenderer.invoke(IPC.mapFolderAdd, path),
   removeMapFolder: (path: string) => ipcRenderer.invoke(IPC.mapFolderRemove, path),

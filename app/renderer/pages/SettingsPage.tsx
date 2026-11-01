@@ -2,13 +2,51 @@
 // fixed-demos folder (4.5), about.
 import { useEffect, useState } from 'react';
 import { SpeechModelCard } from './DetailsTranscript.js';
-import type { AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
+import type { AiModelState, AppInfo, AppSettingsView, GameStatus, ThemeChoice } from '../../shared/api.js';
 
 const THEMES: { id: ThemeChoice; label: string }[] = [
   { id: 'system', label: 'Same as Windows' },
   { id: 'dark', label: 'Dark' },
   { id: 'light', label: 'Light' },
 ];
+
+/** 5.g5 AI voice enhancement: the switch and the model (downloaded once, or a file the person has). */
+function AiVoiceCard({ view, setView }: { view?: AppSettingsView; setView: (v: AppSettingsView) => void }) {
+  const [m, setM] = useState<AiModelState | undefined>();
+  useEffect(() => {
+    void window.spacedemo.getAiModel().then(setM);
+    return window.spacedemo.onAiModel((s) => { setM(s); void window.spacedemo.getSettings().then(setView); });
+  }, [setView]);
+  const mb = (n: number) => `${Math.round(n / 1_000_000)} MB`;
+  const on = view?.aiVoice.on ?? false;
+  return (
+    <section className="card" aria-labelledby="ai-h" data-testid="settings-ai">
+      <h2 id="ai-h">AI voice enhancement</h2>
+      <label className="check-row">
+        <input type="checkbox" checked={on} disabled={!view} onChange={(e) => void window.spacedemo.setAiVoice(e.target.checked).then(setView)} data-testid="ai-voice" />
+        <span>
+          <span>Make the old voice clearer with AI</span>
+          <span className="note">A free AI model (VoiceFixer) rebuilds the 2002 voice so it sounds fuller and clearer. It runs on this PC and takes longer than a normal fix (about 15 seconds per minute of voice on a fast PC). While it's on, voice cleanup isn't used. Applies to demos fixed from now on; copies made the other way are fixed again when you watch or fix them. The plain voice is always available: switch this off.</span>
+        </span>
+      </label>
+      {m?.downloading ? (
+        <>
+          <p className="note" data-testid="ai-progress">Downloading the AI model… {mb(m.downloading.done)} of {mb(m.downloading.total)}</p>
+          <progress max={m.downloading.total} value={m.downloading.done} className="tr-progress" />
+        </>
+      ) : m?.path ? (
+        <p className="note" data-testid="ai-ready">AI model ready{m.chosenByHand ? ' (your file)' : ''}: <span className="mono" style={{ overflowWrap: 'anywhere' }}>{m.path}</span></p>
+      ) : (
+        <p className={on ? 'problem' : 'note'} data-testid="ai-missing">{on ? 'The AI model isn\'t downloaded yet, so demos are still fixed with the plain voice. ' : ''}The AI model is downloaded once, about {mb(m?.size ?? 142_000_000)}.</p>
+      )}
+      {m?.problem && <p className="problem" data-testid="ai-problem">{m.problem}</p>}
+      <div className="btn-row">
+        {!m?.path && <button type="button" className={`btn${on ? ' primary' : ''}`} disabled={!!m?.downloading} onClick={() => void window.spacedemo.downloadAiModel().then(setM)} data-testid="ai-download">Download the AI model</button>}
+        <button type="button" className="btn" disabled={!!m?.downloading} onClick={() => void window.spacedemo.chooseAiModel().then(setM)}>Use a model file I have…</button>
+      </div>
+    </section>
+  );
+}
 
 export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus; looking: boolean; onLookAgain: () => void }) {
   const [theme, setTheme] = useState<ThemeChoice | undefined>();
@@ -109,6 +147,8 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
         </label>
       </section>
 
+      <AiVoiceCard view={view} setView={setView} />
+
       <SpeechModelCard />
 
       <section className="card" aria-labelledby="cpu-h" data-testid="settings-cpu">
@@ -148,6 +188,8 @@ export function SettingsPage({ game, looking, onLookAgain }: { game?: GameStatus
           <dt>Version</dt><dd data-testid="app-version">{info ? `SpaceDemo ${info.version}` : '…'}</dd>
           <dt>Licence</dt><dd>GNU GPL v3</dd>
           <dt>Thanks</dt><dd>compLexity Demo Player (COL) and CS Demo Manager, whose work showed the way.</dd>
+          <dt>AI voice</dt><dd data-testid="credit-ai">VoiceFixer by Haohe Liu (code MIT; trained model CC BY 4.0, <span className="mono">zenodo.org/records/5600188</span> and <span className="mono">5469951</span>). SpaceDemo's copy is changed: compressed (int8/fp16) and converted to ONNX.</dd>
+          <dt>Voice to text</dt><dd>OpenAI Whisper (MIT) via whisper.cpp (MIT).</dd>
         </dl>
       </section>
     </>

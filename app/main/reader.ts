@@ -22,7 +22,7 @@ export interface LibraryReader {
   replay(job: DetailsJob, round: number, combined?: boolean): Promise<ReplayData | { error: string }>;
   combined(job: DetailsJob & { companions: CompanionJob[] }): Promise<CombinedData | { error: string }>;
   players(job: PlayersJob): Promise<DemoPlayers | { error: string }>;
-  fix(job: FixJob): Promise<FixResult>;
+  fix(job: FixJob, onProgress?: (p: { done: number; total: number }) => void): Promise<FixResult>;
   /** 5.v: the demo's talk bursts as WAV files in a temporary folder. */
   bursts(job: BurstsJob): Promise<BurstsResult>;
   close(): void;
@@ -65,7 +65,7 @@ export function directReader(): LibraryReader {
     replay: async (job, round, combined) => readReplay(job, round, combined),
     combined: async (job) => readCombined(job),
     players: async (job) => readPlayersNow(job),
-    fix: async (job) => runFix(job),
+    fix: (job, onProgress) => runFix(job, onProgress),
     bursts: async (job) => writeBursts(job),
     close: () => {},
   };

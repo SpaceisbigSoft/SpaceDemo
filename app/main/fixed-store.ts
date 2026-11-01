@@ -14,6 +14,8 @@ export interface FixedRecord {
   outputSize: number;
   done: string[];
   notes: string[];
+  /** 5.g5: made with AI voice enhancement. */
+  ai?: boolean;
 }
 
 export class FixedStore {

@@ -11,6 +11,15 @@ import { resample, toFloat, toInt16 } from './resample.js';
 import { OLD_VOICE_RATE } from './restore.js';
 
 export const MODEL_RATE = 44100;
+
+/** The compact VoiceFixer model (5.g3), hosted as a release file on the SpaceDemo GitHub repo (owner, Q13). Licence:
+ * CC BY 4.0 (Haohe Liu, VoiceFixer); our copy is compressed (mixed sizing) — credit + "changed" note in the app. */
+export const AI_MODEL = {
+  file: 'spacedemo-voicefixer-mixed.onnx',
+  url: 'https://github.com/SpaceisbigSoft/SpaceDemo/releases/download/ai-model-v1/spacedemo-voicefixer-mixed.onnx',
+  bytes: 142_164_205,
+  sha256: 'a9e8c9a5e229b8f41c24e09dfadf2e55e64587d03af2bfe8727a55f21e25025e',
+} as const;
 const SEGMENT = MODEL_RATE * 30;
 const GAP_SECONDS = 0.2;
 

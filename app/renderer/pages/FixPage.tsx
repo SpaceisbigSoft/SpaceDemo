@@ -86,7 +86,7 @@ export function FixPage({ batch, library, onWatch }: { batch?: FixBatchState; li
                     </td>
                     <td><span className={`status fix-${i.state}`}>{STATE_TEXT[i.state]}</span></td>
                     <td className="mono nowrap">{i.seconds !== undefined ? `${i.seconds.toFixed(1)} s` : ''}</td>
-                    <td className={`nowrap${i.voice?.startsWith('none') ? ' voice none' : i.voice === 'not restored' ? ' warn' : ''}`}>{i.voice ?? ''}</td>
+                    <td className={`nowrap${i.voice?.startsWith('none') ? ' voice none' : i.voice === 'not restored' ? ' warn' : ''}`} data-testid="fix-voice">{i.progress ?? i.voice ?? ''}</td>
                     <td className="what">
                       {i.error && <span className="problem">{i.error}</span>}
                       {i.done.join(' · ')}

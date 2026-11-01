@@ -25,7 +25,7 @@ parentPort!.on('message', (job: Job) => {
   } else if (job.kind === 'bursts') {
     parentPort!.postMessage({ id: job.id, bursts: writeBursts(job) });
   } else if (job.kind === 'fix') {
-    parentPort!.postMessage({ id: job.id, fix: runFix(job) });
+    void runFix(job, (progress) => parentPort!.postMessage({ id: job.id, progress })).then((fix) => parentPort!.postMessage({ id: job.id, fix }));
   } else if (job.kind === 'players') {
     parentPort!.postMessage({ id: job.id, players: readPlayersNow(job) });
   } else if (job.kind === 'replay') {

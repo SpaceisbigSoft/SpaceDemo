@@ -3,7 +3,8 @@
 // .zip that holds it) is only read; the fixed copy is a new file written through writeNewFile().
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fixDemo } from '../../engine/src/fix/fix.js';
+import { fixDemoAsync } from '../../engine/src/fix/fix.js';
+import { onnxEnhancer, type VoiceEnhancer } from '../../engine/src/voice/enhance.js';
 import { writeNewFile } from '../../engine/src/fix/safe-output.js';
 import { voiceCleanup } from '../../engine/src/voice/cleanup.js';
 import { helperDecoder } from '../../engine/src/voice/decoders.js';
@@ -22,6 +23,8 @@ export interface FixJob {
   helperExe?: string;
   /** Voice cleanup (owner's default: on). */
   cleanup: boolean;
+  /** 5.g5 AI voice enhancement: the model file, cores to use, and the folder for finished results. */
+  ai?: { model: string; threads: number; cacheDir: string };
 }
 
 export interface FixResult {
@@ -35,9 +38,24 @@ export interface FixResult {
   notes: string[];
   /** Original voice put back (seconds and talk bursts), when there was some. */
   voice?: { seconds: number; bursts: number };
+  /** The voice was AI-enhanced (5.g5). */
+  ai?: boolean;
 }
 
-export function runFix(job: FixJob): FixResult {
+// The model is loaded once per thread and kept (about 1 s and a few hundred MB), as long as the file and cores stay the same.
+let loaded: { key: string; enhancer: Promise<VoiceEnhancer> } | undefined;
+function enhancerFor(model: string, threads: number): Promise<VoiceEnhancer> {
+  const key = `${model}|${threads}`;
+  if (loaded?.key !== key) {
+    void loaded?.enhancer.then((e) => e.close?.()).catch(() => undefined);
+    loaded = { key, enhancer: onnxEnhancer(model, { threads }) };
+    loaded.enhancer.catch(() => { loaded = undefined; });
+  }
+  return loaded.enhancer;
+}
+
+/** `onProgress`: seconds of voice done / total while the AI works. */
+export async function runFix(job: FixJob, onProgress?: (p: { done: number; total: number }) => void): Promise<FixResult> {
   const t0 = Date.now();
   try {
     const input = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : new Uint8Array(readFileSync(job.file));
@@ -46,15 +64,16 @@ export function runFix(job: FixJob): FixResult {
     const decoder = process.platform === 'win32' && asi && existsSync(asi) && job.helperExe && existsSync(job.helperExe)
       ? helperDecoder(job.helperExe, asi)
       : undefined;
-    const { bytes, report } = fixDemo(input, { halfLifeDir: job.gameDir, voiceDecoder: decoder, voiceFilter: job.cleanup ? voiceCleanup : undefined });
+    const ai = job.ai ? { enhancer: await enhancerFor(job.ai.model, job.ai.threads), cacheDir: job.ai.cacheDir, onProgress: (done: number, total: number) => onProgress?.({ done, total }) } : undefined;
+    const { bytes, report } = await fixDemoAsync(input, { halfLifeDir: job.gameDir, voiceDecoder: decoder, voiceFilter: job.cleanup && !ai ? voiceCleanup : undefined, ai });
     mkdirSync(dirname(job.output), { recursive: true });
     writeNewFile([job.file], job.output, bytes, { overwrite: job.overwrite });
     const done: string[] = [];
     if (report.recovered) done.push('Repaired a cut-off recording.');
     if (report.converted) done.push(`Converted protocol ${report.sourceProtocol} → 48 for today's CS 1.6.`);
-    if (report.voice) done.push(`Put the original voice back as Steam voice (${Math.round(report.voice.seconds / 6) / 10} min${job.cleanup ? ', voice cleanup on' : ''}).`);
+    if (report.voice) done.push(`Put the original voice back as Steam voice (${Math.round(report.voice.seconds / 6) / 10} min${report.ai ? ', AI-enhanced' : job.cleanup ? ', voice cleanup on' : ''}).`);
     const voice = report.voice ? { seconds: report.voice.seconds, bursts: report.voice.bursts } : undefined;
-    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes], voice };
+    return { ok: true, output: job.output, seconds: (Date.now() - t0) / 1000, done, notes: [...report.notes], voice, ai: !!report.ai };
   } catch (err) {
     return { ok: false, error: (err as Error).message, done: [], notes: [] };
   }

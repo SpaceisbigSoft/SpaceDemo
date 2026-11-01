@@ -80,7 +80,8 @@ export class WatchService {
 
       if (info.needsFix) {
         say({ stage: 'fixing', message: 'Fixing: repairing, converting for today\'s CS 1.6 and putting the original voice back…' });
-        const r = await this.d.fixer.fixOne(key, row.candidate, row.demo.name);
+        const r = await this.d.fixer.fixOne(key, row.candidate, row.demo.name, ({ done, total }) =>
+          say({ stage: 'fixing', message: `Fixing: AI voice enhancement — ${Math.round(done)} of ${Math.round(total)} s of voice done…` }));
         if (!r.ok || !r.output) return say({ stage: 'error', message: `Fixing didn't work: ${r.error}` });
         source = r.output;
         done = r.done;
