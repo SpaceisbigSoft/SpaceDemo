@@ -148,7 +148,7 @@ export class SpeechService {
       let lastSent = 0;
       for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
         hash.update(chunk);
-        if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
+        if (!out.write(chunk)) await new Promise<void>((r) => out.once('drain', () => r()));
         this.downloading.done += chunk.length;
         if (this.downloading.done - lastSent > total / 100) { lastSent = this.downloading.done; this.d.onModel(this.model()); }
       }

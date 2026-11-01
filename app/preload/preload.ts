@@ -21,6 +21,12 @@ const api: SpaceDemoApi = {
     ipcRenderer.on(IPC.libraryChanged, handler);
     return () => { ipcRenderer.removeListener(IPC.libraryChanged, handler); };
   },
+  onOpenDemo: (listener: (path: string) => void) => {
+    const handler = (_event: unknown, path: string) => listener(path);
+    ipcRenderer.on(IPC.openDemo, handler);
+    return () => { ipcRenderer.removeListener(IPC.openDemo, handler); };
+  },
+  takeOpenDemo: () => ipcRenderer.invoke(IPC.takeOpenDemo),
   pathForFile: (file: File) => webUtils.getPathForFile(file),
   showInFolder: (path: string) => ipcRenderer.invoke(IPC.showInFolder, path),
   getDemoDetails: (key: string) => ipcRenderer.invoke(IPC.demoDetails, key),
@@ -91,4 +97,7 @@ contextBridge.exposeInMainWorld('spacedemo', api);
 
 // Start with the right look before anything is drawn (the app passes it on the command line of this window).
 const startTheme = process.argv.find((a) => a.startsWith('--spacedemo-theme='))?.split('=')[1];
-document.documentElement.dataset.theme = startTheme === 'light' ? 'light' : 'dark';
+const look = startTheme === 'light' ? 'light' : 'dark';
+// The document can still be empty when the preload runs (seen in the installed build): then set it as soon as it exists.
+if (document.documentElement) document.documentElement.dataset.theme = look;
+else document.addEventListener('readystatechange', () => { if (document.documentElement && !document.documentElement.dataset.theme) document.documentElement.dataset.theme = look; }, { once: true });

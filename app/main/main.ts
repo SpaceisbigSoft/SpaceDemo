@@ -4,7 +4,7 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
 import { MIN_WINDOW, startBounds } from './window-state.js';
 import { appendFileSync, existsSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, sep } from 'node:path';
 import { IPC, THEME_CHOICES, type AppInfo, type AppSettingsView, type GameStatus, type ThemeChoice, type ThemeState } from '../shared/api.js';
 import { gameStatus, toGameStatus } from './game.js';
 import { checkGameDir, findGame } from '../../engine/src/launch/steam.js';
@@ -114,6 +114,29 @@ function themeChanged(): void {
   win?.webContents.send(IPC.themeChanged, themeState());
 }
 
+/** Our helper programs: next to the app in development, in resources\helpers when installed (6.1, not inside app.asar). */
+function helpersBase(): string {
+  return app.isPackaged ? process.resourcesPath : app.getAppPath();
+}
+
+// 6.1 `.dem` file association: Windows starts SpaceDemo with the demo's path (or passes it to the open SpaceDemo).
+// The demo is added to the library (unless a library folder already holds it) and its details page opens.
+let pendingOpen: string | undefined;
+function demoArg(argv: string[]): string | undefined {
+  return argv.slice(1).find((a) => /\.dem$/i.test(a) && isAbsolute(a) && existsSync(a));
+}
+function openDemoFile(path: string): void {
+  const lower = path.toLowerCase();
+  const covered = settings.libraryFolders.some((f) => { const l = f.toLowerCase(); return lower === l || lower.startsWith(l.endsWith(sep) ? l : l + sep); });
+  if (!covered) {
+    saveAndApply({ ...settings, libraryFolders: [...settings.libraryFolders, path] });
+    void library.refresh();
+  }
+  pendingOpen = path;
+  win?.webContents.send(IPC.openDemo, path);
+  if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+}
+
 function createWindow(): void {
   const tb = currentTitleBar();
   const bounds = startBounds(settings.window, screen.getAllDisplays().map((d) => d.workArea));
@@ -195,6 +218,7 @@ function registerIpc(): void {
     }
     return library.state();
   });
+  ipcMain.handle(IPC.takeOpenDemo, () => { const p = pendingOpen; pendingOpen = undefined; return p; });
   ipcMain.handle(IPC.libraryRemove, (_e, path: unknown) => {
     if (typeof path === 'string' && settings.libraryFolders.includes(path)) {
       saveAndApply({ ...settings, libraryFolders: settings.libraryFolders.filter((p) => p !== path) });
@@ -343,7 +367,9 @@ function registerIpc(): void {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
+    const dem = demoArg(argv);
+    if (dem && library) openDemoFile(dem);
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.focus();
@@ -380,7 +406,7 @@ if (!app.requestSingleInstanceLock()) {
     const launchLog = join(app.getPath('userData'), 'launch-log.txt');
     fixer = new FixService({
       library, reader, fixed: fixedStore, gameDir: () => game?.gameDir, outputFolder, cleanup: () => settings.voiceCleanup, ai: aiJob, mapFolders: () => settings.mapFolders,
-      helperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
+      helperExe: join(helpersBase(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
       onChange: (s) => win?.webContents.send(IPC.fixChanged, s),
     });
     watcher = new WatchService({
@@ -390,8 +416,8 @@ if (!app.requestSingleInstanceLock()) {
     });
     speech = new SpeechService({
       dataDir: app.getPath('userData'), library, reader, gameDir: () => game?.gameDir,
-      voiceHelperExe: join(app.getAppPath(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
-      whisperExe: process.env.SPACEDEMO_WHISPER_EXE ?? join(app.getAppPath(), 'helpers', 'whisper-helper', 'spacedemo-whisper.exe'),
+      voiceHelperExe: join(helpersBase(), 'helpers', 'voice-helper', 'cdf-voice-helper.exe'),
+      whisperExe: process.env.SPACEDEMO_WHISPER_EXE ?? join(helpersBase(), 'helpers', 'whisper-helper', 'spacedemo-whisper.exe'),
       wine: process.env.SPACEDEMO_WHISPER_WINE, modelUrl: process.env.SPACEDEMO_MODEL_URL,
       cores: () => usableCores(settings.cpuCores),
       chosenModel: () => settings.speechModel,
@@ -403,6 +429,8 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc();
     createWindow();
     void library.refresh();
+    const dem = demoArg(process.argv);
+    if (dem) openDemoFile(dem);
   });
 
   app.on('window-all-closed', () => { library?.close(); app.quit(); });

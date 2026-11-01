@@ -23,13 +23,16 @@
     "build:helper": "sh helpers/voice-helper/build.sh",
     "app:build": "node app/build.mjs",
     "app": "node app/build.mjs && electron .",
-    "test:app": "node app/build.mjs && vitest run --config app/vitest.config.ts"
+    "test:app": "node app/build.mjs && vitest run --config app/vitest.config.ts",
+    "dist:win": "node app/build.mjs && electron-builder --win nsis --x64 --publish never",
+    "dist:dir": "node app/build.mjs && electron-builder --dir --publish never"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "electron": "44.10.1",
+    "electron-builder": "26.17.0",
     "esbuild": "0.28.2",
     "playwright-core": "1.64.0",
     "tsx": "4.23.15",
@@ -49,5 +52,87 @@
     "esbuild": true,
     "electron": true,
     "onnxruntime-node": false
+  },
+  "author": "SpaceisbigSoft",
+  "build": {
+    "appId": "com.spaceisbigsoft.spacedemo",
+    "productName": "SpaceDemo",
+    "copyright": "SpaceDemo — GPL-3.0-or-later",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "out/app/**/*",
+      "!out/app/**/*.map",
+      "package.json",
+      "!node_modules/@fontsource/**",
+      "!node_modules/react/**",
+      "!node_modules/react-dom/**",
+      "!node_modules/scheduler/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**"
+    ],
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/bin/**"
+    ],
+    "extraResources": [
+      {
+        "from": "helpers/voice-helper/cdf-voice-helper.exe",
+        "to": "helpers/voice-helper/cdf-voice-helper.exe"
+      },
+      {
+        "from": "helpers/whisper-helper/spacedemo-whisper.exe",
+        "to": "helpers/whisper-helper/spacedemo-whisper.exe"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "dem",
+        "name": "Counter-Strike demo",
+        "description": "Counter-Strike demo",
+        "role": "Viewer",
+        "icon": "build/icon.ico"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SpaceDemo",
+      "license": "LICENSE",
+      "artifactName": "SpaceDemo Setup ${version}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "icon": "build/icon.png"
+    },
+    "publish": null,
+    "electronLanguages": [
+      "en-US"
+    ]
   }
 }

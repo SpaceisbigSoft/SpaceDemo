@@ -40,6 +40,19 @@ export function App() {
     return window.spacedemo.onLibraryChanged(setLibrary);
   }, []);
 
+  // 6.1: a demo double-clicked in Explorer opens its details once the library has read it.
+  const [openPath, setOpenPath] = useState<string | undefined>();
+  useEffect(() => {
+    void window.spacedemo.takeOpenDemo().then((p) => { if (p) setOpenPath(p); });
+    return window.spacedemo.onOpenDemo(setOpenPath);
+  }, []);
+  useEffect(() => {
+    if (!openPath || !library) return;
+    const want = openPath.toLowerCase().replace(/\//g, '\\');
+    const d = library.demos.find((x) => x.file.toLowerCase().replace(/\//g, '\\') === want);
+    if (d && (d.info || d.error)) { setOpenPath(undefined); openDetails(d.key); } // wait until it has been read
+  }, [openPath, library]);
+
   const lookForGame = useCallback(async () => {
     setLooking(true);
     try {

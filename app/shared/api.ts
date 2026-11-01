@@ -686,6 +686,10 @@ export interface SpaceDemoApi {
   removeFromLibrary(path: string): Promise<LibraryState>;
   rescanLibrary(): Promise<LibraryState>;
   onLibraryChanged(listener: (state: LibraryState) => void): () => void;
+  /** 6.1: a .dem opened from Explorer (file association): its path, to show its details. */
+  onOpenDemo(listener: (path: string) => void): () => void;
+  /** The .dem SpaceDemo was started with, once (then undefined). */
+  takeOpenDemo(): Promise<string | undefined>;
   /** The file path of a file dropped on the window. */
   pathForFile(file: File): string;
   /** Opens Windows Explorer with this file selected (read-only). */
@@ -814,6 +818,8 @@ export const IPC = {
   libraryRemove: 'library:remove',
   libraryRescan: 'library:rescan',
   libraryChanged: 'library:changed',
+  openDemo: 'app:open-demo',
+  takeOpenDemo: 'app:take-open-demo',
   showInFolder: 'shell:show-in-folder',
   demoDetails: 'library:details',
   demoReplay: 'library:replay',

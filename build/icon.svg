@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 28 28">
+  <!-- SpaceDemo app icon: the in-app logo mark (rounded square + play triangle) on the app's dark background. -->
+  <rect x="0.5" y="0.5" width="27" height="27" rx="6.5" fill="#15171a"/>
+  <rect x="3" y="3" width="22" height="22" rx="5.5" fill="none" stroke="#f2a93b" stroke-width="2"/>
+  <path d="M11 8.8v10.4l8.5-5.2z" fill="#f2a93b"/>
+</svg>

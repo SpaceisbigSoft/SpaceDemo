@@ -48,9 +48,9 @@ describe('app shell', () => {
     expect(await page.evaluate(() => Object.keys(window.spacedemo).sort())).toEqual([
       'addMapFolder', 'addToLibrary', 'chooseAiModel', 'chooseGameFolder', 'chooseOutputFolder', 'chooseSpeechModel', 'clearGameFolder', 'downloadAiModel', 'downloadSpeechModel', 'findGame', 'fixDemos', 'fixFiles',
       'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme', 'getTranscript',
-      'getWatchInfo', 'info', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
+      'getWatchInfo', 'info', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onOpenDemo', 'onPlayersChanged', 'onSpeechModel', 'onThemeChanged', 'onTranscript', 'onWatchProgress',
       'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice', 'setCpuCores', 'setTheme', 'setVoiceCleanup', 'showInFolder', 'startTranscript',
-      'stopFixing', 'stopTranscript', 'unmergePlayer', 'watch',
+      'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);
