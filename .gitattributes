@@ -1,0 +1,6 @@
+# Same line endings (LF) on every machine, so Windows and Linux builds hold identical files (6.2).
+* text=auto eol=lf
+*.ico binary
+*.png binary
+*.exe binary
+*.wasm binary
