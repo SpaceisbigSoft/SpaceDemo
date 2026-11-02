@@ -225,14 +225,16 @@ class Upgrade {
           const smoke = b.resources.find((r) => r.type === 5 && r.name === 'events/createsmoke.sc');
           this.smokeEvent = this.cs10or11 ? smoke?.index : undefined;
         }
-        const missing = this.opts.isResourceMissing;
-        let resources = missing ? b.resources.filter((r) => !missing(r.name)) : b.resources;
-        const dropped = b.resources.length - resources.length;
-        if (dropped) this.warnings.push(`Removed ${dropped} resources that don't exist in the current game.`);
         let renamed = false;
+        let source = b.resources;
         if (this.beta) {
-          resources = resources.map((r) => (/^models\/player\/arab\/arab\.mdl$/i.test(r.name.replace(/\\/g, '/')) ? ((renamed = true), this.count('beta: arab model -> leet'), { ...r, name: 'models/player/leet/leet.mdl' }) : r));
+          // Before the missing-file check: today's game has no arab model, but it has leet.
+          source = source.map((r) => (/^models\/player\/arab\/arab\.mdl$/i.test(r.name.replace(/\\/g, '/')) ? ((renamed = true), this.count('beta: arab model -> leet'), { ...r, name: 'models/player/leet/leet.mdl' }) : r));
         }
+        const missing = this.opts.isResourceMissing;
+        let resources = missing ? source.filter((r) => !missing(r.name)) : source;
+        const dropped = source.length - resources.length;
+        if (dropped) this.warnings.push(`Removed ${dropped} resources that don't exist in the current game.`);
         if (this.opts.mapName && this.oldWorld) {
           const world = `maps/${this.opts.mapName}.bsp`;
           resources = resources.map((r) => (r.name.toLowerCase().replace(/\\/g, '/') === this.oldWorld ? ((renamed = true), { ...r, name: world }) : r));
