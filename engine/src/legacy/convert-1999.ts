@@ -15,6 +15,7 @@ import { Svc } from '../protocol/ids.js';
 import type { PacketEntity, Resource } from '../protocol/messages.js';
 import type { UpgradeReport } from '../transforms/upgrade-to-48.js';
 import { betaPlayerSequence } from '../transforms/beta-sequences.js';
+import { planSentence, type SentenceLists, type SentencePlan } from './sentences.js';
 import { deltaRecord, descriptors48, encodeDeltaDescriptions48, type Values48 } from './delta48.js';
 import { Frame4Type, readDemo4, type Demo4, type NetFrame4 } from './format4.js';
 import { cloneEnt40, createState40, decodeMessages40, emptyEnt40, P40, type ClientData40, type EntState40, type Message40, type PlayerState40, type Resource40 } from './p40.js';
@@ -24,6 +25,8 @@ export interface Convert1999Options {
   isResourceMissing?: (name: string) => boolean;
   /** Play on a copy of the old map saved under this name (see UpgradeOptions.mapName). */
   mapName?: string;
+  /** Half-Life's and today's sentence lists (from the player's game): sentence sounds are matched by name. */
+  sentences?: SentenceLists;
 }
 
 /** Messages copied unchanged (same layout) under protocol 48's id. Ids not listed and not handled are dropped. */
@@ -202,6 +205,15 @@ class Converter {
       out.push({ type: r.type, name, index: r.index, size: Math.max(0, Math.min(r.size, 0xffffff)), flags: (r.md5 ? 4 : 0) | (r.flags & 3), md5: r.md5 });
     }
     if (dropped) this.warnings.push(`Removed ${dropped} resources that don't exist in the current game.`);
+    let next = Math.max(0, ...this.resources.filter((r) => r.type === 0).map((r) => r.index)) + 1;
+    for (const p of this.sentencePlans.values()) {
+      if (p.kind !== 'sound' || this.addedSounds.has(p.wav)) continue;
+      const known = this.resources.find((r) => r.type === 0 && r.name.toLowerCase() === p.wav);
+      if (known) { this.addedSounds.set(p.wav, known.index); continue; }
+      this.addedSounds.set(p.wav, next);
+      out.push({ type: 0, name: p.wav, index: next++, size: 0, flags: 0 });
+      this.count('sentence: sound added to the resource list');
+    }
     this.count('resource list');
     return encodeResourceList({ kind: 'resourceList', resources: out, hadConsistencyList: false });
   }
@@ -407,6 +419,11 @@ class Converter {
     ],
   };
 
+  /** What each sentence number used in the demo becomes (filled before converting, see convert1999). */
+  sentencePlans = new Map<number, SentencePlan>();
+  /** Sound numbers of the plain sounds added for sentences today's list lacks (set by the resource list). */
+  private readonly addedSounds = new Map<string, number>();
+
   /** client.dll checksum from the server info (picks the gun animation table). */
   private clientChecksum = 0;
 
@@ -482,10 +499,25 @@ class Converter {
         case 'static':
           this.count('static entity left out');
           continue;
-        case 'sound':
-          out.push(encodeSound48(b));
+        case 'sound': {
+          let snd = b;
+          if (b.flags & 0x10 && this.sentencePlans.size) {
+            const p = this.sentencePlans.get(b.index);
+            if (!p || p.kind === 'drop') { this.count('sentence: dropped (not in the game)'); continue; }
+            if (p.kind === 'sentence') {
+              snd = { ...b, index: p.index };
+              if (p.index !== b.index) this.count('sentence: renumbered by name');
+            } else {
+              const idx = this.addedSounds.get(p.wav);
+              if (idx === undefined) { this.count('sentence: dropped (not in the game)'); continue; }
+              snd = { ...b, flags: b.flags & ~0x10, index: idx };
+              this.count('sentence: played as a sound');
+            }
+          }
+          out.push(encodeSound48(snd));
           this.count('sound (protocol 48)');
           continue;
+        }
         case 'resourceList':
           for (const r of b.resources) this.resources.push(r);
           if (b.end >= b.total) {
@@ -640,6 +672,13 @@ function header48(d: Demo4, mapName: string): DemoHeader {
   return { magic: 'HLDEMO', demoProtocol: 5, networkProtocol: 48, mapName, gameDir: d.header.gameDir, mapChecksum: d.header.mapChecksum, directoryOffset: 0, raw };
 }
 
+/**
+ * client.dll checksums (server info) of CS betas that had no sound/sentences.txt of their own, so their sentence
+ * numbers point into Half-Life's list (lab task 46: beta 1.0's pak has none; Half-Life 1.0.0.9-1.0.1.6's list = today's
+ * valve list, 1,043 names in the same order). Beta 1.0 = 2699062824.
+ */
+const HALF_LIFE_SENTENCES = new Set<number>([2699062824]);
+
 export function isConvertible1999(protocol: number): boolean {
   return protocol >= 38 && protocol <= 40;
 }
@@ -649,6 +688,26 @@ export function convert1999(input: Uint8Array | Demo4, options: Convert1999Optio
   const P = d.header.networkProtocol;
   if (!isConvertible1999(P)) throw new Error(`Network protocol ${P} (1999) is not supported yet (supported: 38-40).`);
   const c = new Converter(P, options);
+  if (options.sentences) {
+    // Which sentence numbers does the demo use? (Read once before converting: added sounds must be in the resource
+    // list, which comes before the first sound.) Only betas without a sentence list of their own number their
+    // sentences in Half-Life's list; beta 6.1's own list is today's CS 1.6 list name for name (lab task 46).
+    const st = createState40(P);
+    let useHalfLifeList = false;
+    for (const sec of d.sections) {
+      for (const f of sec.frames) {
+        if (f.type !== Frame4Type.Net && f.type !== Frame4Type.NetLoading) continue;
+        try {
+          for (const m of decodeMessages40(f.messages, st)) {
+            if (m.body?.kind === 'serverInfo') useHalfLifeList = m.body.gameDir.toLowerCase() === 'cstrike' && HALF_LIFE_SENTENCES.has(m.body.clientChecksum >>> 0);
+            if (useHalfLifeList && m.body?.kind === 'sound' && m.body.flags & 0x10 && !c.sentencePlans.has(m.body.index)) {
+              c.sentencePlans.set(m.body.index, planSentence(options.sentences, m.body.index));
+            }
+          }
+        } catch { /* the conversion reports unreadable frames */ }
+      }
+    }
+  }
   const sections: Section[] = [];
   for (const sec of d.sections) {
     const frames: Frame[] = [];

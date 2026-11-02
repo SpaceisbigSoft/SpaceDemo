@@ -7,11 +7,12 @@ import { readDemo } from '../../engine/src/container/read.js';
 import { FrameType } from '../../engine/src/container/types.js';
 import { createState, decodeMessages } from '../../engine/src/protocol/messages.js';
 import { gameResourceCheck } from '../../engine/src/fix/fix.js';
+import { readSentenceLists } from '../../engine/src/legacy/sentences.js';
 
 const [inp, out] = process.argv.slice(2);
 const gi = process.argv.indexOf('--game');
 const game = gi > 0 ? process.argv[gi + 1] : undefined;
-const { demo, report } = convert1999(readFileSync(inp), { isResourceMissing: game ? gameResourceCheck(game) : undefined });
+const { demo, report } = convert1999(readFileSync(inp), { isResourceMissing: game ? gameResourceCheck(game) : undefined, sentences: game ? readSentenceLists(game) : undefined });
 const bytes = writeDemo(demo, { rebuildDirectory: true });
 if (existsSync(out)) throw new Error('output exists');
 writeFileSync(out, bytes);
