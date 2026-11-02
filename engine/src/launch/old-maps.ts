@@ -7,7 +7,7 @@
 // A map that lists a texture file (WAD) the game can't find stops the game ("couldn't open jos.wad") when the map keeps
 // any textures outside itself; so missing WADs are copied from next to the old map, or else dropped from the copy's
 // list (the entities lump, which the checksum skips).
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { indexMaps, matchMap, type MapFile } from '../map-index.js';
 import { mapChecksum } from '../mapcrc.js';
@@ -115,8 +115,36 @@ export interface InstallResult {
   notes: string[];
 }
 
-/** Puts an old map in place for `install` plans (copy + missing WADs). Never touches stock files or overwrites others'. */
-export function installOldMap(gameDir: string, plan: Extract<OldMapPlan, { kind: 'install' }>): InstallResult {
+/**
+ * Where a texture file (WAD) can be found: next to the old map first, then (4.11) in the old-map folders and their
+ * direct subfolders (e.g. the Old CS Lab's maps\CS10…CS14). Names are matched without regard to case.
+ */
+export function findWad(name: string, nextToMap: string, folders: string[] = []): string | undefined {
+  const want = name.toLowerCase();
+  const look = (dir: string): string | undefined => {
+    try {
+      const hit = readdirSync(dir).find((f) => f.toLowerCase() === want);
+      return hit ? join(dir, hit) : undefined;
+    } catch { return undefined; }
+  };
+  const first = look(dirname(nextToMap));
+  if (first) return first;
+  for (const f of folders) {
+    const hit = look(f);
+    if (hit) return hit;
+    let subs: string[] = [];
+    try { subs = readdirSync(f, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => join(f, e.name)); } catch { /* unreadable */ }
+    for (const s of subs) {
+      const sub = look(s);
+      if (sub) return sub;
+    }
+  }
+  return undefined;
+}
+
+/** Puts an old map in place for `install` plans (copy + missing WADs). Never touches stock files or overwrites others'.
+ * `wadFolders`: more places to look for missing texture files (Settings → Old map versions). */
+export function installOldMap(gameDir: string, plan: Extract<OldMapPlan, { kind: 'install' }>, wadFolders: string[] = []): InstallResult {
   const downloads = join(gameDir, 'cstrike_downloads');
   const dest = join(downloads, 'maps', `${plan.installName}.bsp`);
   const done: string[] = [], notes: string[] = [];
@@ -127,11 +155,11 @@ export function installOldMap(gameDir: string, plan: Extract<OldMapPlan, { kind:
   if (usesOutsideTextures(bsp)) {
     for (const w of mapWads(bsp)) {
       if (wadFound(w)) continue;
-      const nextTo = join(dirname(plan.source), w);
-      if (existsSync(nextTo)) {
+      const from = findWad(w, plan.source, wadFolders);
+      if (from) {
         mkdirSync(downloads, { recursive: true });
-        copyFileSync(nextTo, join(downloads, w));
-        done.push(`Added the texture file ${w} (it came with the old map).`);
+        copyFileSync(from, join(downloads, w));
+        done.push(`Added the texture file ${w} (from your old maps).`);
       } else missing.push(w);
     }
   }

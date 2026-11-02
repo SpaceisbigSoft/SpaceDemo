@@ -102,3 +102,22 @@ describe.skipIf(!nuke || !mill)('old maps with the real Old Maps pool (CDF_MAPS)
     expect(plan).toMatchObject({ kind: 'install', installName: 'de_clan1_mill_75f77602', rename: true });
   });
 });
+
+describe('findWad (4.11): texture files for old maps', () => {
+  it('looks next to the map first, then in the old-map folders and their subfolders, ignoring case', async () => {
+    const { findWad } = await import('../src/launch/old-maps.js');
+    const { mkdirSync, mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const root = mkdtempSync(join(tmpdir(), 'wads-'));
+    const mapDir = join(root, 'maps-a'), lab = join(root, 'lab'), cs10 = join(lab, 'CS10');
+    for (const d of [mapDir, cs10]) mkdirSync(d, { recursive: true });
+    writeFileSync(join(mapDir, 'de_vegas.bsp'), '');
+    writeFileSync(join(cs10, 'de_vegas.wad'), 'x');
+    writeFileSync(join(mapDir, 'JOS.WAD'), 'x');
+    expect(findWad('jos.wad', join(mapDir, 'de_vegas.bsp'), [lab])).toBe(join(mapDir, 'JOS.WAD'));
+    expect(findWad('de_vegas.wad', join(mapDir, 'de_vegas.bsp'), [lab])).toBe(join(cs10, 'de_vegas.wad'));
+    expect(findWad('de_vegas.wad', join(mapDir, 'de_vegas.bsp'))).toBeUndefined();
+    expect(findWad('itsItaly.wad', join(mapDir, 'de_vegas.bsp'), [lab, join(root, 'gone')])).toBeUndefined();
+  });
+});

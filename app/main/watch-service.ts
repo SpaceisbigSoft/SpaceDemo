@@ -101,7 +101,7 @@ export class WatchService {
           const source = existsSync(rec.oldMap.source) ? rec.oldMap.source : undefined;
           const p = source ? undefined : planOldMap(row.demo.info!.map, row.demo.info!.mapChecksum, found.game.dir, this.d.mapFolders?.() ?? []);
           const from = source ?? (p?.kind === 'install' ? p.source : undefined);
-          if (from) installOldMap(found.game.dir, { kind: 'install', source: from, installName: rec.oldMap.installName, rename: true });
+          if (from) installOldMap(found.game.dir, { kind: 'install', source: from, installName: rec.oldMap.installName, rename: true }, this.d.mapFolders?.() ?? []);
         } catch { /* the game will say what's missing */ }
       }
 

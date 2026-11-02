@@ -102,7 +102,7 @@ export async function runFix(job: FixJob, onProgress?: (p: { done: number; total
       const plan = planOldMap(dm.name, dm.checksum, job.gameDir, job.mapFolders ?? []);
       if (plan.kind === 'install') {
         try {
-          const r = installOldMap(job.gameDir, plan);
+          const r = installOldMap(job.gameDir, plan, job.mapFolders ?? []);
           mapDone.push(...r.done);
           mapNotes.push(...r.notes);
           if (plan.rename) mapName = plan.installName;

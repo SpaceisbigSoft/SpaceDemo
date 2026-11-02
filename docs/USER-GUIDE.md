@@ -142,7 +142,7 @@ The **Players** page lists everyone across all your demos, with totals (kills pe
 Many old demos were recorded on **earlier versions of a map** (for example the 2002 de_nuke). The game refuses to play a demo whose map doesn't match.
 
 - Go to **Settings → Old map versions → Add map folder…** and add the folders where you keep old `.bsp` files (your "map pool"). These folders are only read.
-- SpaceDemo finds the right version by its checksum and, when a demo needs it, places it in the game's `cstrike_downloads\maps` folder. If today's map has the same name, the old version gets a new name. Texture files (`.wad`) the old map needs are copied too, when SpaceDemo can find them.
+- SpaceDemo finds the right version by its checksum and, when a demo needs it, places it in the game's `cstrike_downloads\maps` folder. If today's map has the same name, the old version gets a new name. Texture files (`.wad`) the old map needs are copied too: SpaceDemo looks next to the map, then in all your old-map folders (and the folders directly inside them). A texture file found nowhere is left out of the map's list, so the game still starts (a few surfaces may look plain).
 - Today's maps are never replaced or changed.
 - If no matching version is found, the Watch window warns you before starting.
 
