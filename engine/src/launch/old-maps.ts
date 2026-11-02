@@ -7,6 +7,7 @@
 // A map that lists a texture file (WAD) the game can't find stops the game ("couldn't open jos.wad") when the map keeps
 // any textures outside itself; so missing WADs are copied from next to the old map, or else dropped from the copy's
 // list (the entities lump, which the checksum skips).
+import { isFormat4, readHeader4 } from '../legacy/format4.js';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { indexMaps, matchMap, type MapFile } from '../map-index.js';
@@ -27,6 +28,10 @@ export function oldMapName(name: string, checksum: number): string {
 
 /** Map name and checksum from a demo's header (bytes 16–275 and 536). */
 export function demoMapOf(demo: Uint8Array): { name: string; checksum: number } {
+  if (isFormat4(demo)) {
+    const h = readHeader4(demo); // 1999 demos (HL 1.0.0.9 has a shorter header)
+    return { name: h.mapName.replace(/\.bsp$/i, ''), checksum: h.mapChecksum >>> 0 };
+  }
   const field = demo.subarray(16, 276);
   const end = field.indexOf(0);
   const name = new TextDecoder('latin1').decode(end < 0 ? field : field.subarray(0, end)).replace(/\.bsp$/i, '');

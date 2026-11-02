@@ -14,6 +14,8 @@ import { evenLevel } from '../voice/cleanup.js';
 import type { OldVoiceDecoder } from '../voice/decoders.js';
 import { createState, decodeMessages } from '../protocol/messages.js';
 import { FrameType } from '../container/types.js';
+import { isFormat4, readHeader4 } from '../legacy/format4.js';
+import { convert1999 } from '../legacy/convert-1999.js';
 
 /** Sprites and models of CS 1.0–1.5 that build 10210 doesn't have (Reference: the CS 1.5 scope overlay). */
 export const MISSING_IN_BUILD_10210 = [
@@ -103,6 +105,13 @@ interface Prepared {
 
 /** Repair + convert + decode the old voice (everything before the voice is put back). */
 function prepare(input: Uint8Array, options: FixOptions): Prepared {
+  if (isFormat4(input)) {
+    // 1999 demos (plan F4): their own converter; no voice existed then.
+    const h = readHeader4(input);
+    const up = convert1999(input, { isResourceMissing: gameResourceCheck(options.halfLifeDir), mapName: options.mapName });
+    const report: FixReport = { recovered: false, problems: [], sourceProtocol: h.networkProtocol, converted: true, conversion: up.report.applied, notes: [...up.report.warnings, 'This demo has no voice recorded in it.'] };
+    return { cur: up.demo, report };
+  }
   const demo = readDemo(input);
   const report: FixReport = { recovered: !!demo.recovered, problems: [...demo.problems], sourceProtocol: demo.header.networkProtocol, converted: false, conversion: {}, notes: [] };
   report.voiceCodec = voiceCodecOf(demo);
