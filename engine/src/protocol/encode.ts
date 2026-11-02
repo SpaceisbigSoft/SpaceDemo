@@ -29,7 +29,10 @@ export function encodeServerInfo(b: ServerInfoBody, o: ServerInfoOptions): Uint8
   i32(w, o.protocol);
   i32(w, b.spawnCount);
   w.u32(b.mungedMapChecksum);
-  w.bytes(b.clientDllHash);
+  // Protocol 44+ always has a 16-byte hash (protocol 41's 4-byte checksum is padded with zeros).
+  const hash = new Uint8Array(16);
+  hash.set(b.clientDllHash.subarray(0, 16));
+  w.bytes(hash);
   w.u8(b.maxClients);
   w.u8(b.playerSlot);
   w.u8(b.deathmatch);

@@ -88,8 +88,10 @@ class Upgrade {
 
   /** True for demos from before CS 1.6 (protocol 43-46): the CS 1.5 -> 1.6 layout rules apply. */
   private readonly old: boolean;
-  /** Protocol 43 (CS 1.0-1.2). */
+  /** Protocol 43 (CS 1.0-1.2), and the betas' protocols 41-42 that share its rules. */
   private readonly p43: boolean;
+  /** Protocol 41-42 (CS betas 6.5-7.1, HL 1.1.0.0/1.1.0.1): the "arab" Terrorist model became "leet" in CS 1.0. */
+  private readonly beta: boolean;
   private cs10Hash = false;
   /** CS 1.0: its own player animation numbering. */
   get cs10(): boolean {
@@ -104,6 +106,7 @@ class Upgrade {
   constructor(private readonly state: ProtocolState, private readonly opts: UpgradeOptions) {
     this.old = state.protocol < 47 && !state.betaSteam;
     this.p43 = state.protocol <= 43;
+    this.beta = state.protocol <= 42;
   }
 
   /** Protocol 43: messages a rule left unchanged are still written in the new bit order. */
@@ -153,7 +156,16 @@ class Upgrade {
         if (!this.p43 || m.start === undefined || m.end === undefined || !this.source) return [m];
         // Protocol 44+ appends a 16-byte CD key hash; old demos have none, so it's zeros.
         this.count('protocol 43: user info hash');
-        const old = this.source.subarray(m.start, m.end);
+        let old = this.source.subarray(m.start, m.end);
+        if (this.beta) {
+          // Betas: players chose the "arab" Terrorist model, which today's game doesn't have; CS 1.0 replaced it with "leet".
+          const text = Buffer.from(old.subarray(6)).toString('latin1');
+          const swapped = text.replace(/(\\model\\)arab(?=\\|\0)/i, '$1leet');
+          if (swapped !== text) {
+            this.count('beta: arab model -> leet');
+            old = Uint8Array.from([...old.subarray(0, 6), ...Buffer.from(swapped, 'latin1')]);
+          }
+        }
         const bytes = new Uint8Array(old.length + 16);
         bytes.set(old);
         return [{ ...m, bytes }];
@@ -217,6 +229,9 @@ class Upgrade {
         const dropped = b.resources.length - resources.length;
         if (dropped) this.warnings.push(`Removed ${dropped} resources that don't exist in the current game.`);
         let renamed = false;
+        if (this.beta) {
+          resources = resources.map((r) => (/^models\/player\/arab\/arab\.mdl$/i.test(r.name.replace(/\\/g, '/')) ? ((renamed = true), this.count('beta: arab model -> leet'), { ...r, name: 'models/player/leet/leet.mdl' }) : r));
+        }
         if (this.opts.mapName && this.oldWorld) {
           const world = `maps/${this.opts.mapName}.bsp`;
           resources = resources.map((r) => (r.name.toLowerCase().replace(/\\/g, '/') === this.oldWorld ? ((renamed = true), { ...r, name: world }) : r));
@@ -289,7 +304,7 @@ function lastMapStart(section: Section, state: ProtocolState): number {
 export function upgradeTo48(demo: DemoFile, options: UpgradeOptions = {}): { demo: DemoFile; report: UpgradeReport } {
   const P = demo.header.networkProtocol;
   if (P === TARGET_PROTOCOL) throw new UnsupportedDemoError('This demo already uses protocol 48.');
-  if (P < 43 || P > 47) throw new UnsupportedDemoError(`Network protocol ${P} is not supported yet (supported: 43-47).`);
+  if (P < 41 || P > 47) throw new UnsupportedDemoError(`Network protocol ${P} is not supported yet (supported: 41-47).`);
   if (demo.header.gameDir !== 'cstrike') throw new UnsupportedDemoError(`Only Counter-Strike demos are supported (this one is "${demo.header.gameDir}").`);
   if (demo.sections.length < 2) throw new UnsupportedDemoError('The demo has no playback section.');
 

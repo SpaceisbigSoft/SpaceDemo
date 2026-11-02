@@ -237,7 +237,8 @@ function readServerInfo(r: BitReader, s: ProtocolState): ServerInfoBody {
   const protocol = r.i32();
   const spawnCount = r.i32();
   const mungedMapChecksum = r.u32();
-  const clientDllHash = r.bytesCopy(16);
+  // Protocol 41 (CS beta 6.5/6.6, HL 1.1.0.0) has a 4-byte client.dll checksum instead of the 16-byte MD5 hash.
+  const clientDllHash = r.bytesCopy(s.protocol <= 41 ? 4 : 16);
   const maxClients = r.u8();
   const playerSlot = r.u8();
   const deathmatch = r.u8();
