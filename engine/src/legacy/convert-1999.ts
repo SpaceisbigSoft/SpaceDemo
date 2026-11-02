@@ -372,8 +372,12 @@ class Converter {
   }
 
   /** Converts one frame's messages. */
+  /** View model animations of the frame just converted (sequence, body). */
+  weaponAnims: [number, number][] = [];
+
   frame(f: NetFrame4): Uint8Array[] {
     const msgs: Message40[] = decodeMessages40(f.messages, this.s);
+    this.weaponAnims = msgs.filter((m) => m.id === P40.WeaponAnim && m.payload.length >= 2).map((m) => [m.payload[0], m.payload[1]]);
     const out: Uint8Array[] = [];
     let cd: ClientData40 | undefined;
     const players: PlayerState40[] = [];
@@ -620,6 +624,16 @@ export function convert1999(input: Uint8Array | Demo4, options: Convert1999Optio
           for (const p of parts) { messages.set(p, o); o += p.length; }
           if (f.type === Frame4Type.Net) {
             const info = c.info({ angles: infoAngles(f.info) }, seq, f.time);
+            // Today's game animates the gun in a demo from weapon-animation frames (the client recorded its own
+            // animations), not from the server's svc_weaponanim: one frame per animation, like real recordings.
+            for (const [seq, body] of c.weaponAnims) {
+              const payload = new Uint8Array(8);
+              const dv = new DataView(payload.buffer);
+              dv.setInt32(0, seq, true);
+              dv.setInt32(4, body, true);
+              frames.push({ type: FrameType.WeaponAnimation, time: f.time, index: f.index, payload });
+              c.count('gun animation frames');
+            }
             frames.push({ type: FrameType.DemoBuffer, time: f.time, index: f.index, payload: c.zoomBuffer() });
             frames.push({ type: FrameType.ClientData, time: f.time, index: f.index, payload: c.clientFrame() });
             frames.push({ type: FrameType.NetMessages, time: f.time, index: f.index, info, messages });
