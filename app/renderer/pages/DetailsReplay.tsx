@@ -353,7 +353,8 @@ function RecorderKeys({ p, t }: { p: NonNullable<DemoDetails['recorder']>; t: nu
   const hp = p.health.filter(([ht]) => ht <= t).at(-1)?.[1];
   const cash = p.money.filter(([mt]) => mt <= t).at(-1)?.[1];
   const weapon = p.weapons.filter(([wt]) => wt <= t).at(-1)?.[1];
-  const k = (name: string, label: string, wide = false) => <span className={`key${held.has(name) ? ' down' : ''}${wide ? ' wide' : ''}`} aria-pressed={held.has(name)}>{label}</span>;
+  // Plain text for screen readers ("W held"); aria-pressed is only allowed on buttons (4.8 audit).
+  const k = (name: string, label: string, wide = false) => <span className={`key${held.has(name) ? ' down' : ''}${wide ? ' wide' : ''}`}>{label}{held.has(name) && <span className="visually-hidden"> held</span>}</span>;
   return (
     <div className="rec-keys" aria-label={`${p.name}'s keys`} data-testid="replay-keys">
       <span className="note">{p.name}</span>
