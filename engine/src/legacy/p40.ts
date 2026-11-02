@@ -1,4 +1,6 @@
-// Network protocol 39-40 (Half-Life 1.0.1.3 / 1.0.1.6, 1999 CS betas): message decoder. Plan F4.
+// Network protocol 38-40 (Half-Life 1.0.0.9-1.0.1.0 / 1.0.1.3 / 1.0.1.6, 1999 CS betas): message decoder. Plan F4.
+// Protocol 38 differs only in svc_playerinfo (origin 16 bits ×1/8, velocity 9 bits ×4) and one more leading byte in
+// svc_newmovevars (HL 1.0.1.0 sw.dll decompiled and compared with 1.0.1.6 parser by parser, 2026-11-02).
 // Facts from the decompiled HL 1.0.1.6 client (Work\Old CS Lab\analysis\hl1016\decompiled; README there) and checked on
 // Old CS Lab recordings with tools/dev/p40-decode.py. Layouts: docs/FORMAT.md ("Protocol 38-40").
 // Unlike later protocols there are no delta descriptions: every bit-packed layout is fixed in the engine, players come
@@ -326,8 +328,9 @@ function readDeltaUsercmd(r: LegacyReader, p: PlayerState40): void {
   p.viewangles = a;
 }
 
-function readPlayerInfo(r: LegacyReader): PlayerState40 {
-  // svc_playerinfo (client 10032040).
+function readPlayerInfo(r: LegacyReader, protocol: number): PlayerState40 {
+  // svc_playerinfo (client 10032040; protocol 38 = HL 1.0.1.0 1000a170: same fields, origin and velocity narrower).
+  const p38 = protocol <= 38;
   let f = r.u8();
   if (f & 0x80) f |= r.u8() << 8;
   if (f & 0x8000) f |= r.u8() << 16;
@@ -335,18 +338,21 @@ function readPlayerInfo(r: LegacyReader): PlayerState40 {
   r.startBits();
   const slot = r.bits(6) & 0x3f;
   const state = r.bits(5);
-  const origin: [number, number, number] = [r.sbits(18) / 32, r.sbits(18) / 32, r.sbits(18) / 32];
+  const origin: [number, number, number] = p38
+    ? [r.sbits(16) / 8, r.sbits(16) / 8, r.sbits(16) / 8]
+    : [r.sbits(18) / 32, r.sbits(18) / 32, r.sbits(18) / 32];
   const p: PlayerState40 = {
     slot, flags: f, state, origin, frame: r.bits(8), buttons: 0, velocity: [0, 0, 0], skin: 0, effects: 0, weaponmodel: 0, movetype: 3,
     rendermode: 0, renderamt: 0, rendercolor: [0, 0, 0], renderfx: 0, scale: 1, body: 0, controller: [0, 0, 0, 0], blending: [0, 0], gaitsequence: 0,
   };
   if (f & 0x1) readDeltaUsercmd(r, p);
   if (f & 0x10) p.msec = r.bits(8);
+  const vel = (): number => (p38 ? r.sbits(9) * 4 : r.sbits(14) / 8);
   if (f & 0x20) {
-    p.velocity[0] = r.sbits(14) / 8;
-    p.velocity[1] = r.sbits(14) / 8;
+    p.velocity[0] = vel();
+    p.velocity[1] = vel();
   }
-  if (f & 0x400) p.velocity[2] = r.sbits(14) / 8;
+  if (f & 0x400) p.velocity[2] = vel();
   if (f & 0x100) p.modelindex = r.bits(10);
   else if (f & 0x2) p.modelindex = r.bits(8);
   if (f & 0x1000000) p.skin = r.bits(8);
@@ -541,7 +547,7 @@ function decodeOne(r: LegacyReader, id: number, s: State40): Body40 | undefined 
     }
     case P40.PacketEntities: return readEntities(r, false);
     case P40.DeltaPacketEntities: return readEntities(r, true);
-    case P40.PlayerInfo: return { kind: 'playerInfo', player: readPlayerInfo(r) };
+    case P40.PlayerInfo: return { kind: 'playerInfo', player: readPlayerInfo(r, s.protocol) };
     case P40.ResourceList: {
       const total = r.i16();
       const first = r.i16();

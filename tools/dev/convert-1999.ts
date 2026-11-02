@@ -1,4 +1,4 @@
-// Converts a 1999 demo (format 4, protocol 39-40) to protocol 48 and checks the result reads back (plan F4).
+// Converts a 1999 demo (format 4, protocol 38-40) to protocol 48 and checks the result reads back (plan F4).
 // Usage: tsx tools/dev/convert-1999.ts <in.dem> <out.dem> [--game <Half-Life folder>]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { convert1999 } from '../../engine/src/legacy/convert-1999.js';

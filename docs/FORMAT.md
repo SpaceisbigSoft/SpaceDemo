@@ -94,9 +94,9 @@ protocol 42, build 1341) and played in today's CS 1.6 after conversion (owner, 2
   `\valve.ico` 4710 bytes, then an encrypted file list in `\Localize.cab`), so only a real CD image passes; betas have
   no `jointeam`/`joinclass` (map briefing → fire → `chooseteam` + `menuselect`).
 
-## Protocol 38–40 (Half-Life 1.0.x, 1999 CS betas 1.0–6.2) (plan F4, reading only so far, 2026-11-02)
+## Protocol 38–40 (Half-Life 1.0.x, 1999 CS betas 1.0–6.2) (plan F4, converted to 48, 2026-11-02)
 Facts from the Old CS Lab recordings (HL 1.0.0.9/1.0.1.0 = 38, 1.0.1.3 = 39, 1.0.1.6 = 40; CS beta 6.1 on 1.0.1.6) and
-the decompiled HL 1.0.1.6 client (Ghidra). `tools/dev/p40-decode.py` walks every message of a protocol 39–40 demo.
+the decompiled HL 1.0.1.6 and 1.0.1.0 clients (Ghidra). `tools/dev/p40-decode.py` walks every message of a protocol 38–40 demo.
 - **Demo format 4** (demo protocol 4): header like 5 from HL 1.0.1.0 (HL 1.0.0.9: 280 bytes, 128-byte strings). Each
   network packet is several frames: 6 view (64 bytes), 3 sequence info (28), 1 messages (24-byte info + u32 length +
   data that begins with the 8-byte netchan sequence/ack), 4 end of packet (0); 0 = loading messages; 2 playback start;
@@ -107,7 +107,10 @@ the decompiled HL 1.0.1.6 client (Ghidra). `tools/dev/p40-decode.py` walks every
   resourcelist 45, newmovevars 46, resourcerequest 48); ids > 53 are game messages.
 - Bit-packed parts read MSB-first; signed = sign bit + (n−1) bits. Field-by-field layouts: plan notes
   (Logs\CS Demo Fixer F4 1999 Notes.md) and the decoder.
-- Protocol 38: newmovevars has one more leading byte; svc_playerinfo differs (not mapped yet).
+- Protocol 38 (HL 1.0.0.9/1.0.1.0): newmovevars has one more leading byte (a 0/1 flag); in svc_playerinfo the origin
+  is 3 × signed 16 bits × 1/8 (not 18 bits × 1/32) and each velocity part is signed 9 bits × 4 (not 14 bits × 1/8).
+  Every other parser of the 1.0.1.0 client reads the same fields as 1.0.1.6 (compared parser by parser); the flag
+  values of svc_playerinfo are the same set (protocol 35 alone uses another).
 
 ## Protocol 47 (2003–2007 Steam CS 1.6) vs 48 (checked on Set 3, 2026-10-31)
 Protocol 47 demos (server builds 2827–3651 in Set 3) are already CS 1.6: they register the same 82 game messages as

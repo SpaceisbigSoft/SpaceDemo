@@ -1,4 +1,4 @@
-// Walks a 1999 demo (format 4, protocol 39-40) with the engine's decoder and prints what it holds (plan F4).
+// Walks a 1999 demo (format 4, protocol 38-40) with the engine's decoder and prints what it holds (plan F4).
 // Usage: tsx tools/dev/p40-dump.ts <demo.dem> [--frames a,b,c]
 import { readFileSync } from 'node:fs';
 import { readDemo4, Frame4Type } from '../../engine/src/legacy/format4.js';

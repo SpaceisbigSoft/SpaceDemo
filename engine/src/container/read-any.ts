@@ -1,5 +1,5 @@
 // Reads any supported demo into the protocol-48 model the rest of the engine understands. Demo format 5 (1.1+,
-// protocols 41-48) is read as it is; 1999 demos (format 4, protocols 39-40, plan F4) are converted in memory first, so
+// protocols 41-48) is read as it is; 1999 demos (format 4, protocols 38-40, plan F4) are converted in memory first, so
 // the inspector, match data and details work on them unchanged. `source*` keep what the file itself is.
 import { readDemo } from './read.js';
 import type { DemoFile } from './types.js';

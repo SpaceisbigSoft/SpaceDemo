@@ -1,4 +1,4 @@
-// Converts a 1999 demo (demo format 4, network protocol 39-40: Half-Life 1.0.1.3/1.0.1.6, CS betas 1.0-6.2) into a
+// Converts a 1999 demo (demo format 4, network protocol 38-40: Half-Life 1.0.0.9/1.0.1.0/1.0.1.3/1.0.1.6, CS betas 1.0-6.2) into a
 // protocol-48 demo today's CS 1.6 can play (plan F4). Unlike the 41-47 upgrade, every bit-packed message is rebuilt:
 //   - the frame layout changes (view + sequence + net frames → one net frame with a 464-byte info block, plus a
 //     client-data frame), and the 8-byte netchan header is dropped;
@@ -620,13 +620,13 @@ function header48(d: Demo4, mapName: string): DemoHeader {
 }
 
 export function isConvertible1999(protocol: number): boolean {
-  return protocol === 39 || protocol === 40;
+  return protocol >= 38 && protocol <= 40;
 }
 
 export function convert1999(input: Uint8Array | Demo4, options: Convert1999Options = {}): { demo: DemoFile; report: UpgradeReport } {
   const d = input instanceof Uint8Array ? readDemo4(input) : input;
   const P = d.header.networkProtocol;
-  if (!isConvertible1999(P)) throw new Error(`Network protocol ${P} (1999) is not supported yet (supported: 39-40).`);
+  if (!isConvertible1999(P)) throw new Error(`Network protocol ${P} (1999) is not supported yet (supported: 38-40).`);
   const c = new Converter(P, options);
   const sections: Section[] = [];
   for (const sec of d.sections) {

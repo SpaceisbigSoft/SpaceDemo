@@ -1,9 +1,9 @@
-// F4 1999 demos (format 4, protocol 39-40): the MSB-first reader, protocol 48's tables and encoders checked by
+// F4 1999 demos (format 4, protocol 38-40): the MSB-first reader, protocol 48's tables and encoders checked by
 // reading their output back with the protocol-48 decoder (made-up data), and, when CDF_1999_DEMO points at an Old CS
 // Lab recording (b61_test1.dem), a full conversion that reads back cleanly.
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { LegacyReader } from '../src/legacy/p40.js';
+import { LegacyReader, createState40, decodeMessages40 } from '../src/legacy/p40.js';
 import { DELTA48, deltaRecord, descriptors48, encodeDeltaDescriptions48 } from '../src/legacy/delta48.js';
 import { convert1999, encodeMoveVars48, encodeSound48 } from '../src/legacy/convert-1999.js';
 import { createState, decodeMessages } from '../src/protocol/messages.js';
@@ -87,6 +87,27 @@ describe('F4 1999: protocol 48 tables and encoders', () => {
     const b = out[0].body;
     expect(b?.kind).toBe('sound');
     if (b?.kind === 'sound') expect([b.entity, b.sound, b.channel, ...b.origin]).toEqual([1, 300, 2, -895.5, 3344, undefined]);
+  });
+});
+
+describe('F4 1999: protocol 38 svc_playerinfo (HL 1.0.1.0)', () => {
+  // The first svc_playerinfo of the Old CS Lab survey demo HL1010.dem (21 bytes after the id; there svc_packetentities
+  // follows), then svc_print, so the test sees whether the reader stopped at the right byte.
+  const pi = [0x2b, 0x8f, 0x06, 0x00, 0x12, 0xb0, 0x02, 0x00, 0x16, 0x6c, 0x00, 0x00, 0x50, 0x00, 0x01,
+    0xb0, 0x29, 0x81, 0x60, 0x86, 0x68, 0x08];
+  const bytes = Uint8Array.from([...pi, 0x08, 0x6f, 0x6b, 0x00]); // svc_print "ok"
+  it('reads origin as 16 bits x 1/8 and velocity as 9 bits x 4, ending where the next message starts', () => {
+    const msgs = decodeMessages40(bytes, createState40(38));
+    expect(msgs.map((m) => m.name)).toEqual(['PlayerInfo', 'Print']);
+    expect(msgs[0].end).toBe(pi.length);
+    const p = (msgs[0].body as unknown as { player: { origin: number[]; slot: number } }).player;
+    expect(p.slot).toBe(0);
+    for (const v of p.origin) expect(Number.isInteger(v * 8)).toBe(true);
+  });
+  it('the same bytes read as protocol 40 do not end there (the layouts really differ)', () => {
+    let ok = true;
+    try { ok = decodeMessages40(bytes, createState40(40))[0].end !== pi.length; } catch { ok = true; }
+    expect(ok).toBe(true);
   });
 });
 

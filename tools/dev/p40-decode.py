@@ -1,6 +1,6 @@
-# Protocol 39-40 (Half-Life 1.0.1.3 / 1.0.1.6, 1999) + demo format 4: test decoder (Claude, 2026-11-02, plan F4).
+# Protocol 38-40 (Half-Life 1.0.0.9-1.0.1.0 / 1.0.1.3 / 1.0.1.6, 1999) + demo format 4: test decoder (Claude, 2026-11-02, plan F4).
 # Walks every message of a 1999 demo and counts them; facts from the decompiled HL 1.0.1.6 engine (see docs/FORMAT.md).
-# Usage: python3 -I tools/dev/p40-decode.py <demo.dem> ...  (protocol 38: movevars has one more byte; playerinfo differs, not done)
+# Usage: python3 -I tools/dev/p40-decode.py <demo.dem> ...  (protocol 38: movevars has one more byte; narrower playerinfo)
 import struct, sys, collections
 TE = {0: 24, 1: 20, 2: 6, 3: 11, 4: 6, 5: 10, 6: 12, 7: 17, 8: 16, 9: 6, 10: 6, 11: 6, 12: 8, 14: 9, 15: 19, 16: 0,
       17: 10, 18: 16, 19: 24, 20: 24, 21: 24, 22: 10, 23: 11, 24: 16, 25: 19, 26: 0, 27: 12, 28: 16, 30: 17, 31: 17,
@@ -46,11 +46,13 @@ def playerinfo(r, F):
     if f & 0x80: f |= r.u8() << 8
     if f & 0x8000: f |= r.u8() << 16
     if f & 0x800000: f |= r.u8() << 24
-    r.start(); num = r.bits(6) & 0x3f; r.bits(5); o = [r.sbits(18) / 32 for _ in range(3)]; r.bits(8)
+    r.start(); num = r.bits(6) & 0x3f; r.bits(5); P38 = F.get('proto') == 38
+    o = [r.sbits(16) / 8 for _ in range(3)] if P38 else [r.sbits(18) / 32 for _ in range(3)]; r.bits(8)
     if f & 0x1: delta_usercmd(r)
     if f & 0x10: r.bits(8)
-    if f & 0x20: r.sbits(14); r.sbits(14)
-    if f & 0x400: r.sbits(14)
+    vb = 9 if P38 else 14  # protocol 38: 9 bits × 4
+    if f & 0x20: r.sbits(vb); r.sbits(vb)
+    if f & 0x400: r.sbits(vb)
     if f & 0x100: r.bits(10)
     elif f & 0x2: r.bits(8)
     if f & 0x1000000: r.bits(8)
@@ -206,7 +208,7 @@ def decode(data, S, F):
         F['msgs'][name] += 1
 def walk(fn):
     b = open(fn, 'rb').read(); hdr = 280 if b[144:149] in (b'valve', b'cstri') and struct.unpack_from('<i', b, 12)[0] == 38 else 544
-    dirp = struct.unpack_from('<I', b, hdr - 4)[0]; p = hdr; S = {'um': {}, 'proto': struct.unpack_from('<i', b, 12)[0]}; F = {'msgs': collections.Counter(), 'players': {}, 'ents': 0}
+    dirp = struct.unpack_from('<I', b, hdr - 4)[0]; p = hdr; S = {'um': {}, 'proto': struct.unpack_from('<i', b, 12)[0]}; F = {'msgs': collections.Counter(), 'players': {}, 'ents': 0, 'proto': S['proto']}
     types = collections.Counter(); n = 0
     SIZES = {2: 0, 3: 28, 4: 0, 5: 64, 6: 64, 8: 0}  # 5 = console command
     while p < dirp:
