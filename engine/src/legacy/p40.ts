@@ -441,13 +441,13 @@ function readEntities(r: LegacyReader, delta: boolean): Body40 {
 }
 
 function readBaselineBody(r: LegacyReader): EntState40 {
-  // Client 100719f0 (entity_state offsets: docs/FORMAT.md).
+  // Client 100719f0 (entity_state offsets: docs/FORMAT.md). Scale factors read from the 1.0.1.6 engine's constants.
   const e = emptyEnt40();
   const type = r.u8();
   e.modelindex = r.i16();
   e.sequence = r.u8();
   e.frame = r.u8();
-  e.scale = type === 0 ? r.u16() / 256 : r.u8() / 16;
+  e.scale = type === 0 ? r.u16() / 256 : r.u8() / 10;
   e.colormap = r.u16();
   e.skin = r.i16();
   e.solid = r.u8();
