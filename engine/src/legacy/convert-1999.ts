@@ -390,9 +390,29 @@ class Converter {
     [/v_usp\.mdl$/, { 0: 8, 1: 9, 2: 10, 3: 11, 4: 12, 5: 13, 6: 14, 9: 14, 10: 10, 11: 13 }],
   ];
 
+  /**
+   * Betas whose gun models differ from beta 6.1's, found by the client.dll checksum in their server info. Tables
+   * match each beta model's animation names (its own v_*.mdl) to today's by name.
+   *  - Beta 1.0 (1999-06-19, HL 1.0.1.0, checksum 2699062824; models from its pak0.pak, lab task 45): Glock lacks
+   *    today's shoot3 (5-11 move up one); USP has the Glock's list (idle1-3, shoot, shoot_empty, reload, draw, holster,
+   *    add_silencer, draw2, shoot2, reload2) → today's unsilenced set; M4A1 as 6.1 plus burst_shoot 6; AWP as 6.1;
+   *    no knife model of its own.
+   */
+  private static readonly BETA_GUN_ANIMS: Record<number, [RegExp, Record<number, number>][]> = {
+    2699062824: [
+      [/v_awp\.mdl$/, { 3: 4, 4: 5 }],
+      [/v_glock18\.mdl$/, { 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12 }],
+      [/v_m4a1\.mdl$/, { 0: 7, 1: 11, 2: 12, 3: 8, 4: 9, 5: 10, 6: 8 }],
+      [/v_usp\.mdl$/, { 0: 8, 1: 8, 2: 8, 3: 9, 4: 12, 5: 13, 6: 14, 7: 8, 8: 7, 9: 14, 10: 10, 11: 13 }],
+    ],
+  };
+
+  /** client.dll checksum from the server info (picks the gun animation table). */
+  private clientChecksum = 0;
+
   private gunAnim(seq: number): number {
     const model = (this.resources.find((r) => r.type === 2 && r.index === this.tick.viewmodel)?.name.toLowerCase() ?? '').replace(/_r\.mdl$/, '.mdl');
-    for (const [re, map] of Converter.GUN_ANIMS) {
+    for (const [re, map] of Converter.BETA_GUN_ANIMS[this.clientChecksum] ?? Converter.GUN_ANIMS) {
       if (!re.test(model) || map[seq] === undefined) continue;
       this.count(`beta: gun animation (${model.replace(/^models\/v_|\.mdl$/g, '')})`);
       return map[seq];
@@ -421,6 +441,7 @@ class Converter {
         this.maxClients = b.maxClients;
         this.slot = b.slot & 0x7f;
         this.mapFile = b.mapFile;
+        this.clientChecksum = b.clientChecksum >>> 0;
         const mapName = this.opts.mapName ? `maps/${this.opts.mapName}.bsp` : b.mapFile;
         const hash = new Uint8Array(16);
         new DataView(hash.buffer).setUint32(0, b.clientChecksum >>> 0, true);
