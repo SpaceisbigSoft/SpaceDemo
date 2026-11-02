@@ -14,6 +14,7 @@ import { encodeEntities, encodeNewUserMsg, encodeResourceList, encodeServerInfo,
 import { Svc } from '../protocol/ids.js';
 import type { PacketEntity, Resource } from '../protocol/messages.js';
 import type { UpgradeReport } from '../transforms/upgrade-to-48.js';
+import { betaPlayerSequence } from '../transforms/beta-sequences.js';
 import { deltaRecord, descriptors48, encodeDeltaDescriptions48, type Values48 } from './delta48.js';
 import { Frame4Type, readDemo4, type Demo4, type NetFrame4 } from './format4.js';
 import { cloneEnt40, createState40, decodeMessages40, emptyEnt40, P40, type ClientData40, type EntState40, type Message40, type PlayerState40, type Resource40 } from './p40.js';
@@ -119,7 +120,8 @@ function playerValues(p: PlayerState40, playerModel: number): Values48 {
     'origin[0]': p.origin[0], 'origin[1]': p.origin[1], 'origin[2]': p.origin[2],
     // The 1999 client turned the player model by a third of the view pitch, the other way (engine constant -1/3).
     'angles[0]': -pitch / 3, 'angles[1]': a[1], 'angles[2]': a[2],
-    modelindex: p.modelindex ?? playerModel, sequence: p.sequence ?? 0, gaitsequence: p.gaitsequence, frame: p.frame,
+    // Animations: the 1999 player.mdl list starts like beta 6.6's (Half-Life's names); matched by name to CS 1.6's.
+    modelindex: p.modelindex ?? playerModel, sequence: betaPlayerSequence(p.sequence ?? 0, 41), gaitsequence: betaPlayerSequence(p.gaitsequence, 41), frame: p.frame,
     weaponmodel: p.weaponmodel, effects: p.effects, skin: p.skin, movetype: p.movetype, framerate: 1,
     rendermode: p.rendermode, renderamt: p.renderamt, renderfx: p.renderfx,
     'rendercolor.r': p.rendercolor[0], 'rendercolor.g': p.rendercolor[1], 'rendercolor.b': p.rendercolor[2],
@@ -308,6 +310,65 @@ class Converter {
     return out;
   }
 
+  private readonly teams = new Map<number, number>();
+  private fadeHeld = false;
+  private screenFadeId?: number;
+
+  /**
+   * Game (user) messages whose 1999 layout today's CS client reads differently. Returns the payload(s) to send and an
+   * optional extra message to put after it.
+   */
+  private userMessage(name: string, p: Uint8Array): [Uint8Array, Uint8Array?][] {
+    const TEAMS = ['UNASSIGNED', 'TERRORIST', 'CT', 'SPECTATOR'];
+    const str = (t: string) => Uint8Array.from([...Buffer.from(t, 'latin1'), 0]);
+    switch (name) {
+      case 'TeamInfo':
+        // 1999: slot + team number; today: slot + team name. A wrong name leaves the client without a team.
+        if (p.length === 2 && p[1] < 4) {
+          this.teams.set(p[0], p[1]);
+          this.count('beta: team numbers -> names');
+          return [[Uint8Array.from([p[0], ...str(TEAMS[p[1]])])]];
+        }
+        break;
+      case 'TeamScore':
+        if (p.length === 3 && p[0] < 4) {
+          this.count('beta: team numbers -> names');
+          return [[Uint8Array.from([...str(TEAMS[p[0]]), p[1], p[2]])]];
+        }
+        break;
+      case 'ScoreInfo':
+        // slot, frags, deaths + (today) class and team.
+        if (p.length === 5) return [[Uint8Array.from([...p, 0, 0, this.teams.get(p[0]) ?? 0, 0])]];
+        break;
+      case 'DeathMsg':
+        // killer, victim, (today: headshot byte), weapon name.
+        if (p.length >= 3 && p[2] >= 0x20) {
+          this.count('beta: kill message headshot byte');
+          return [[Uint8Array.from([p[0], p[1], 0, ...p.subarray(2)])]];
+        }
+        break;
+      case 'SendAudio':
+        // Today's client reads a pitch after the sound name (100 = normal).
+        this.count('radio audio: add pitch');
+        return [[Uint8Array.from([...p, 100, 0])]];
+      case 'ScreenFade': {
+        // duration, hold, flags (u16 each), colour, alpha. The 1999 client lifted a "stay faded" screen (flag 4, sent
+        // on joining) when the HUD was reset at spawn; today's client keeps it, so the screen stays black.
+        const flags = p.length >= 6 ? p[4] | (p[5] << 8) : 0;
+        this.fadeHeld = (flags & 4) !== 0;
+        break;
+      }
+      case 'ResetHUD':
+        if (this.fadeHeld && this.screenFadeId !== undefined) {
+          this.fadeHeld = false;
+          this.count('beta: lift held screen fade at spawn');
+          return [[p, encodeUserMessage(this.screenFadeId, new Uint8Array(10), false)]];
+        }
+        break;
+    }
+    return [[p]];
+  }
+
   /** Converts one frame's messages. */
   frame(f: NetFrame4): Uint8Array[] {
     const msgs: Message40[] = decodeMessages40(f.messages, this.s);
@@ -374,12 +435,20 @@ class Converter {
             out.push(this.resourceList());
           }
           continue;
-        case 'newUserMsg':
-          out.push(encodeNewUserMsg({ id: this.userId(b.id), size: b.size, name: b.name }, b.nameField));
+        case 'newUserMsg': {
+          // ScoreInfo grew from 5 to 9 bytes (class and team added).
+          const size = b.name === 'ScoreInfo' && b.size === 5 ? 9 : b.size;
+          if (size !== b.size) this.count('beta: ScoreInfo size');
+          if (b.name === 'ScreenFade') this.screenFadeId = this.userId(b.id);
+          out.push(encodeNewUserMsg({ id: this.userId(b.id), size, name: b.name }, b.nameField));
           continue;
+        }
         case 'user':
           if (b.name === 'SetFOV' && b.payload.length) this.fov = b.payload[0] || 90;
-          out.push(encodeUserMessage(this.userId(m.id), b.payload, b.sized));
+          for (const [payload, extra] of this.userMessage(b.name, b.payload)) {
+            out.push(encodeUserMessage(this.userId(m.id), payload, b.sized));
+            if (extra) out.push(extra);
+          }
           continue;
         case 'userInfo': {
           let text = b.text;
