@@ -492,12 +492,21 @@ class Converter {
     const f3 = (at: number, v: readonly number[]) => v.forEach((x, i) => dv.setFloat32(at + i * 4, x, true));
     const angles = view?.angles ?? t.angles;
     t.angles = angles;
-    // ref_params (after a 4-byte timestamp): vieworg 4, viewangles 16, frametime 64, time 68, onground 84,
+    // ref_params (after a 4-byte timestamp): vieworg (eye) 4, viewangles 16, view vectors 28-63, viewsize 160, frametime 64, time 68, onground 84,
     // waterlevel 88, simvel 92, simorg 104, viewheight 116, cl_viewangles 132, health 144, maxclients 176,
     // viewentity 180, playernum 184, max_entities 188. Then usercmd at 236 (msec 238, viewangles 240, buttons 266),
     // movevars at 288 (132 bytes), eye position 420, view model 432, and the 28-byte sequence info at 436.
-    f3(4, t.origin);
+    const eye = [t.origin[0], t.origin[1], t.origin[2] + t.viewheight];
+    f3(4, eye);
     f3(16, angles);
+    // forward / right / up vectors of the view (28, 40, 52), as the game's AngleVectors makes them.
+    const [p, y, r] = angles.map((a) => (a * Math.PI) / 180);
+    const [sp, cp, sy, cy, sr, cr] = [Math.sin(p), Math.cos(p), Math.sin(y), Math.cos(y), Math.sin(r), Math.cos(r)];
+    f3(28, [cp * cy, cp * sy, -sp]);
+    f3(40, [-sr * sp * cy + cr * sy, -sr * sp * sy - cr * cy, -sr * cp]);
+    f3(52, [cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp]);
+    // Screen size: 120 = full screen (every real demo has it; with 0 the gun isn't drawn).
+    dv.setInt32(160, 120, true);
     dv.setFloat32(64, t.msec / 1000, true);
     dv.setFloat32(68, time, true);
     dv.setInt32(84, t.onground ? 1 : 0, true);
@@ -521,7 +530,7 @@ class Converter {
     }
     // View position (eye) and view model index: the game draws the gun from these while playing a demo
     // (measured on a protocol-41 demo converted to 48: 420 = eye position, 432 = the clientdata's view model).
-    f3(420, [t.origin[0], t.origin[1], t.origin[2] + t.viewheight]);
+    f3(420, eye);
     dv.setInt32(432, t.viewmodel, true);
     if (seq) out.set(seq.subarray(0, 28), 436);
     return out;
