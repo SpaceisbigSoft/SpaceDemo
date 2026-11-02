@@ -624,8 +624,11 @@ export function convert1999(input: Uint8Array | Demo4, options: Convert1999Optio
           for (const p of parts) { messages.set(p, o); o += p.length; }
           if (f.type === Frame4Type.Net) {
             const info = c.info({ angles: infoAngles(f.info) }, seq, f.time);
+            frames.push({ type: FrameType.DemoBuffer, time: f.time, index: f.index, payload: c.zoomBuffer() });
+            frames.push({ type: FrameType.ClientData, time: f.time, index: f.index, payload: c.clientFrame() });
             // Today's game animates the gun in a demo from weapon-animation frames (the client recorded its own
-            // animations), not from the server's svc_weaponanim: one frame per animation, like real recordings.
+            // animations), not from the server's svc_weaponanim: one frame per animation, in the order real recordings have
+            // them (zoom data, client data, animations, messages).
             for (const [seq, body] of c.weaponAnims) {
               const payload = new Uint8Array(8);
               const dv = new DataView(payload.buffer);
@@ -634,8 +637,6 @@ export function convert1999(input: Uint8Array | Demo4, options: Convert1999Optio
               frames.push({ type: FrameType.WeaponAnimation, time: f.time, index: f.index, payload });
               c.count('gun animation frames');
             }
-            frames.push({ type: FrameType.DemoBuffer, time: f.time, index: f.index, payload: c.zoomBuffer() });
-            frames.push({ type: FrameType.ClientData, time: f.time, index: f.index, payload: c.clientFrame() });
             frames.push({ type: FrameType.NetMessages, time: f.time, index: f.index, info, messages });
           } else {
             frames.push({ type: FrameType.NetMessagesLoading, time: f.time, index: f.index, info: new Uint8Array(464), messages });
