@@ -527,6 +527,20 @@ class Converter {
     return out;
   }
 
+  /**
+   * The game client's own demo data (frame type 9): length 8, type 1 = zoom, field of view. While playing a demo, the
+   * CS client takes its field of view from this, not from SetFOV; without it the view counts as zoomed in and the gun
+   * isn't drawn. Real POV demos carry one every frame (seen in the protocol-41 recordings).
+   */
+  zoomBuffer(): Uint8Array {
+    const out = new Uint8Array(12);
+    const dv = new DataView(out.buffer);
+    dv.setInt32(0, 8, true);
+    dv.setInt32(4, 1, true);
+    dv.setFloat32(8, this.fov, true);
+    return out;
+  }
+
   /** The 32-byte client-data frame (origin, view angles, weapon bits, field of view). */
   clientFrame(): Uint8Array {
     const out = new Uint8Array(32);
@@ -597,6 +611,7 @@ export function convert1999(input: Uint8Array | Demo4, options: Convert1999Optio
           for (const p of parts) { messages.set(p, o); o += p.length; }
           if (f.type === Frame4Type.Net) {
             const info = c.info({ angles: infoAngles(f.info) }, seq, f.time);
+            frames.push({ type: FrameType.DemoBuffer, time: f.time, index: f.index, payload: c.zoomBuffer() });
             frames.push({ type: FrameType.ClientData, time: f.time, index: f.index, payload: c.clientFrame() });
             frames.push({ type: FrameType.NetMessages, time: f.time, index: f.index, info, messages });
           } else {
