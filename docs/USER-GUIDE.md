@@ -208,10 +208,10 @@ Use Windows **Settings → Apps → SpaceDemo → Uninstall**. Your settings (`%
 
 ## 16. Which demos work
 
-- Counter-Strike demos recorded with network **protocol 43, 45, 46, 47 or 48**. That covers every WON-era CS release from CS 1.0 (2000) to 1.5 and Steam CS 1.6. SpaceDemo has been tested with over 100 real demos from 2001–2005, player (POV) and HLTV, plus test recordings made in CS 1.0–1.4.
-- CS 1.0–1.2 demos (protocol 43) have no voice: voice chat came with CS 1.3.
+- Counter-Strike demos recorded with network **protocol 41, 42, 43, 45, 46, 47 or 48**. That covers the late CS betas (beta 6.5–7.1, summer 2000), every WON-era CS release from CS 1.0 (2000) to 1.5, and Steam CS 1.6. SpaceDemo has been tested with over 100 real demos from 2001–2005, player (POV) and HLTV, plus test recordings made in CS beta 6.6 and 7.1 and CS 1.0–1.4.
+- Beta and CS 1.0–1.2 demos (protocol 41–43) have no voice: voice chat came with CS 1.3. In beta demos, the beta-only "Arab" Terrorist is shown with the Leet model that replaced it in CS 1.0, and player animations are matched to today's player model.
 - Voice: **Miles** (WON era) and **Speex** (early Steam). Demos recorded with today's game already have Steam voice and play as they are.
-- Not supported: the betas before CS 1.0 (protocol 42 and older).
+- Not supported yet: the 1999 betas (beta 1.0–6.2, protocol 40 and older).
 
 ---
 

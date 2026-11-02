@@ -1,6 +1,6 @@
 # SpaceDemo
 
-**Watch old Counter-Strike 1.0–1.6 demos in today's Steam CS 1.6, with the original voice.**
+**Watch old Counter-Strike demos (beta 6.5 and CS 1.0–1.6) in today's Steam CS 1.6, with the original voice.**
 
 Demos recorded in 2001–2005 no longer play in today's game: the network format changed, the old voice codecs (Miles and Speex) are gone, and many maps have changed since. SpaceDemo repairs a copy of each demo, puts the players' original voice back as today's Steam voice, and starts it in Counter-Strike with one click. It also reads each demo and shows you the match: score, rounds, players, chat, who talked, a radar replay and more.
 
@@ -12,7 +12,7 @@ Demos recorded in 2001–2005 no longer play in today's game: the network format
 
 ## What it does
 
-- **Plays old demos in today's CS 1.6.** It converts older network protocols (43 to 47 → 48, i.e. CS 1.0 to early Steam CS 1.6), repairs recordings that were cut off, and finds the old version of a map when a demo needs it.
+- **Plays old demos in today's CS 1.6.** It converts older network protocols (41 to 47 → 48, i.e. the late CS betas and CS 1.0 to early Steam CS 1.6), repairs recordings that were cut off, and finds the old version of a map when a demo needs it.
 - **Brings back the voice.** Miles (WON era) and Speex (early Steam) voice is decoded and written back as Steam voice, so you hear the players in the game. Optional **AI voice enhancement** makes the 2002 voice fuller and clearer.
 - **Playback controls:** pause, slow motion and fast forward with the game's own demo panel (press `~`).
 - **Demo library:** add folders and zips (demos inside zips are read in place), then search and filter by player, map or server.

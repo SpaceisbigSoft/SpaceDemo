@@ -77,6 +77,23 @@ COL's parser/converter as reference:
 - **CS 1.0/1.1 (no `events/decal_reset.sc`):** entity `animtime` zeroed; the smoke grenade event's iparam1 set to 200.
 - No voice: svc_voiceinit/svc_voicedata only exist from HL 1.1.0.8 (CS 1.3, protocol 45).
 
+## Protocol 41–42 (CS betas 6.5–7.1, HL 1.1.0.0 / 1.1.0.1, summer 2000) (plan F4, checked 2026-11-02)
+Recorded in the Old CS Lab (beta 6.6 on HL 1.1.0.0 = protocol 41, server build 1321; beta 7.1 on HL 1.1.0.1 =
+protocol 42, build 1341) and played in today's CS 1.6 after conversion (owner, 2026-11-02).
+- Everything listed for protocol 43 applies (MSB-first bit-packed messages, 560-byte frame info, the extra delta bit,
+  no host name or CD key hash).
+- **Protocol 41 only:** `svc_serverinfo` carries a **4-byte** client.dll checksum where 42+ carry a 16-byte MD5 hash
+  (padded with zeros when written as 48). Protocol 42 needs nothing beyond the protocol-43 rules.
+- **Player animations:** the beta player models still use Half-Life's animation list (look_idle, crowbar, python,
+  gauss …): beta 6.6 has 126, beta 7.1 144 (CS 1.0: 92, CS 1.6: 111). They are matched **by name** to today's model
+  (`engine/src/transforms/beta-sequences.ts`; e.g. `ref_shoot_crowbar` → `ref_shoot_knife`, `crouch_aim_sniper` →
+  `crouch_aim_rifle`, `reload_mp5` → `ref_reload_mp5`, deaths and flinches to the closest CS 1.6 ones).
+- **Arab model:** the beta Terrorist skin `models/player/arab/arab.mdl` (replaced by leet in CS 1.0) is renamed to
+  leet in the resource list (before the missing-file check) and in user info.
+- Lab notes (for re-recording): HL 1.1.0.x checks for the Half-Life CD (drive type CD, no free space, not writable,
+  `\valve.ico` 4710 bytes, then an encrypted file list in `\Localize.cab`), so only a real CD image passes; betas have
+  no `jointeam`/`joinclass` (map briefing → fire → `chooseteam` + `menuselect`).
+
 ## Protocol 47 (2003–2007 Steam CS 1.6) vs 48 (checked on Set 3, 2026-10-31)
 Protocol 47 demos (server builds 2827–3651 in Set 3) are already CS 1.6: they register the same 82 game messages as
 today's 48 (CS 1.5 had 57), `SendAudio` already carries a pitch, `svc_voiceinit` already has its quality byte, the
