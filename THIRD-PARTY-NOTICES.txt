@@ -1,5 +1,5 @@
 ==============================================================================
-SpaceDemo 0.9.0-beta.2 — third-party notices
+SpaceDemo 0.9.0-beta.3 — third-party notices
 ==============================================================================
 
 SpaceDemo is free software under the GNU General Public License v3 or later (LICENSE.txt in the install folder).
