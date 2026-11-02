@@ -1,6 +1,6 @@
 // Demo inspector: a plain summary of what a demo is and what state it is in.
 // Used by tools/inspect.ts now, and by the app's health report later (plan 2.5).
-import { readDemo } from './container/read.js';
+import { readAnyDemo } from './container/read-any.js';
 import { FrameType, type DemoFile } from './container/types.js';
 import { createState, decodeMessages, MessageError, type ProtocolState } from './protocol/messages.js';
 import { Svc } from './protocol/ids.js';
@@ -92,8 +92,8 @@ function asciiz(bytes: Uint8Array): string {
 
 /** Inspects a demo from its bytes. Never throws for damaged demos; damage is listed in `problems`. */
 export function inspectDemo(bytes: Uint8Array): InspectReport {
-  const demo = readDemo(bytes);
-  return inspectParsed(demo, bytes.length);
+  const any = readAnyDemo(bytes);
+  return { ...inspectParsed(any.demo, bytes.length), networkProtocol: any.sourceProtocol, demoProtocol: any.sourceDemoProtocol };
 }
 
 export function inspectParsed(demo: DemoFile, fileSize: number): InspectReport {

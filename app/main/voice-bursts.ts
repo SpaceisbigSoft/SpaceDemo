@@ -3,7 +3,7 @@
 // mssvoice.asi (Windows only); Speex is decoded by the built-in decoder. The demo is only read.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readDemo } from '../../engine/src/container/read.js';
+import { readAnyDemo } from '../../engine/src/container/read-any.js';
 import { talkBursts } from '../../engine/src/voice/bursts.js';
 import { helperDecoder, emulatorDecoder } from '../../engine/src/voice/decoders.js';
 import { wav16k } from '../../engine/src/voice/transcribe.js';
@@ -34,7 +34,7 @@ export function writeBursts(job: BurstsJob): BurstsResult {
       ? process.platform === 'win32' && job.helperExe && existsSync(job.helperExe) ? helperDecoder(job.helperExe, asi)
         : process.env.SPACEDEMO_MILES_EMULATOR === '1' ? emulatorDecoder(asi) : undefined
       : undefined;
-    const r = talkBursts(readDemo(bytes), decoder);
+    const r = talkBursts(readAnyDemo(bytes).demo, decoder);
     mkdirSync(job.outDir, { recursive: true });
     const bursts = r.bursts.map((b, i) => {
       const file = join(job.outDir, `${String(i + 1).padStart(4, '0')}.wav`);

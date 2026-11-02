@@ -220,7 +220,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
                 {i && i.problems.length === 0 && <li>Problems found: <strong>none</strong></li>}
                 {i?.problems.map((p) => <li key={p} className="problem">{p}</li>)}
                 {i && !i.directoryOk && <li>The recording was cut off (the game crashed or was closed); SpaceDemo can repair it.</li>}
-                {i && i.networkProtocol < 48 && <li>Recorded with network protocol {i.networkProtocol}; it gets converted to 48 for today's CS 1.6 when fixed.</li>}
+                {i && i.networkProtocol < 48 && <li>Recorded with network protocol {i.networkProtocol}{i.networkProtocol <= 40 ? ' (a 1999 Counter-Strike beta on Half-Life 1.0)' : ''}; it gets converted to 48 for today's CS 1.6 when fixed.</li>}
                 {i && i.maps.length > 1 && <li>Changes map ({i.maps.join(' → ')}): it plays with playdemo, so the game's demo panel isn't available.</li>}
                 {demo.map && demo.map.kind !== 'ok' && <li className={demo.map.kind === 'bad' ? 'problem' : ''}>Map: {demo.map.note}{demo.map.kind === 'bad' ? '. Add a folder with the old map version in Settings.' : ''}</li>}
                 {demo.alsoAt.length > 0 && <li>Same demo also at: {demo.alsoAt.join('; ')}</li>}

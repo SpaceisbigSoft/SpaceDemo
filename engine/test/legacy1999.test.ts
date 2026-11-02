@@ -12,6 +12,9 @@ import { writeDemo } from '../src/container/write.js';
 import { readDemo } from '../src/container/read.js';
 import { FrameType } from '../src/container/types.js';
 import { Svc } from '../src/protocol/ids.js';
+import { inspectDemo } from '../src/inspect.js';
+import { readAnyDemo } from '../src/container/read-any.js';
+import { extractMatch } from '../src/match/extract.js';
 
 /** A protocol-48 state that has received our delta descriptions. */
 function state48() {
@@ -101,5 +104,15 @@ describe.skipIf(!demo || !existsSync(demo))('F4 1999: real demo (CDF_1999_DEMO)'
       for (const m of decodeMessages(f.messages, s)) if (m.body?.kind === 'entities') entities++;
     }
     expect(entities).toBeGreaterThan(100);
+  }, 120_000);
+  it('is inspected and analysed through the converter (library and details), naming its own protocol', () => {
+    const bytes = readFileSync(demo!);
+    const r = inspectDemo(bytes);
+    expect([r.networkProtocol, r.demoProtocol, r.gameDir, r.mapName]).toEqual([40, 4, 'cstrike', 'de_dust']);
+    expect(r.problems).toEqual([]);
+    expect(r.seconds).toBeGreaterThan(60);
+    expect(r.players.filter((p) => p.name).length).toBeGreaterThan(0);
+    const m = extractMatch(readAnyDemo(bytes).demo, { tracks: true });
+    expect(m.players.length).toBeGreaterThan(0);
   }, 120_000);
 });

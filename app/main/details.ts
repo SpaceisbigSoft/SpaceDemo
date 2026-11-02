@@ -2,7 +2,7 @@
 // (2.14) into what the details page shows. Only reads files.
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { readDemo } from '../../engine/src/container/read.js';
+import { readAnyDemo } from '../../engine/src/container/read-any.js';
 import { inspectParsed } from '../../engine/src/inspect.js';
 import { applySiteLetters, readMapFacts } from '../../engine/src/map/bsp.js';
 import { parseOverview, projection } from '../../engine/src/map/overview.js';
@@ -237,7 +237,7 @@ export function readCombined(job: DetailsJob & { companions: CompanionJob[] }): 
       let cm: MatchData;
       try {
         const bytes = c.zipEntry ? readZipEntry(c.file, c.zipEntry) : readFileSync(c.file);
-        cm = extractMatch(readDemo(bytes), { tracks: true });
+        cm = extractMatch(readAnyDemo(bytes).demo, { tracks: true });
       } catch (err) {
         recordings.push({ key: c.key, name: c.name, recording: c.recording, relation: 'same-half', error: (err as Error).message });
         continue;
@@ -292,8 +292,10 @@ export function readCombined(job: DetailsJob & { companions: CompanionJob[] }): 
 export function readDetails(job: DetailsJob): DemoDetails | { error: string } {
   try {
     const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
-    const demo = readDemo(bytes);
-    const report = inspectParsed(demo, bytes.length);
+    const any = readAnyDemo(bytes);
+    const demo = any.demo;
+    // 1999 demos are read through the converter; the report names the file's own protocol.
+    const report = { ...inspectParsed(demo, bytes.length), networkProtocol: any.sourceProtocol, demoProtocol: any.sourceDemoProtocol };
     const m = extractMatch(demo, { tracks: true, aim: true });
     const talk = new Map<string, number>();
     if (report.players.some((p) => p.voiceSeconds !== undefined)) {

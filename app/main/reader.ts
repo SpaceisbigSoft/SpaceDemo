@@ -6,7 +6,7 @@ import { inspectDemo } from '../../engine/src/inspect.js';
 import { indexMaps, type MapFile } from '../../engine/src/map-index.js';
 import { readZipEntry } from '../../engine/src/zip.js';
 import type { CombinedData, DemoDetails, DemoPlayers, DemoSummary, ReplayData } from '../shared/api.js';
-import { readDemo } from '../../engine/src/container/read.js';
+import { readAnyDemo } from '../../engine/src/container/read-any.js';
 import { extractMatch } from '../../engine/src/match/extract.js';
 import { demoPlayers } from './players.js';
 import { readCombined, readDetails, readReplay, type CompanionJob, type DetailsJob } from './details.js';
@@ -50,7 +50,7 @@ export interface PlayersJob { key: string; file: string; zipEntry?: string; name
 export function readPlayersNow(job: PlayersJob): DemoPlayers | { error: string } {
   try {
     const bytes = job.zipEntry ? readZipEntry(job.file, job.zipEntry) : readFileSync(job.file);
-    return demoPlayers(extractMatch(readDemo(bytes)), job);
+    return demoPlayers(extractMatch(readAnyDemo(bytes).demo), job);
   } catch (err) {
     return { error: plainError(err) };
   }
