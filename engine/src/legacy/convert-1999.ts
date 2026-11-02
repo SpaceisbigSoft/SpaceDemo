@@ -144,6 +144,7 @@ interface Tick {
   buttons: number;
   items: number;
   fov: number;
+  viewmodel: number;
 }
 
 class Converter {
@@ -164,7 +165,7 @@ class Converter {
   private maxSpeed = 250;
   fov = 90;
   /** Latest state of the recorder (for the frame info block). */
-  tick: Tick = { time: 0, origin: [0, 0, 0], angles: [0, 0, 0], velocity: [0, 0, 0], viewheight: 17, health: 100, onground: false, waterlevel: 0, msec: 0, buttons: 0, items: 0, fov: 90 };
+  tick: Tick = { time: 0, origin: [0, 0, 0], angles: [0, 0, 0], velocity: [0, 0, 0], viewheight: 17, health: 100, onground: false, waterlevel: 0, msec: 0, buttons: 0, items: 0, fov: 90, viewmodel: 0 };
 
   constructor(private readonly protocol: number, private readonly opts: Convert1999Options) {
     this.s = createState40(protocol);
@@ -243,6 +244,7 @@ class Converter {
       this.tick.health = cd.health;
       this.tick.onground = cd.onground;
       this.tick.waterlevel = cd.waterlevel;
+      this.tick.viewmodel = cd.weaponframe;
       if (cd.items !== undefined) this.tick.items = cd.items >>> 0;
       const c: Values48 = {
         'origin[0]': this.tick.origin[0], 'origin[1]': this.tick.origin[1], 'origin[2]': this.tick.origin[2],
@@ -493,7 +495,7 @@ class Converter {
     // ref_params (after a 4-byte timestamp): vieworg 4, viewangles 16, frametime 64, time 68, onground 84,
     // waterlevel 88, simvel 92, simorg 104, viewheight 116, cl_viewangles 132, health 144, maxclients 176,
     // viewentity 180, playernum 184, max_entities 188. Then usercmd at 236 (msec 238, viewangles 240, buttons 266),
-    // movevars at 288 (132 bytes), and the 28-byte sequence info at 436.
+    // movevars at 288 (132 bytes), eye position 420, view model 432, and the 28-byte sequence info at 436.
     f3(4, t.origin);
     f3(16, angles);
     dv.setFloat32(64, t.msec / 1000, true);
@@ -517,6 +519,10 @@ class Converter {
       dv.setInt32(352, 1, true);
       for (let i = 0; i < Math.min(31, this.moveVars.skyName.length); i++) out[356 + i] = this.moveVars.skyName.charCodeAt(i) & 0xff;
     }
+    // View position (eye) and view model index: the game draws the gun from these while playing a demo
+    // (measured on a protocol-41 demo converted to 48: 420 = eye position, 432 = the clientdata's view model).
+    f3(420, [t.origin[0], t.origin[1], t.origin[2] + t.viewheight]);
+    dv.setInt32(432, t.viewmodel, true);
     if (seq) out.set(seq.subarray(0, 28), 436);
     return out;
   }
