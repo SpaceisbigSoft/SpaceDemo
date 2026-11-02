@@ -732,4 +732,5 @@ kbd { font-family: var(--mono); padding: 1px 6px; border-radius: 4px; border: 1p
 .update-banner .update-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 320px; line-height: 1.5; }
 .update-banner progress { width: 100%; max-width: 360px; accent-color: var(--accent); }
 .update-banner .update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.update-notes { margin: 4px 0 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; max-height: 200px; overflow: auto; color: var(--text-2); }
+.update-notes { margin: 4px 0 0; white-space: pre-wrap; font-family: inherit; font-size: 13px; max-height: 320px; overflow: auto; color: var(--text-2); }
+.update-notes-title { margin: 8px 0 0; font-size: 13px; font-weight: 600; }

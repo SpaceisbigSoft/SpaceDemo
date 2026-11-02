@@ -44,8 +44,26 @@ describe('versions', () => {
 
   it('turns GitHub release notes into plain text', () => {
     expect(plainNotes('<p>Fixed <b>voice</b> &amp; maps</p><ul><li>One</li><li>Two</li></ul>')).toBe('Fixed voice & maps\n• One\n• Two');
-    expect(plainNotes([{ version: '1', note: 'A' }, { version: '2', note: 'B' }])).toBe('A\nB');
+    expect(plainNotes([{ version: '1', note: 'A' }, { version: '2', note: 'B' }])).toBe('Version 2\nB\n\nVersion 1\nA');
     expect(plainNotes(undefined)).toBeUndefined();
+  });
+
+  it('lists every release since the installed one, newest first, in one list (owner, 2026-11-02)', () => {
+    const feed = [
+      { version: '0.9.0', note: '<p>Older</p><ul><li>Already installed</li></ul>' },
+      { version: '0.9.1-beta.1', note: '<ul><li>Beta preview of voice</li></ul>' },
+      { version: '0.9.1', note: '<h3>Added</h3><ul><li>Voice</li><li>Maps</li></ul>' },
+      { version: '0.9.2', note: '<h3>Added</h3><ul><li>Betas</li><li>Maps</li></ul>' },
+      { version: '0.9.3', note: '<ul><li>Not out for this check</li></ul>' },
+    ];
+    // Normal version: every normal release in between, betas skipped, "Maps" only once, headings kept.
+    expect(plainNotes(feed, { current: '0.9.0', latest: '0.9.2' })).toBe(
+      'Version 0.9.2\nAdded\n• Betas\n• Maps\n\nVersion 0.9.1\nAdded\n• Voice');
+    // On a beta: the betas in between are listed too.
+    expect(plainNotes(feed, { current: '0.9.0-beta.3', latest: '0.9.1' })).toBe(
+      'Version 0.9.1\nAdded\n• Voice\n• Maps\n\nVersion 0.9.1-beta.1\n• Beta preview of voice\n\nVersion 0.9.0\nOlder\n• Already installed');
+    // A single release in range: no version heading.
+    expect(plainNotes(feed, { current: '0.9.1', latest: '0.9.2' })).toBe('Added\n• Betas\n• Maps');
   });
 });
 
@@ -63,6 +81,7 @@ describe('UpdateService (6.7)', () => {
     expect(await s.check()).toMatchObject({ stage: 'none', checked: 1000 });
     expect(u.autoDownload).toBe(false);
     expect(u.allowPrerelease).toBe(true); // a beta is offered newer betas
+    expect(u.fullChangelog).toBe(true); // notes of every release since the installed one
   });
 
   it('offers, downloads and installs a newer version, only when asked', async () => {

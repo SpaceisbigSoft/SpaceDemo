@@ -61,7 +61,10 @@ function fakeUpdater(version: string): UpdaterLike {
   let progress: ((p: { percent: number }) => void) | undefined;
   return {
     autoDownload: false, autoInstallOnAppQuit: false, allowPrerelease: false,
-    checkForUpdates: async () => ({ updateInfo: { version, releaseNotes: '<p>Test release notes.</p><ul><li>One change</li><li>Another change</li></ul>' } }),
+    checkForUpdates: async () => ({ updateInfo: { version, releaseNotes: [
+      { version, note: '<p>Test release notes.</p><ul><li>One change</li><li>Another change</li></ul>' },
+      { version: `${version}-beta.1`, note: '<ul><li>One change</li><li>An older change</li></ul>' },
+    ] } }),
     downloadUpdate: async () => { for (const p of [25, 60, 100]) { await new Promise((r) => setTimeout(r, 150)); progress?.({ percent: p }); } return []; },
     quitAndInstall: () => { appendFileSync(join(app.getPath('userData'), 'fake-update-log.txt'), 'quitAndInstall\n'); },
     on: (_e, l) => { progress = l; return undefined; },

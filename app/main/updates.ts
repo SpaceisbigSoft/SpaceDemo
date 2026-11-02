@@ -10,6 +10,8 @@ export interface UpdaterLike {
   autoDownload: boolean;
   autoInstallOnAppQuit: boolean;
   allowPrerelease: boolean;
+  /** True: releaseNotes lists every release between the installed version and the newest one ({ version, note }[]). */
+  fullChangelog?: boolean;
   checkForUpdates(): Promise<{ isUpdateAvailable?: boolean; updateInfo: { version: string; releaseName?: string | null; releaseNotes?: unknown } } | null>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
@@ -47,17 +49,55 @@ export function compareVersions(a: string, b: string): number {
 
 export const isPrerelease = (v: string): boolean => v.replace(/^v/, '').includes('-');
 
-/** Release notes as plain text (GitHub gives HTML, or a list of notes per version). */
-export function plainNotes(notes: unknown): string | undefined {
-  const raw = Array.isArray(notes) ? notes.map((n) => (n && typeof n === 'object' && 'note' in n ? String((n as { note: unknown }).note ?? '') : '')).join('\n') : typeof notes === 'string' ? notes : '';
-  const text = raw
+/** One release's notes (GitHub HTML) as plain text. */
+function noteText(html: string): string {
+  return html
     .replace(/<\s*(br|\/p|\/li|\/h\d)\s*\/?>/gi, '\n')
     .replace(/<li[^>]*>/gi, '• ')
     .replace(/<[^>]+>/g, '')
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return text ? text.slice(0, 4000) : undefined;
+}
+
+/**
+ * Release notes as plain text. GitHub gives one release's HTML, or (fullChangelog) a list with every release between
+ * the installed version and the newest one (owner, 2026-11-02: an update shows everything that changed since the
+ * installed version, in one list, even when several releases came out in between). The list is newest first, one
+ * section per version; people on a normal version skip the betas in between (the normal release's notes cover them);
+ * a line already shown under a newer version isn't repeated.
+ */
+export function plainNotes(notes: unknown, range?: { current: string; latest: string }): string | undefined {
+  if (typeof notes === 'string') {
+    const t = noteText(notes);
+    return t ? t.slice(0, 4000) : undefined;
+  }
+  if (!Array.isArray(notes)) return undefined;
+  let list = notes
+    .filter((n): n is { version?: unknown; note?: unknown } => !!n && typeof n === 'object')
+    .map((n) => ({ version: String(n.version ?? ''), text: noteText(String(n.note ?? '')) }));
+  if (range) {
+    list = list.filter((n) => !n.version || (compareVersions(n.version, range.current) > 0 && compareVersions(n.version, range.latest) <= 0));
+    if (!isPrerelease(range.current)) list = list.filter((n) => !n.version || !isPrerelease(n.version) || n.version === range.latest);
+  }
+  list.sort((a, b) => (a.version && b.version ? compareVersions(b.version, a.version) : 0));
+  const seen = new Set<string>();
+  const sections: string[] = [];
+  for (const n of list) {
+    // Only list items are de-duplicated (headings such as "Fixed" may repeat per version).
+    const lines = n.text.split('\n').filter((l) => {
+      const item = /^\s*[•*-]\s+(.*)$/.exec(l);
+      if (!item) return true;
+      const key = item[1].trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!lines) continue;
+    sections.push(list.length > 1 && n.version ? `Version ${n.version}\n${lines}` : lines);
+  }
+  const text = sections.join('\n\n').trim();
+  return text ? (text.length > 12000 ? `${text.slice(0, 12000)}\n…` : text) : undefined;
 }
 
 export interface UpdateServiceOptions {
@@ -95,6 +135,7 @@ export class UpdateService {
       u.autoDownload = false;
       u.autoInstallOnAppQuit = true; // "Later" after downloading = installed when SpaceDemo closes
       u.allowPrerelease = isPrerelease(this.o.current);
+      u.fullChangelog = true; // notes of every release since the installed one, not only the newest
       u.on('download-progress', (p) => { if (this.s.stage === 'downloading') this.set({ stage: 'downloading', percent: Math.round(p.percent) }); });
       return u;
     });
@@ -112,7 +153,7 @@ export class UpdateService {
       const checked = (this.o.now ?? Date.now)();
       const latest = r?.updateInfo.version;
       if (latest && r?.isUpdateAvailable !== false && compareVersions(latest, this.o.current) > 0) {
-        return this.set({ stage: 'available', latest, notes: plainNotes(r?.updateInfo.releaseNotes), checked, manual });
+        return this.set({ stage: 'available', latest, notes: plainNotes(r?.updateInfo.releaseNotes, { current: this.o.current, latest }), checked, manual });
       }
       return this.set({ stage: 'none', latest: undefined, notes: undefined, checked, manual });
     } catch (e) {

@@ -28,7 +28,7 @@ export function UpdateBanner() {
         {s.stage === 'ready' && <><strong>SpaceDemo {s.latest} is ready.</strong> <span>Restart to finish (a few seconds). Or choose Later: it installs when you close SpaceDemo.</span></>}
         {s.stage === 'error' && <><strong>The update didn't download.</strong> <span>{s.error}</span></>}
         {s.stage === 'downloading' && <progress max={100} value={s.percent ?? 0} aria-label="Download progress" />}
-        {notes && s.notes && <pre className="update-notes" data-testid="update-notes">{s.notes}</pre>}
+        {notes && s.notes && <><p className="update-notes-title">Everything new since your version ({s.current}):</p><pre className="update-notes" data-testid="update-notes">{s.notes}</pre></>}
       </div>
       <div className="update-actions">
         {(s.stage === 'available' || s.stage === 'error') && <button type="button" className="btn primary" onClick={() => void window.spacedemo.downloadUpdate()} data-testid="update-download">Download</button>}

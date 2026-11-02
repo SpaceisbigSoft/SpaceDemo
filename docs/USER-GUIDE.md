@@ -192,7 +192,7 @@ Still stuck? Open an issue on [GitHub](https://github.com/SpaceisbigSoft/SpaceDe
 SpaceDemo keeps itself up to date from its [GitHub releases](https://github.com/SpaceisbigSoft/SpaceDemo/releases):
 
 1. A few seconds after it starts, SpaceDemo asks GitHub for the newest version. Nothing about you is sent.
-2. If there's a newer one, a bar at the top says so. Click **What's new** to read the changes, **Download** to get it, or **Later**.
+2. If there's a newer one, a bar at the top says so. Click **What's new** to read the changes, **Download** to get it, or **Later**. *What's new* lists everything that changed since your version, even when several updates came out in between (newest first, one section per version; on a normal version the betas in between are covered by the normal releases' notes).
 3. The download runs in the background, and often only the changed parts are fetched. You can keep using SpaceDemo.
 4. Click **Restart now**. SpaceDemo closes, installs the new version over the old one and opens again, in a few seconds. Or choose **Later**, and it installs when you next close SpaceDemo.
 
