@@ -3,6 +3,7 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import type { LibraryDemo, LibraryState } from '../../shared/api.js';
 import { FolderIcon } from '../icons.js';
+import { AiVoiceToggle, useAiModelReady } from '../AiVoiceToggle.js';
 import { formatDate, formatLength, formatVersion, formatVoice, searchText, STATUS_TEXT } from '../format.js';
 
 type Filter = 'all' | 'needs-fix' | 'plays' | 'voice' | 'map' | 'problem';
@@ -27,6 +28,7 @@ const SORTS: Record<SortKey, (a: LibraryDemo, b: LibraryDemo) => number> = {
 
 export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { library?: LibraryState; onOpen: (key: string) => void; onWatch: (key: string) => void; onFixAll: (keys: string[]) => void; fixing: boolean }) {
   const [query, setQuery] = useState('');
+  const aiReady = useAiModelReady();
   const [filter, setFilter] = useState<Filter>('all');
   const [map, setMap] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'date', desc: true });
@@ -162,7 +164,7 @@ export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { li
                 </tr>
               </thead>
               <tbody>
-                {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} onWatch={onWatch} />)}
+                {shown.map((d) => <Row key={d.key} d={d} onOpen={onOpen} onWatch={onWatch} aiReady={aiReady} />)}
               </tbody>
             </table>
             {shown.length === 0 && demos.length > 0 && (
@@ -180,7 +182,7 @@ export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { li
   );
 }
 
-function Row({ d, onOpen, onWatch }: { d: LibraryDemo; onOpen: (key: string) => void; onWatch: (key: string) => void }) {
+function Row({ d, onOpen, onWatch, aiReady }: { d: LibraryDemo; onOpen: (key: string) => void; onWatch: (key: string) => void; aiReady: boolean }) {
   const watchable = d.status === 'plays' || d.status === 'fixed' || d.status === 'needs-fix' || d.status === 'damaged';
   const i = d.info;
   const where = d.zipEntry ? `${d.file} → ${d.zipEntry}` : d.file;
@@ -215,6 +217,7 @@ function Row({ d, onOpen, onWatch }: { d: LibraryDemo; onOpen: (key: string) => 
       <td><span className={`status status-${d.status}`} title={d.error ?? i?.problems.join('\n') ?? ''}>{STATUS_TEXT[d.status]}</span></td>
       <td className="actions">
         <div className="row-actions">
+        <AiVoiceToggle d={d} ready={aiReady} />
         {watchable && (
           <button type="button" className={`btn small${d.status === 'plays' || d.status === 'fixed' ? ' primary' : ''}`} onClick={() => onWatch(d.key)} aria-label={`Watch ${d.name}`}>
             {d.status === 'plays' || d.status === 'fixed' ? 'Watch' : 'Fix & watch'}

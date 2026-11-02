@@ -41,9 +41,14 @@ let watcher: WatchService;
 let fixer: FixService;
 let aiModel: AiModelService;
 
-/** 5.g5: the AI part of a fix job when AI voice is on and the model is there (undefined = plain fix). */
-function aiJob(): FixJob['ai'] {
-  const model = settings.aiVoice ? aiModel?.modelPath() : undefined;
+/** 4.10: AI voice for one demo: its own choice from the library, else Settings → AI voice. */
+function aiVoiceFor(key?: string): boolean {
+  return key !== undefined && key in settings.aiVoiceDemos ? settings.aiVoiceDemos[key] : settings.aiVoice;
+}
+
+/** 5.g5: the AI part of a fix job when AI voice is on (for this demo) and the model is there (undefined = plain fix). */
+function aiJob(key?: string): FixJob['ai'] {
+  const model = aiVoiceFor(key) ? aiModel?.modelPath() : undefined;
   return model ? { model, threads: usableCores(settings.cpuCores), cacheDir: aiModel.cacheDir() } : undefined;
 }
 let fixedStore: FixedStore;
@@ -322,8 +327,22 @@ function registerIpc(): void {
     return settingsView();
   });
   ipcMain.handle(IPC.aiVoiceSet, (_e, on: unknown) => {
-    if (typeof on === 'boolean') { saveAndApply({ ...settings, aiVoice: on }); library.fixedChangedAll(); }
+    if (typeof on === 'boolean') {
+      // The demos' own choices stay; one that now equals the default is just following it again.
+      const aiVoiceDemos = Object.fromEntries(Object.entries(settings.aiVoiceDemos).filter(([, v]) => v !== on));
+      saveAndApply({ ...settings, aiVoice: on, aiVoiceDemos });
+      library.fixedChangedAll();
+    }
     return settingsView();
+  });
+  ipcMain.handle(IPC.aiVoiceDemoSet, (_e, key: unknown, on: unknown) => {
+    // 4.10: one library demo's own choice; Settings → AI voice stays the default for every other demo.
+    if (typeof key !== 'string' || typeof on !== 'boolean' || !library.row(key)) return;
+    const aiVoiceDemos = { ...settings.aiVoiceDemos };
+    if (on === settings.aiVoice) delete aiVoiceDemos[key];
+    else aiVoiceDemos[key] = on;
+    saveAndApply({ ...settings, aiVoiceDemos });
+    library.fixedChanged(key);
   });
   ipcMain.handle(IPC.aiModelGet, () => aiModel.model());
   ipcMain.handle(IPC.aiModelDownload, async () => { const s = await aiModel.download(); library.fixedChangedAll(); return s; });
@@ -421,7 +440,8 @@ if (!app.requestSingleInstanceLock()) {
       cacheFile: join(app.getPath('userData'), 'library-cache.json'),
       reader,
       // A fixed copy counts only if it was made the way fixing works now (with or without AI voice, 5.g5).
-      fixedCopy: (key, source) => { const r = fixedStore.get(key, source); return r && (aiJob() ? r.ai && r.aiStyle === AI_STYLE : !r.ai) ? r.output : undefined; },
+      fixedCopy: (key, source) => { const r = fixedStore.get(key, source); return r && (aiJob(key) ? r.ai && r.aiStyle === AI_STYLE : !r.ai) ? r.output : undefined; },
+      aiVoice: (key) => aiVoiceFor(key),
       roots: () => settings.libraryFolders,
       mapFolders: () => settings.mapFolders,
       gameDir: () => game?.gameDir,

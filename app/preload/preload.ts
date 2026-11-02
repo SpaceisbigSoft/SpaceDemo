@@ -75,6 +75,7 @@ const api: SpaceDemoApi = {
   setVoiceCleanup: (on: boolean) => ipcRenderer.invoke(IPC.voiceCleanupSet, on),
   setCpuCores: (cores: number | null) => ipcRenderer.invoke(IPC.cpuCoresSet, cores),
   setAiVoice: (on: boolean) => ipcRenderer.invoke(IPC.aiVoiceSet, on),
+  setDemoAiVoice: (key: string, on: boolean) => ipcRenderer.invoke(IPC.aiVoiceDemoSet, key, on),
   getAiModel: () => ipcRenderer.invoke(IPC.aiModelGet),
   downloadAiModel: () => ipcRenderer.invoke(IPC.aiModelDownload),
   chooseAiModel: (path?: string) => ipcRenderer.invoke(IPC.aiModelChoose, path),

@@ -50,7 +50,7 @@ describe('app shell', () => {
       'fixDemos', 'fixFiles', 'getAiModel', 'getCombined', 'getDemoDetails', 'getFixBatch', 'getLibrary', 'getPlayers', 'getReplay', 'getSettings', 'getSpeechModel', 'getTheme',
       'getTranscript', 'getUpdate', 'getWatchInfo', 'info', 'installUpdate', 'mergePlayers', 'onAiModel', 'onFixBatch', 'onLibraryChanged', 'onOpenDemo', 'onPlayersChanged', 'onSpeechModel',
       'onThemeChanged', 'onTranscript', 'onUpdate', 'onWatchProgress', 'openLicence', 'openOutputFolder', 'pathForFile', 'rejectPlayerSuggestion', 'removeFromLibrary', 'removeMapFolder', 'rescanLibrary', 'setAiVoice',
-      'setCpuCores', 'setTheme', 'setUpdateCheck', 'setVoiceCleanup', 'showInFolder', 'startTranscript', 'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
+      'setCpuCores', 'setDemoAiVoice', 'setTheme', 'setUpdateCheck', 'setVoiceCleanup', 'showInFolder', 'startTranscript', 'stopFixing', 'stopTranscript', 'takeOpenDemo', 'unmergePlayer', 'watch',
     ]);
     const fontsOk = await page.evaluate(async () => { await document.fonts.ready; return document.fonts.check('600 14px Inter'); });
     expect(fontsOk).toBe(true);

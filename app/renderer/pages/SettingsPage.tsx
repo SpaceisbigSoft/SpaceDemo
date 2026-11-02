@@ -27,7 +27,7 @@ function AiVoiceCard({ view, setView }: { view?: AppSettingsView; setView: (v: A
         <input type="checkbox" checked={on} disabled={!view} onChange={(e) => void window.spacedemo.setAiVoice(e.target.checked).then(setView)} data-testid="ai-voice" />
         <span>
           <span>Make the old voice clearer with AI</span>
-          <span className="note">A free AI model (VoiceFixer) rebuilds the 2002 voice so it sounds fuller and clearer. It runs on this PC and takes longer than a normal fix (about 15 seconds per minute of voice on a fast PC). While it's on, voice cleanup isn't used. Applies to demos fixed from now on; copies made the other way are fixed again when you watch or fix them. The plain voice is always available: switch this off.</span>
+          <span className="note">A free AI model (VoiceFixer) rebuilds the 2002 voice so it sounds fuller and clearer. It runs on this PC and takes longer than a normal fix (about 15 seconds per minute of voice on a fast PC). While it's on, voice cleanup isn't used. This is the default for every demo; the AI voice box next to Fix in the Library switches it for single demos. Applies to demos fixed from now on; copies made the other way are fixed again when you watch or fix them. The plain voice is always available: switch this off.</span>
         </span>
       </label>
       {m?.downloading ? (

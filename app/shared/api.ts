@@ -54,6 +54,8 @@ export interface LibraryDemo {
   status: DemoStatus;
   /** The app's fixed copy of this demo, when there is a valid one (status 'fixed'). */
   fixedCopy?: string;
+  /** 4.10: fixed with AI-enhanced voice (Settings → AI voice, or this demo's own choice in the library). */
+  aiVoice?: boolean;
 }
 
 /** One demo in a batch fix (plan 4.6). */
@@ -765,6 +767,8 @@ export interface SpaceDemoApi {
   setVoiceCleanup(on: boolean): Promise<AppSettingsView>;
   /** 5.g5: AI voice enhancement on/off (fixed copies made the other way are fixed again when watched or fixed). */
   setAiVoice(on: boolean): Promise<AppSettingsView>;
+  /** 4.10: AI voice on/off for one library demo (only this demo; Settings stays the default for the others). */
+  setDemoAiVoice(key: string, on: boolean): Promise<void>;
   getAiModel(): Promise<AiModelState>;
   downloadAiModel(): Promise<AiModelState>;
   /** No path = Windows' file picker. */
@@ -881,6 +885,7 @@ export const IPC = {
   voiceCleanupSet: 'settings:voice-cleanup',
   cpuCoresSet: 'settings:cpu-cores',
   aiVoiceSet: 'settings:ai-voice',
+  aiVoiceDemoSet: 'library:ai-voice',
   aiModelGet: 'ai:model-get',
   aiModelDownload: 'ai:model-download',
   aiModelChoose: 'ai:model-choose',

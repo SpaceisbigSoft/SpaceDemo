@@ -22,6 +22,8 @@ export interface LibraryServiceOptions {
   onChange: (state: LibraryState) => void;
   /** The app's valid fixed copy of a demo, if any (plan 4.5). */
   fixedCopy?: (key: string, source: { size: number; mtime: number }) => string | undefined;
+  /** 4.10: whether this demo is fixed with AI voice (Settings, or the demo's own choice). */
+  aiVoice?: (key: string) => boolean;
   /** Shortest time between two updates sent to the window. */
   throttleMs?: number;
 }
@@ -106,6 +108,7 @@ export class LibraryService {
   private applyFixed(demo: LibraryDemo, c: Candidate | undefined): void {
     demo.status = demoStatus(demo.info, demo.error);
     demo.fixedCopy = undefined;
+    demo.aiVoice = this.o.aiVoice?.(demo.key);
     if (!c || (demo.status !== 'needs-fix' && demo.status !== 'damaged')) return;
     const copy = this.o.fixedCopy?.(demo.key, { size: c.size, mtime: c.mtime });
     if (copy) { demo.status = 'fixed'; demo.fixedCopy = copy; }

@@ -18,8 +18,8 @@ export interface FixServiceDeps {
   helperExe: string;
   /** Voice cleanup setting (default on). */
   cleanup?: () => boolean;
-  /** 5.g5: AI voice enhancement for this fix (undefined = plain). */
-  ai?: () => FixJob['ai'];
+  /** 5.g5/4.10: AI voice enhancement for this demo's fix (undefined = plain). */
+  ai?: (key: string) => FixJob['ai'];
   /** 0.8: Settings → Old map versions. */
   mapFolders?: () => string[];
   onChange: (s: FixBatchState) => void;
@@ -47,7 +47,7 @@ export class FixService {
     const out = fixedOutputPath(this.d.outputFolder(), name, this.d.fixed.ownOutput(key));
     const r = await this.d.reader.fix({
       file: c.file, zipEntry: c.zipEntry, output: out.path, overwrite: out.overwrite,
-      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true, ai: this.d.ai?.(), mapFolders: this.d.mapFolders?.(),
+      gameDir: this.d.gameDir(), helperExe: this.d.helperExe, cleanup: this.d.cleanup?.() ?? true, ai: this.d.ai?.(key), mapFolders: this.d.mapFolders?.(),
     }, onProgress);
     if (r.ok && r.output) {
       this.d.fixed.set(key, { output: r.output, size: c.size, mtime: c.mtime, fixedAt: Date.now(), outputSize: statSync(r.output).size, done: r.done, notes: r.notes, ai: r.ai, aiStyle: r.aiStyle, oldMap: r.oldMap });

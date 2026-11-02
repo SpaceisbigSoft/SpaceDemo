@@ -29,6 +29,8 @@ export interface Settings {
   cpuCores?: number;
   /** 5.g5 AI voice enhancement when fixing (off by default; the plain fix stays the default). */
   aiVoice: boolean;
+  /** 4.10: a demo's own choice (library key → AI voice on/off) where it differs from `aiVoice`; never changes `aiVoice`. */
+  aiVoiceDemos: Record<string, boolean>;
   /** 5.g5 AI model file chosen by hand (undefined = the downloaded one in the app's data folder). */
   aiModel?: string;
   /** 6.7: check GitHub for a newer version when SpaceDemo starts (on by default). */
@@ -38,7 +40,7 @@ export interface Settings {
 }
 
 // Dark by default: the approved look (owner, 2026-10-26).
-export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [], aiVoice: false, updateCheck: true };
+export const DEFAULT_SETTINGS: Settings = { theme: 'dark', libraryFolders: [], mapFolders: [], voiceCleanup: true, playerMerges: {}, playerRejected: [], aiVoice: false, aiVoiceDemos: {}, updateCheck: true };
 
 export function settingsFile(dataDir: string): string {
   return join(dataDir, 'settings.json');
@@ -53,7 +55,7 @@ function cleanPaths(v: unknown): string[] {
 
 /** Keeps only known keys with valid values; anything else becomes the default. */
 export function cleanSettings(raw: unknown): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, libraryFolders: [], mapFolders: [], playerMerges: {}, playerRejected: [] };
+  const out: Settings = { ...DEFAULT_SETTINGS, libraryFolders: [], mapFolders: [], playerMerges: {}, playerRejected: [], aiVoiceDemos: {} };
   if (raw && typeof raw === 'object') {
     const r = raw as Record<string, unknown>;
     if (typeof r.theme === 'string' && (THEME_CHOICES as readonly string[]).includes(r.theme)) out.theme = r.theme as ThemeChoice;
@@ -68,6 +70,9 @@ export function cleanSettings(raw: unknown): Settings {
     out.playerRejected = cleanPaths(r.playerRejected);
     if (typeof r.speechModel === 'string' && r.speechModel.trim()) out.speechModel = r.speechModel;
     if (typeof r.aiVoice === 'boolean') out.aiVoice = r.aiVoice;
+    if (r.aiVoiceDemos && typeof r.aiVoiceDemos === 'object') {
+      for (const [k, v] of Object.entries(r.aiVoiceDemos as Record<string, unknown>)) if (k && typeof v === 'boolean') out.aiVoiceDemos[k] = v;
+    }
     if (typeof r.updateCheck === 'boolean') out.updateCheck = r.updateCheck;
     if (typeof r.aiModel === 'string' && r.aiModel.trim()) out.aiModel = r.aiModel;
     const w = cleanSavedWindow(r.window);
