@@ -20,6 +20,9 @@ export function showsAiVoice(d: LibraryDemo): boolean {
 }
 
 export function AiVoiceToggle({ d, ready, long }: { d: LibraryDemo; ready: boolean; long?: boolean }) {
+  // Shows the click at once; the library update that follows confirms it.
+  const [shown, setShown] = useState(!!d.aiVoice);
+  useEffect(() => setShown(!!d.aiVoice), [d.aiVoice]);
   if (!showsAiVoice(d)) return null;
   const why = ready
     ? 'Fix this demo with AI-enhanced voice (fuller, clearer; slower to fix). Only this demo changes; Settings → AI voice enhancement is the default for the others.'
@@ -28,9 +31,9 @@ export function AiVoiceToggle({ d, ready, long }: { d: LibraryDemo; ready: boole
     <label className={`ai-toggle${ready ? '' : ' off'}`} title={why} data-testid="demo-ai-voice">
       <input
         type="checkbox"
-        checked={ready && !!d.aiVoice}
+        checked={ready && shown}
         disabled={!ready}
-        onChange={(e) => void window.spacedemo.setDemoAiVoice(d.key, e.target.checked)}
+        onChange={(e) => { setShown(e.target.checked); void window.spacedemo.setDemoAiVoice(d.key, e.target.checked); }}
         aria-label={`AI-enhanced voice for ${d.name}`}
       />
       <span>{long ? 'AI-enhanced voice' : 'AI voice'}</span>

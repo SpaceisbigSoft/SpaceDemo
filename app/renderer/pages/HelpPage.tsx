@@ -38,7 +38,7 @@ export function HelpPage({ onGo }: { onGo: (page: 'library' | 'fix' | 'settings'
           <h2 id="help-voice">Voice</h2>
           <ul className="help-list">
             <li>A player's demo holds only <strong>his own team's</strong> voice, never his own. Some HLTV demos have no voice at all.</li>
-            <li><strong>Voice cleanup</strong> (Settings, on) removes rumble and hiss. <strong>AI voice enhancement</strong> (Settings, off) makes 2002 voice fuller and clearer; the model is a one-time download.</li>
+            <li><strong>Voice cleanup</strong> (Settings, on) removes rumble and hiss. <strong>AI voice enhancement</strong> (Settings, off) makes 2002 voice fuller and clearer; the model is a one-time download. The <em>AI voice</em> box next to Fix &amp; watch in the Library switches it for one demo.</li>
             <li><strong>Voice to text</strong>: open a demo → <em>Voice</em> tab. Rough on old, noisy voice: a guide to what was said, not an exact record.</li>
           </ul>
         </section>
