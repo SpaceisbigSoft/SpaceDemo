@@ -371,17 +371,31 @@ class Converter {
     return [[p]];
   }
 
-  /** Converts one frame's messages. */
   /**
-   * Gun animation numbers of the betas that mean something else on today's models. Knife: beta 6.1's server swings
-   * with 1/2 (its Swing code, cs_i386.so), which on today's v_knife.mdl are 2-frame "slash" stubs; the full swings
-   * are midslash1/2 (6/7). Draw (3) is the same.
+   * Gun animation numbers of the 1999 betas that mean something else on today's models. Read from beta 6.1's server
+   * code (cs_i386.so from Ch0wW/counterstrike-betas csbeta61: the animation each Deploy, Reload, Fire and Swing asks
+   * for) and compared with today's v_*.mdl animation lists (owner's game, 2026-11-02). Guns not listed use today's
+   * numbers already (AK-47, AUG, MAC-10, MP5, SG552, TMP, P90, Scout, G3SG1, M249, Deagle, P228, Glock, M3, XM1014,
+   * grenades, C4).
+   *  - Knife: the beta swings with 1/2, which today are 2-frame "slash" stubs; the full swings are 6/7 (midslash).
+   *  - AWP: the beta's reload 3 / draw 4 are today's 4 / 5 (today's model has a third shot at 3).
+   *  - M4A1 and USP: no silencer in the beta; today's models start with the silenced animations, so the beta's are
+   *    moved to the unsilenced ones. The beta USP has two sets (shoot 1-4/reload 5/draw 6, and draw 9/shoot 10/
+   *    reload 11, chosen by its hand setting).
    */
+  private static readonly GUN_ANIMS: [RegExp, Record<number, number>][] = [
+    [/v_knife\.mdl$/, { 1: 6, 2: 7 }],
+    [/v_awp\.mdl$/, { 3: 4, 4: 5 }],
+    [/v_m4a1\.mdl$/, { 0: 7, 1: 11, 2: 12, 3: 8, 4: 9, 5: 10 }],
+    [/v_usp\.mdl$/, { 0: 8, 1: 9, 2: 10, 3: 11, 4: 12, 5: 13, 6: 14, 9: 14, 10: 10, 11: 13 }],
+  ];
+
   private gunAnim(seq: number): number {
-    const model = this.resources.find((r) => r.type === 2 && r.index === this.tick.viewmodel)?.name.toLowerCase() ?? '';
-    if (/v_knife(_r)?\.mdl$/.test(model) && (seq === 1 || seq === 2)) {
-      this.count('beta: knife swing animation');
-      return seq + 5;
+    const model = (this.resources.find((r) => r.type === 2 && r.index === this.tick.viewmodel)?.name.toLowerCase() ?? '').replace(/_r\.mdl$/, '.mdl');
+    for (const [re, map] of Converter.GUN_ANIMS) {
+      if (!re.test(model) || map[seq] === undefined) continue;
+      this.count(`beta: gun animation (${model.replace(/^models\/v_|\.mdl$/g, '')})`);
+      return map[seq];
     }
     return seq;
   }
@@ -389,6 +403,7 @@ class Converter {
   /** View model animations of the frame just converted (sequence, body). */
   weaponAnims: [number, number][] = [];
 
+  /** Converts one frame's messages. */
   frame(f: NetFrame4): Uint8Array[] {
     const msgs: Message40[] = decodeMessages40(f.messages, this.s);
     // The view model in use this frame (the client data names it) decides how gun animations are renumbered.
