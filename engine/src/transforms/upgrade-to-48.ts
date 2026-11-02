@@ -10,6 +10,7 @@ import { FrameType, type DemoFile, type Frame, type NetFrame, type Section } fro
 import { encodeBaseline, encodeClientData, encodeDirector, encodeEntities, encodeEvents, encodeResourceList, encodeServerInfo, encodeUserMessage, encodeVoiceInit } from '../protocol/encode.js';
 import { createState, decodeMessages, encodeMessages, type Message, type ProtocolState } from '../protocol/messages.js';
 import { Svc } from '../protocol/ids.js';
+import { betaPlayerSequence } from './beta-sequences.js';
 import type { DeltaDescriptor, DeltaRecord } from '../protocol/delta.js';
 
 export const TARGET_PROTOCOL = 48;
@@ -125,7 +126,7 @@ class Upgrade {
     if (descriptorName === 'entity_state_player_t') {
       for (const field of ['sequence', 'gaitsequence']) {
         const v = d.getInteger(out, field);
-        const next = v === undefined ? v : upgradePlayerSequence(v, this.cs10);
+        const next = v === undefined ? v : this.beta ? betaPlayerSequence(v, this.state.protocol) : upgradePlayerSequence(v, this.cs10);
         if (v !== undefined && next !== v) out = d.withInteger(out, field, next!);
       }
     }
