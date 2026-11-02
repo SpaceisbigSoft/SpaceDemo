@@ -1,6 +1,6 @@
 // Demo details (plan 4.4, mockup screen 2): score and rounds, players, map with bomb sites, who talked, chat, health.
 // Everything comes from reading the demo; nothing is changed. Watch (4.5) and Fix (4.6) come next.
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState, type ReactNode } from 'react';
 import type { CombinedData, DemoDetails, LibraryDemo, PlayerRow, TeamDetails } from '../../shared/api.js';
 import { CombinedCard } from './DetailsCombined.js';
 import { formatDate, formatLength, formatVersion, formatVoice, STATUS_TEXT } from '../format.js';
@@ -101,6 +101,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
           ))}
         </div>
       )}
+      <TabGuard key={tab}>
       {d && tab === 'rounds' && <div role="tabpanel" id="panel-rounds" aria-labelledby="tab-rounds"><RoundsTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'chat' && <div role="tabpanel" id="panel-chat" aria-labelledby="tab-chat"><ChatTab d={d} tagT={tag('T')} tagCT={tag('CT')} /></div>}
       {d && tab === 'voice' && <div role="tabpanel" id="panel-voice" aria-labelledby="tab-voice"><VoiceTab d={d} tagT={tag('T')} tagCT={tag('CT')} recording={i?.recording} />{demo && <div style={{ marginTop: 16 }}><TranscriptCard demoKey={demo.key} d={d} /></div>}</div>}
@@ -230,6 +231,7 @@ export function DetailsPage({ demo, onBack, onWatch, onOpen }: { demo?: LibraryD
           </div>
         </div>
       )}
+      </TabGuard>
     </div>
   );
 }
@@ -269,4 +271,26 @@ function TeamTable({ side, team, label, recording }: { side: 'T' | 'CT'; team: T
       </tbody>
     </table>
   );
+}
+
+/**
+ * Keeps one details tab from taking the whole window down: if a tab fails while drawing, it shows a short message
+ * instead of a blank app (F4: two tabs once failed on a demo with no finished round).
+ */
+class TabGuard extends Component<{ children: ReactNode }, { error?: string }> {
+  state: { error?: string } = {};
+  static getDerivedStateFromError(e: Error) {
+    return { error: e.message };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <section className="card" role="alert" data-testid="details-tab-error">
+          <h2>This tab couldn't be shown</h2>
+          <p className="note">Something in this demo isn't what the tab expects ({this.state.error}). The other tabs still work.</p>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
 }

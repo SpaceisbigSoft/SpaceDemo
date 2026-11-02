@@ -41,6 +41,16 @@ const ROUND_END: Record<string, [Round['winner'], RoundEndReason]> = {
   '#Terrorists_Escaped': ['T', 'other'],
 };
 
+/**
+ * Round-end radio sounds. The 1999 betas announce the end of a round only with these (their TextMsg texts are plain
+ * English, F4); later versions send them next to the TextMsg, which then refines the reason.
+ */
+const RADIO_END: Record<string, [Round['winner'], RoundEndReason]> = {
+  '%!MRAD_terwin': ['T', 'eliminated'],
+  '%!MRAD_ctwin': ['CT', 'eliminated'],
+  '%!MRAD_rounddraw': ['draw', 'draw'],
+};
+
 function toTeam(name: string): Team {
   if (name === 'TERRORIST') return 'T';
   if (name === 'CT') return 'CT';
@@ -482,6 +492,11 @@ export function extractMatch(demo: DemoFile, options: ExtractOptions = {}): Matc
         const sender = senderEntity >= 1 && senderEntity <= 32 ? idOf(senderEntity - 1) : undefined;
         const sound = p.str();
         m.radio.push({ time: t, round: roundNo(), sender, message: sound.replace(/^%!MRAD_/, '') });
+        const end = RADIO_END[sound];
+        if (end && cur && cur.end === undefined) {
+          cur.end = t;
+          [cur.winner, cur.reason] = end;
+        }
         break;
       }
       case 'TeamScore': {

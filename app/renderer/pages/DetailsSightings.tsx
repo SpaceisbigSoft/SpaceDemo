@@ -18,6 +18,14 @@ export function SightingsTab({ d, tagT, tagCT }: { d: DemoDetails; tagT: string;
       </section>
     );
   }
+  if (!s.rounds.length) {
+    return (
+      <section className="card" data-testid="details-sightings">
+        <h2>Enemy sightings</h2>
+        <p className="note">No round was played to its end in this demo, so there are no sightings to show.</p>
+      </section>
+    );
+  }
   const enemyTag = s.team === 'T' ? tagCT : tagT;
   const r = s.rounds.find((x) => x.round === round) ?? s.rounds[0];
   const live = (x: SightRound) => x.freezeEnd ?? x.start;

@@ -21,6 +21,14 @@ export function RecorderTab({ d }: { d: DemoDetails }) {
       </section>
     );
   }
+  if (!p.rounds.length) {
+    return (
+      <section className="card" data-testid="details-recorder">
+        <h2>Recorder</h2>
+        <p className="note">No round was played to its end in this demo, so there is nothing to show round by round.</p>
+      </section>
+    );
+  }
   const r = p.rounds.find((x) => x.round === round) ?? p.rounds[0];
   return (
     <div className="log-layout recorder-layout">
