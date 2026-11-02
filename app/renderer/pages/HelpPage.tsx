@@ -9,7 +9,7 @@ export function HelpPage({ onGo }: { onGo: (page: 'library' | 'fix' | 'settings'
       <div className="page-header">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <h1>Help</h1>
-          <span className="page-sub">Watch old Counter-Strike demos in today's CS 1.6, with the original voice.</span>
+          <span className="page-sub">Watch old Counter-Strike demos, from beta 1.0 (1999) to CS 1.6, in today's CS 1.6, with the original voice.</span>
         </div>
         <a className="btn" href={GUIDE_URL} target="_blank" rel="noreferrer" data-testid="help-guide">Full user guide (opens in your browser)</a>
       </div>
@@ -47,6 +47,7 @@ export function HelpPage({ onGo }: { onGo: (page: 'library' | 'fix' | 'settings'
           <h2 id="help-maps">Old map versions</h2>
           <p>Many old demos need an earlier version of their map. Add the folders where you keep old <span className="mono">.bsp</span> files in{' '}
             <button type="button" className="linkish" onClick={() => onGo('settings')}>Settings → Old map versions</button>. SpaceDemo puts the right one in <span className="mono">cstrike_downloads</span> when a demo needs it; today's maps are never replaced.</p>
+          <p>Demos from the CS betas (1999–2000) need the beta's own maps: add the beta's <span className="mono">cstrike\maps</span> folder there too.</p>
         </section>
 
         <section className="card help-wide" aria-labelledby="help-trouble">

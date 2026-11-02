@@ -1,6 +1,6 @@
 {
   "name": "spacedemo",
-  "version": "0.9.0-beta.3",
+  "version": "0.9.0-beta.4",
   "private": true,
   "description": "Repair and play old Counter-Strike 1.0-1.6 demos with voice in modern CS 1.6",
   "license": "GPL-3.0-or-later",

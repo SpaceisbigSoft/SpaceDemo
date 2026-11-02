@@ -1,6 +1,6 @@
 # SpaceDemo user guide
 
-SpaceDemo lets you watch old **Counter-Strike 1.0–1.6 demos** (`.dem` files) in today's Steam Counter-Strike 1.6, **with the original voice communication**. It also reads each demo and shows you the match: score, rounds, players, chat, voice, a radar replay and more.
+SpaceDemo lets you watch old **Counter-Strike demos** (`.dem` files), from the very first **beta 1.0 (June 1999)** through **CS 1.0–1.6**, in today's Steam Counter-Strike 1.6, **with the original voice communication**. It also reads each demo and shows you the match: score, rounds, players, chat, voice, a radar replay and more.
 
 Your demos are only ever read. SpaceDemo makes a fixed **copy** when one is needed and never changes the original.
 
@@ -208,10 +208,11 @@ Use Windows **Settings → Apps → SpaceDemo → Uninstall**. Your settings (`%
 
 ## 16. Which demos work
 
-- Counter-Strike demos recorded with network **protocol 41, 42, 43, 45, 46, 47 or 48**. That covers the late CS betas (beta 6.5–7.1, summer 2000), every WON-era CS release from CS 1.0 (2000) to 1.5, and Steam CS 1.6. SpaceDemo has been tested with over 100 real demos from 2001–2005, player (POV) and HLTV, plus test recordings made in CS beta 6.6 and 7.1 and CS 1.0–1.4.
-- Beta and CS 1.0–1.2 demos (protocol 41–43) have no voice: voice chat came with CS 1.3. In beta demos, the beta-only "Arab" Terrorist is shown with the Leet model that replaced it in CS 1.0, and player animations are matched to today's player model.
+- **Every Counter-Strike version, back to the very first beta:** demos recorded with network **protocol 38 to 48**. That covers all the CS betas, from **beta 1.0 (June 1999)** on Half-Life 1.0.x to beta 7.1 (September 2000), every WON-era CS release from CS 1.0 (2000) to 1.5, and Steam CS 1.6. SpaceDemo has been tested with over 100 real demos from 2001–2005, player (POV) and HLTV, plus test recordings made in CS beta 1.0, 6.1, 6.6 and 7.1 and CS 1.0–1.4.
+- **1999 betas** (beta 1.0–6.2) use an older demo format that SpaceDemo converts completely; the *Version* column shows them as *Old · p38*, *p39* or *p40*.
+- **Beta demos need the beta's own maps.** Betas shipped their own versions of the maps (cs_siege, de_dust…), different from today's. Add a folder with the beta's map files (its `cstrike\maps` folder) under Settings → Old map versions (section 10).
+- Beta and CS 1.0–1.2 demos (protocol 38–43) have no voice: voice chat came with CS 1.3. In beta demos, the beta-only "Arab" Terrorist is shown with the Leet model that replaced it in CS 1.0, player animations are matched to today's player model, and gun animations to today's guns. Half-Life sounds the earliest betas used (such as the suit's flatline when you die) are played from today's Half-Life files.
 - Voice: **Miles** (WON era) and **Speex** (early Steam). Demos recorded with today's game already have Steam voice and play as they are.
-- Not supported yet: the 1999 betas (beta 1.0–6.2, protocol 40 and older).
 
 ---
 
