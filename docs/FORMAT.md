@@ -94,6 +94,21 @@ protocol 42, build 1341) and played in today's CS 1.6 after conversion (owner, 2
   `\valve.ico` 4710 bytes, then an encrypted file list in `\Localize.cab`), so only a real CD image passes; betas have
   no `jointeam`/`joinclass` (map briefing → fire → `chooseteam` + `menuselect`).
 
+## Protocol 38–40 (Half-Life 1.0.x, 1999 CS betas 1.0–6.2) (plan F4, reading only so far, 2026-11-02)
+Facts from the Old CS Lab recordings (HL 1.0.0.9/1.0.1.0 = 38, 1.0.1.3 = 39, 1.0.1.6 = 40; CS beta 6.1 on 1.0.1.6) and
+the decompiled HL 1.0.1.6 client (Ghidra). `tools/dev/p40-decode.py` walks every message of a protocol 39–40 demo.
+- **Demo format 4** (demo protocol 4): header like 5 from HL 1.0.1.0 (HL 1.0.0.9: 280 bytes, 128-byte strings). Each
+  network packet is several frames: 6 view (64 bytes), 3 sequence info (28), 1 messages (24-byte info + u32 length +
+  data that begins with the 8-byte netchan sequence/ack), 4 end of packet (0); 0 = loading messages; 2 playback start;
+  5 console command (64); 8 section end.
+- **QuakeWorld-style network code**: no delta descriptions and no svc_event; players come in svc_playerinfo (43),
+  everything else in svc_packetentities (41) / svc_deltapacketentities (42, + "from" byte) with fixed field layouts;
+  client data is Quake's byte-aligned svc_clientdata. Message ids 0–53 follow the engine's svc_ name table (e.g.
+  resourcelist 45, newmovevars 46, resourcerequest 48); ids > 53 are game messages.
+- Bit-packed parts read MSB-first; signed = sign bit + (n−1) bits. Field-by-field layouts: plan notes
+  (Logs\CS Demo Fixer F4 1999 Notes.md) and the decoder.
+- Protocol 38: newmovevars has one more leading byte; svc_playerinfo differs (not mapped yet).
+
 ## Protocol 47 (2003–2007 Steam CS 1.6) vs 48 (checked on Set 3, 2026-10-31)
 Protocol 47 demos (server builds 2827–3651 in Set 3) are already CS 1.6: they register the same 82 game messages as
 today's 48 (CS 1.5 had 57), `SendAudio` already carries a pitch, `svc_voiceinit` already has its quality byte, the
