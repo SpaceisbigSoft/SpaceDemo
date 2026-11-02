@@ -702,7 +702,8 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
  * for 5.u, 2026-10-31): timestamp f32 at 0, then ref_params: vieworg (eye) at 4, viewangles at 16 (pitch 16, yaw 20;
  * pitch + = looking down), onground i32 at 84, simvel at 92, simorg (origin) at 104, viewheight z at 124 (17 standing,
  * 12 crouching, 0 dead), health i32 at 144; then the user command at 236 (buttons u16 at 266: 1 = fire, 8 = forward,
- * 512 = move left — matched against +attack/+moveleft console frames).
+ * 512 = move left — matched against +attack/+moveleft console frames). Protocol 43 (560-byte info): the same up to
+ * byte 212, but its user command starts at 212, so buttons are at 242 (Old CS Lab demos, 2026-11-01).
  */
 export function viewInfo(info: Uint8Array): { origin: [number, number, number]; eye: [number, number, number]; velocity: [number, number, number]; onGround: boolean; viewHeight: number; health: number; pitch: number; yaw: number; buttons: number } | undefined {
   if (info.length < 268) return undefined;
@@ -710,7 +711,7 @@ export function viewInfo(info: Uint8Array): { origin: [number, number, number]; 
   const f = (o: number) => v.getFloat32(o, true);
   return {
     origin: [f(104), f(108), f(112)], eye: [f(4), f(8), f(12)], velocity: [f(92), f(96), f(100)],
-    onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), pitch: f(16), yaw: f(20), buttons: v.getUint16(266, true),
+    onGround: v.getInt32(84, true) !== 0, viewHeight: f(124), health: v.getInt32(144, true), pitch: f(16), yaw: f(20), buttons: v.getUint16(info.length === 560 ? 242 : 266, true),
   };
 }
 

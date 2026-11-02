@@ -12,7 +12,7 @@ Demos recorded in 2001–2005 no longer play in today's game: the network format
 
 ## What it does
 
-- **Plays old demos in today's CS 1.6.** It converts older network protocols (45, 46 and 47 → 48), repairs recordings that were cut off, and finds the old version of a map when a demo needs it.
+- **Plays old demos in today's CS 1.6.** It converts older network protocols (43 to 47 → 48, i.e. CS 1.0 to early Steam CS 1.6), repairs recordings that were cut off, and finds the old version of a map when a demo needs it.
 - **Brings back the voice.** Miles (WON era) and Speex (early Steam) voice is decoded and written back as Steam voice, so you hear the players in the game. Optional **AI voice enhancement** makes the 2002 voice fuller and clearer.
 - **Playback controls:** pause, slow motion and fast forward with the game's own demo panel (press `~`).
 - **Demo library:** add folders and zips (demos inside zips are read in place), then search and filter by player, map or server.

@@ -56,6 +56,27 @@ What the upgrade changes, and why:
 | Old HLTV demos: add director "start" + "first person" | Spectator HUD otherwise not initialised | COL behaviour (reference) |
 | Keep only the last map load in the loading section | Fixes demos that load the wrong map | SK Player/COL notes; measured (MoD train: 114 frames of an earlier map) |
 
+## Protocol 43 (CS 1.0–1.2, HL 1.1.0.4–1.1.0.7) vs 44+ (plan 2.19, checked on the Old CS Lab demos, 2026-11-01)
+
+Facts confirmed on our own recordings (CS 1.0 build 1460, CS 1.1 build 1600, CS 1.1 on HL 1.1.0.7 build 1712), with
+COL's parser/converter as reference:
+- **Bit order:** the bit-packed messages (svc_event, svc_sound, svc_deltadescription after the name, svc_clientdata,
+  svc_pings, svc_event_reliable, svc_spawnbaseline, svc_packetentities and svc_deltapacketentities after the 16-bit
+  count, svc_resourcelist) pack bits **most-significant-first**. The decoder reads them MSB-first, logs every field
+  and writes the same fields LSB-first (`Message.lsb`); field values are unchanged (checked: every entity, client
+  data and sound of cs10_test1 decodes the same from the converted demo).
+- **svc_deltapacketentities:** one extra bit after the "custom" bit (always 0); dropped.
+- **svc_serverinfo:** no host name and no extra block (protocol 48 gets an empty host name and a 0 extra flag).
+- **svc_updateuserinfo:** no 16-byte CD key hash after the info string (zeros appended).
+- **Frame info block:** 560 bytes (532 view info + 28 sequence info) instead of 464. Same as 44+ up to byte 212
+  (origin, angles, velocity, health…); protocol 43's ref_params lack the last 24 bytes, so the user command (52 bytes,
+  buttons at +30 = 242) starts at 212; the view vector and view model are at 516 (420 in 44+); movevars differ (not
+  mapped, zeroed).
+- **CS 1.0 player model:** no "dummy" animation and no swim animations: sequences 0–6 → +1, 7–79 → +3, 80+ → +19
+  (CS 1.1–1.5: 83+ → +16). CS 1.0 is recognised by its client.dll hash or by not registering the AllowSpec message.
+- **CS 1.0/1.1 (no `events/decal_reset.sc`):** entity `animtime` zeroed; the smoke grenade event's iparam1 set to 200.
+- No voice: svc_voiceinit/svc_voicedata only exist from HL 1.1.0.8 (CS 1.3, protocol 45).
+
 ## Protocol 47 (2003–2007 Steam CS 1.6) vs 48 (checked on Set 3, 2026-10-31)
 Protocol 47 demos (server builds 2827–3651 in Set 3) are already CS 1.6: they register the same 82 game messages as
 today's 48 (CS 1.5 had 57), `SendAudio` already carries a pitch, `svc_voiceinit` already has its quality byte, the

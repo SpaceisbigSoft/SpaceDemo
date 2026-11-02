@@ -1,6 +1,6 @@
 // Decoding of server network messages inside a demo frame. Every message keeps its exact byte
 // range so unchanged messages can be written back as-is. Layouts are documented in docs/FORMAT.md.
-import { BitReader } from '../binary/bits.js';
+import { BitReader, BitWriter, replayBits } from '../binary/bits.js';
 import { FormatError } from '../binary/errors.js';
 import { DESCRIPTION_DESCRIPTOR, descriptorFromRecords, type DeltaDescriptor, type DeltaRecord } from './delta.js';
 import { FIRST_USER_MESSAGE_ID, Svc, svcName } from './ids.js';
@@ -175,6 +175,11 @@ export interface Message {
   body?: MessageBody;
   /** Replacement encoding (including the id byte), set by transforms. */
   bytes?: Uint8Array;
+  /**
+   * Protocol 43 only: the message written again in the protocol 44+ bit order (LSB-first, without the fields later
+   * protocols dropped), for the bit-packed messages whose layout is otherwise unchanged. See docs/FORMAT.md.
+   */
+  lsb?: Uint8Array;
 }
 
 export class MessageError extends Error {
@@ -185,6 +190,18 @@ export class MessageError extends Error {
 }
 
 // ---- helpers ----
+
+/**
+ * Protocol 43 bit-packed messages: these are read MSB-first (from the point `msb()` is called) and re-written LSB-first
+ * for the converter. Facts from COL's parser (reference only): the same messages switch to big-endian bit order.
+ */
+const MSB_FIRST_43 = new Set<number>([
+  Svc.Event, Svc.Sound, Svc.DeltaDescription, Svc.ClientData, Svc.Pings, Svc.EventReliable, Svc.SpawnBaseline,
+  Svc.PacketEntities, Svc.DeltaPacketEntities, Svc.ResourceList,
+]);
+function msb(r: BitReader, s: ProtocolState): void {
+  if (s.protocol <= 43) r.msbFirst = true;
+}
 
 function descriptor(s: ProtocolState, name: string): DeltaDescriptor {
   const d = s.deltas.get(name);
@@ -257,6 +274,7 @@ function readUserInfo(r: BitReader, s: ProtocolState): UserInfoBody {
 
 function readDeltaDescription(r: BitReader, s: ProtocolState): void {
   const name = r.string();
+  msb(r, s);
   const count = r.bits(16);
   const records: DeltaRecord[] = [];
   for (let i = 0; i < count; i++) records.push(DESCRIPTION_DESCRIPTOR.decode(r));
@@ -267,6 +285,7 @@ function readDeltaDescription(r: BitReader, s: ProtocolState): void {
 function readClientData(r: BitReader, s: ProtocolState): ClientDataBody | undefined {
   if (s.hltv) return undefined; // HLTV demos carry no client data payload
   const body: ClientDataBody = { kind: 'clientData', client: undefined!, weapons: [] };
+  msb(r, s);
   if (r.bool()) body.deltaSequence = r.u8();
   body.client = descriptor(s, 'clientdata_t').decode(r);
   const weapon = descriptor(s, 'weapon_data_t');
@@ -277,6 +296,7 @@ function readClientData(r: BitReader, s: ProtocolState): ClientDataBody | undefi
 
 function readEntities(r: BitReader, s: ProtocolState, isDelta: boolean): EntitiesBody {
   const body: EntitiesBody = { kind: 'entities', isDelta, count: r.u16(), entities: [] };
+  msb(r, s);
   if (isDelta) body.deltaSequence = r.u8();
   let number = 0;
   for (;;) {
@@ -294,6 +314,7 @@ function readEntities(r: BitReader, s: ProtocolState, isDelta: boolean): Entitie
     e.number = number;
     if (!e.remove) {
       e.custom = r.bool();
+      if (isDelta && s.protocol <= 43) r.dropBits(1); // protocol 43 only: an extra bit, always 0 (COL: "unknown")
       if (!isDelta && r.bool()) e.baseline = r.bits(6);
       e.descriptor = entityDescriptor(s, number, e.custom);
       e.record = descriptor(s, e.descriptor).decode(r);
@@ -306,6 +327,7 @@ function readEntities(r: BitReader, s: ProtocolState, isDelta: boolean): Entitie
 
 function readBaseline(r: BitReader, s: ProtocolState): BaselineBody {
   const body: BaselineBody = { kind: 'baseline', entities: [], extras: [] };
+  msb(r, s);
   for (;;) {
     const index = r.bits(11);
     if (index === 0x7ff) break;
@@ -321,7 +343,8 @@ function readBaseline(r: BitReader, s: ProtocolState): BaselineBody {
   return body;
 }
 
-function readResourceList(r: BitReader): ResourceListBody {
+function readResourceList(r: BitReader, s: ProtocolState): ResourceListBody {
+  msb(r, s);
   const count = r.bits(12);
   const resources: Resource[] = [];
   for (let i = 0; i < count; i++) {
@@ -337,6 +360,7 @@ function readResourceList(r: BitReader): ResourceListBody {
 }
 
 function readEvents(r: BitReader, s: ProtocolState): EventsBody {
+  msb(r, s);
   const count = r.bits(5);
   const ev = descriptor(s, 'event_t');
   const body: EventsBody = { kind: 'events', events: [] };
@@ -353,7 +377,8 @@ function readEvents(r: BitReader, s: ProtocolState): EventsBody {
   return body;
 }
 
-function readSound(r: BitReader): SoundBody {
+function readSound(r: BitReader, s: ProtocolState): SoundBody {
+  msb(r, s);
   const flags = r.bits(9);
   if (flags & 1) r.skipBits(8); // volume
   if (flags & 2) r.skipBits(8); // attenuation
@@ -417,19 +442,21 @@ function decodeOne(r: BitReader, id: number, s: ProtocolState): MessageBody | un
     case Svc.LightStyle: r.skipBytes(1); r.string(); return undefined;
     case Svc.Event: return readEvents(r, s);
     case Svc.EventReliable: {
+      msb(r, s);
       r.skipBits(10);
       descriptor(s, 'event_t').decode(r);
       if (r.bool()) r.skipBits(16);
       r.alignToByte();
       return undefined;
     }
-    case Svc.Sound: return readSound(r);
+    case Svc.Sound: return readSound(r, s);
     case Svc.ServerInfo: return readServerInfo(r, s);
     case Svc.UpdateUserInfo: return readUserInfo(r, s);
     case Svc.DeltaDescription: readDeltaDescription(r, s); return undefined;
     case Svc.ClientData: return readClientData(r, s);
     case Svc.Pings: {
       // Per entry: slot (5 bits), ping in ms (12), loss in % (7).
+      msb(r, s);
       const pings: PingsBody['pings'] = [];
       while (r.bool()) { const slot = r.bits(5); const ping = r.bits(12); const loss = r.bits(7); pings.push({ slot, ping, loss }); }
       r.alignToByte();
@@ -451,7 +478,7 @@ function decodeOne(r: BitReader, id: number, s: ProtocolState): MessageBody | un
     }
     case Svc.PacketEntities: return readEntities(r, s, false);
     case Svc.DeltaPacketEntities: return readEntities(r, s, true);
-    case Svc.ResourceList: return readResourceList(r);
+    case Svc.ResourceList: return readResourceList(r, s);
     case Svc.NewMoveVars: r.skipBytes(98); r.string(); return undefined;
     case Svc.Customization: r.skipBytes(2); r.string(); r.skipBytes(23); return undefined;
     case Svc.Hltv: {
@@ -487,11 +514,23 @@ export function decodeMessages(bytes: Uint8Array, s: ProtocolState): Message[] {
     const start = r.byteOffset;
     const id = r.u8();
     const name = svcName(id) ?? s.userMessages.get(id)?.name ?? `unknown_${id}`;
+    const transcode = s.protocol <= 43 && MSB_FIRST_43.has(id);
+    if (transcode) r.log = [];
     try {
       const body = decodeOne(r, id, s);
-      out.push({ id, name, start, end: r.byteOffset, body });
+      const m: Message = { id, name, start, end: r.byteOffset, body };
+      if (transcode) {
+        const w = new BitWriter();
+        w.u8(id);
+        replayBits(w, r.log!);
+        m.lsb = w.finish();
+      }
+      out.push(m);
     } catch (e) {
       throw new MessageError(`${(e as Error).message} (in ${name} at byte ${start})`, start, out);
+    } finally {
+      r.msbFirst = false;
+      r.log = undefined;
     }
     if (id >= FIRST_USER_MESSAGE_ID && !s.userMessages.has(id)) throw new MessageError(`Unknown message id ${id}`, start, out);
   }

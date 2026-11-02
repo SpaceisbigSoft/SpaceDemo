@@ -42,7 +42,8 @@ describe.skipIf(demos.length === 0)('upgrade real demos to protocol 48 (CDF_DEMO
           if (m.body?.kind === 'serverInfo') expect(m.body.protocol).toBe(48);
         }
       }
-    expect(voiceInits).toBeGreaterThan(0);
+    // Voice chat exists from CS 1.3 (protocol 45) on.
+    if (original.header.networkProtocol >= 45) expect(voiceInits).toBeGreaterThan(0);
   });
 });
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { readDemo } from '../src/container/read.js';
 import { FrameType } from '../src/container/types.js';
 import { createState, decodeMessages, encodeMessages, type Message } from '../src/protocol/messages.js';
-import { encodeBaseline, encodeClientData, encodeEntities, encodeNewUserMsg, encodeResourceList, encodeServerInfo, encodeUserMessage, encodeVoiceInit } from '../src/protocol/encode.js';
+import { encodeBaseline, encodeClientData, encodeEntities, encodeEvents, encodeNewUserMsg, encodeResourceList, encodeServerInfo, encodeUserMessage, encodeVoiceInit } from '../src/protocol/encode.js';
 import { fixtureDemos } from './fixtures.js';
 
 const demos = fixtureDemos();
@@ -14,7 +14,9 @@ function reencode(m: Message, state: ReturnType<typeof createState>): Uint8Array
   const b = m.body;
   if (!b) return undefined;
   switch (b.kind) {
-    case 'serverInfo': return encodeServerInfo(b, { protocol: b.protocol });
+    // Protocol 43 has no host name/extra block, and some protocol 45 servers omit the map cycle: no exact re-encode.
+    case 'serverInfo': return b.protocol <= 43 || (b.protocol === 45 && !b.extra.length) ? undefined : encodeServerInfo(b, { protocol: b.protocol });
+    case 'events': return encodeEvents(b, state.deltas);
     case 'newUserMsg': return encodeNewUserMsg(b.def, b.nameField);
     case 'voiceInit': return encodeVoiceInit(b.codec, b.quality);
     case 'clientData': return encodeClientData(b, state.deltas, state.weaponIndexBits);
@@ -41,7 +43,8 @@ describe.skipIf(demos.length === 0)('real demos: network messages (CDF_DEMOS)', 
         for (const m of msgs) {
           const again = reencode(m, state);
           if (!again) continue;
-          const orig = f.messages.subarray(m.start!, m.end!);
+          // Protocol 43: encoders write the 44+ bit order, which the decoder's transcoded copy (`lsb`) must equal.
+          const orig = m.lsb ?? f.messages.subarray(m.start!, m.end!);
           if (!Buffer.from(again).equals(Buffer.from(orig))) throw new Error(`${m.name} at t=${f.time} re-encoded differently`);
           checked++;
         }

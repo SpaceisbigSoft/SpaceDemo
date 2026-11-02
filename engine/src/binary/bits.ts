@@ -3,8 +3,22 @@
 import { OutOfDataError } from './errors.js';
 import { latin1 } from './byte-reader.js';
 
+/** One read made while a BitReader logs (protocol 43 transcoding): value of `n` bits read at bit `pos`. */
+export interface BitRead {
+  pos: number;
+  n: number;
+  value: number;
+}
+
 export class BitReader {
   private pos = 0; // in bits
+  /**
+   * Protocol 43 (Half-Life 1.1.0.4-1.1.0.7, CS 1.0-1.2) packs bits most-significant-first in its bit-packed messages;
+   * later protocols pack least-significant-first. While true, `bits()` reads MSB-first.
+   */
+  msbFirst = false;
+  /** While set, every read is recorded so the message can be written again LSB-first (see `replayBits`). */
+  log?: BitRead[];
 
   constructor(readonly bytes: Uint8Array, startByte = 0) {
     this.pos = startByte * 8;
@@ -31,6 +45,21 @@ export class BitReader {
   bits(n: number): number {
     if (n < 1 || n > 32) throw new RangeError(`bit count ${n}`);
     this.need(n, `${n} bits`);
+    if (this.log) this.log.push({ pos: this.pos, n, value: 0 });
+    const value = this.msbFirst ? this.readMsb(n) : this.readLsb(n);
+    if (this.log) this.log[this.log.length - 1].value = value;
+    return value;
+  }
+  private readMsb(n: number): number {
+    let value = 0;
+    for (let i = 0; i < n; i++) {
+      const bit = (this.bytes[this.pos >>> 3] >>> (7 - (this.pos & 7))) & 1;
+      value = value * 2 + bit;
+      this.pos++;
+    }
+    return value;
+  }
+  private readLsb(n: number): number {
     let value = 0;
     let got = 0;
     while (got < n) {
@@ -77,7 +106,7 @@ export class BitReader {
   }
   bytesCopy(n: number): Uint8Array {
     const out = new Uint8Array(n);
-    if ((this.pos & 7) === 0) {
+    if ((this.pos & 7) === 0 && !this.log && !this.msbFirst) {
       this.need(n * 8, `${n} bytes`);
       out.set(this.bytes.subarray(this.pos >>> 3, (this.pos >>> 3) + n));
       this.pos += n * 8;
@@ -98,6 +127,15 @@ export class BitReader {
   }
   skipBits(n: number): void {
     this.need(n, `skip ${n} bits`);
+    if (this.log) {
+      for (let left = n; left > 0; left -= 32) this.bits(Math.min(32, left));
+      return;
+    }
+    this.pos += n;
+  }
+  /** Reads and discards bits without logging them (fields that the target protocol doesn't have). */
+  dropBits(n: number): void {
+    this.need(n, `skip ${n} bits`);
     this.pos += n;
   }
   skipBytes(n: number): void {
@@ -109,7 +147,14 @@ export class BitReader {
   }
   seekBit(bit: number): void {
     this.pos = bit;
+    if (this.log) while (this.log.length && this.log[this.log.length - 1].pos >= bit) this.log.pop();
   }
+}
+
+/** Writes logged reads again in LSB-first order (protocol 43 → 44+ transcoding), padded to a whole byte. */
+export function replayBits(w: BitWriter, log: readonly BitRead[]): void {
+  for (const r of log) w.bits(r.value, r.n);
+  w.alignToByte();
 }
 
 export class BitWriter {

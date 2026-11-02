@@ -2,7 +2,7 @@
 import { BitWriter } from '../binary/bits.js';
 import type { DeltaDescriptor } from './delta.js';
 import { Svc } from './ids.js';
-import type { BaselineBody, ClientDataBody, EntitiesBody, ResourceListBody, ServerInfoBody, UserMessageDef } from './messages.js';
+import type { BaselineBody, ClientDataBody, EntitiesBody, EventsBody, ResourceListBody, ServerInfoBody, UserMessageDef } from './messages.js';
 
 type Deltas = ReadonlyMap<string, DeltaDescriptor>;
 
@@ -167,5 +167,25 @@ export function encodeVoiceData(slot: number, data: Uint8Array): Uint8Array {
   w.u8(slot);
   w.u16(data.length);
   w.bytes(data);
+  return w.finish();
+}
+
+export function encodeEvents(b: EventsBody, deltas: Deltas): Uint8Array {
+  const w = new BitWriter();
+  w.u8(Svc.Event);
+  w.bits(b.events.length, 5);
+  const ev = need(deltas, 'event_t');
+  for (const e of b.events) {
+    w.bits(e.index, 10);
+    w.bool(e.entity !== undefined);
+    if (e.entity !== undefined) {
+      w.bits(e.entity, 11);
+      w.bool(e.record !== undefined);
+      if (e.record) ev.encode(w, e.record);
+    }
+    w.bool(e.fireTime !== undefined);
+    if (e.fireTime !== undefined) w.bits(e.fireTime, 16);
+  }
+  w.alignToByte();
   return w.finish();
 }

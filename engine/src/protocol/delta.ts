@@ -106,6 +106,16 @@ export class DeltaDescriptor {
     return { mask: d.mask, values };
   }
 
+  /** Returns a copy of the record with a numeric field set to 0 (only if the field was sent). */
+  withZero(d: DeltaRecord, name: string): DeltaRecord {
+    const i = this.byName.get(name);
+    const v = i === undefined ? undefined : d.values[i];
+    if (!v || 'text' in v || v.magnitude === 0) return d;
+    const values = d.values.slice();
+    values[i!] = { negative: false, magnitude: 0 };
+    return { mask: d.mask, values };
+  }
+
   getText(d: DeltaRecord, name: string): string | undefined {
     const i = this.byName.get(name);
     const v = i === undefined ? undefined : d.values[i];
