@@ -190,8 +190,8 @@ export interface CacheEntry {
   error?: string;
 }
 
-/** Bump when DemoSummary changes, so old caches are read again. */
-export const CACHE_VERSION = 1;
+/** Bump when DemoSummary changes, or the reader learns to read demos it couldn't (2: 1999 demos, F4), so old caches are read again. */
+export const CACHE_VERSION = 2;
 
 export function loadCache(file: string): Map<string, CacheEntry> {
   try {
