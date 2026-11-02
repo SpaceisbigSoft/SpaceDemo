@@ -160,7 +160,8 @@ export function LibraryPage({ library, onOpen, onWatch, onFixAll, fixing }: { li
                   <th scope="col">Version</th>
                   <th scope="col" aria-sort={ariaSort('voice')}>{sortButton('voice', 'Voice')}</th>
                   <th scope="col">Status</th>
-                  <th scope="col"><span className="visually-hidden">File</span></th>
+                  <th scope="col" className="col-ai" title="Fix with AI-enhanced voice (per demo; Settings → AI voice enhancement is the default)">AI voice</th>
+                  <th scope="col" className="col-actions"><span className="visually-hidden">Watch and file</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -214,12 +215,12 @@ function Row({ d, onOpen, onWatch, aiReady }: { d: LibraryDemo; onOpen: (key: st
       <td>{i?.recording ?? ''}</td>
       <td className="nowrap" title={i ? `Network protocol ${i.networkProtocol} (today's CS 1.6 uses 48)` : undefined}>{i ? formatVersion(i.networkProtocol) : ''}</td>
       <td className={`nowrap voice${i && i.talkBursts === 0 ? ' none' : ''}`}>{formatVoice(d)}</td>
-      <td><span className={`status status-${d.status}`} title={d.error ?? i?.problems.join('\n') ?? ''}>{STATUS_TEXT[d.status]}</span></td>
+      <td className="nowrap"><span className={`status status-${d.status}`} title={d.error ?? i?.problems.join('\n') ?? ''}>{STATUS_TEXT[d.status]}</span></td>
+      <td className="col-ai"><AiVoiceToggle d={d} ready={aiReady} /></td>
       <td className="actions">
         <div className="row-actions">
-        <AiVoiceToggle d={d} ready={aiReady} />
         {watchable && (
-          <button type="button" className={`btn small${d.status === 'plays' || d.status === 'fixed' ? ' primary' : ''}`} onClick={() => onWatch(d.key)} aria-label={`Watch ${d.name}`}>
+          <button type="button" className={`btn small watch-btn${d.status === 'plays' || d.status === 'fixed' ? ' primary' : ''}`} onClick={() => onWatch(d.key)} aria-label={`Watch ${d.name}`}>
             {d.status === 'plays' || d.status === 'fixed' ? 'Watch' : 'Fix & watch'}
           </button>
         )}

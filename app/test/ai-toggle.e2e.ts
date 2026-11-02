@@ -41,19 +41,22 @@ describe.skipIf(!lab)('AI voice per demo (4.10)', () => {
   }, 180_000);
   afterAll(async () => { await app?.close(); });
 
-  it('is greyed out until the AI model is there, and hidden for demos without voice', async () => {
+  it('is greyed out until the AI model is there, and for demos without voice', async () => {
     const box = row('cs13_test1').locator('[data-testid="demo-ai-voice"] input');
     expect(await box.isDisabled()).toBe(true);
-    expect(await row('cs10_test1').locator('[data-testid="demo-ai-voice"]').count()).toBe(0);
+    // Every row has the box; a demo without voice can't be ticked (and says why).
+    const none = row('cs10_test1').locator('[data-testid="demo-ai-voice"]');
+    expect(await none.locator('input').isDisabled()).toBe(true);
+    expect(await none.getAttribute('title')).toContain('No voice');
   });
 
   it('ticks AI voice for one demo only; Settings stays off', async () => {
     await page.evaluate((p) => window.spacedemo.chooseAiModel(p), fakeModel());
     const box = row('cs13_test1').locator('[data-testid="demo-ai-voice"] input');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="demo-ai-voice"] input')?.hasAttribute('disabled'));
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="demo-ai-voice"] input')].some((i) => !i.hasAttribute('disabled')));
     expect(await box.isChecked()).toBe(false);
     await box.check();
-    await page.waitForFunction(() => (document.querySelector('[data-testid="demo-ai-voice"] input') as HTMLInputElement | null)?.checked === true);
+    await page.waitForFunction(() => [...document.querySelectorAll<HTMLInputElement>('[data-testid="demo-ai-voice"] input')].some((i) => i.checked));
     const s = settings();
     expect(s.aiVoice).toBe(false);
     expect(Object.values(s.aiVoiceDemos)).toEqual([true]);
