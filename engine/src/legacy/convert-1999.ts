@@ -372,12 +372,28 @@ class Converter {
   }
 
   /** Converts one frame's messages. */
+  /**
+   * Gun animation numbers of the betas that mean something else on today's models. Knife: beta 6.1's server swings
+   * with 1/2 (its Swing code, cs_i386.so), which on today's v_knife.mdl are 2-frame "slash" stubs; the full swings
+   * are midslash1/2 (6/7). Draw (3) is the same.
+   */
+  private gunAnim(seq: number): number {
+    const model = this.resources.find((r) => r.type === 2 && r.index === this.tick.viewmodel)?.name.toLowerCase() ?? '';
+    if (/v_knife(_r)?\.mdl$/.test(model) && (seq === 1 || seq === 2)) {
+      this.count('beta: knife swing animation');
+      return seq + 5;
+    }
+    return seq;
+  }
+
   /** View model animations of the frame just converted (sequence, body). */
   weaponAnims: [number, number][] = [];
 
   frame(f: NetFrame4): Uint8Array[] {
     const msgs: Message40[] = decodeMessages40(f.messages, this.s);
-    this.weaponAnims = msgs.filter((m) => m.id === P40.WeaponAnim && m.payload.length >= 2).map((m) => [m.payload[0], m.payload[1]]);
+    // The view model in use this frame (the client data names it) decides how gun animations are renumbered.
+    for (const m of msgs) if (m.body?.kind === 'clientData') this.tick.viewmodel = m.body.weaponframe;
+    this.weaponAnims = msgs.filter((m) => m.id === P40.WeaponAnim && m.payload.length >= 2).map((m) => [this.gunAnim(m.payload[0]), m.payload[1]]);
     const out: Uint8Array[] = [];
     let cd: ClientData40 | undefined;
     const players: PlayerState40[] = [];
@@ -473,6 +489,10 @@ class Converter {
           if (b.slot === this.slot) this.maxSpeed = b.speed;
           this.count('client max speed -> client data');
           continue;
+      }
+      if (m.id === P40.WeaponAnim && m.payload.length >= 2) {
+        out.push(Uint8Array.of(Svc.WeaponAnim, this.gunAnim(m.payload[0]), m.payload[1]));
+        continue;
       }
       if (same !== undefined) {
         const bytes = new Uint8Array(1 + m.payload.length);
